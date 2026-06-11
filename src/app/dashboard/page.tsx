@@ -1,258 +1,277 @@
-import { statsForAll } from "@/lib/data";
-import { BRL, fmtInt, fmtPct, periodNow, daysRemainingIncludingToday, daysInMonth, todayDayOfMonth } from "@/lib/calc";
+import Image from "next/image";
+import Link from "next/link";
+import { dashboardSnapshot, daysInMonth, daysRemainingIncludingToday, periodNow, todayDayOfMonth } from "@/lib/data";
+import { BRL, fmtInt, fmtPct } from "@/lib/calc";
 import { getDailyQuote } from "@/lib/quotes";
-import ProgressRing from "@/components/ProgressRing";
-import StatCard from "@/components/StatCard";
+import { BU_COLOR, BU_LABEL, LOGO_CPPEM, LOGO_UNICIVE } from "@/lib/brand";
+import BigStatCard from "@/components/BigStatCard";
 import ProgressBar from "@/components/ProgressBar";
-import { Crown, Flame, Target, TrendingUp, Users, Sparkles, Calendar } from "lucide-react";
+import DashboardControls from "@/components/DashboardControls";
+import DailySalesChart from "@/components/charts/DailySalesChart";
+import CumulativeGoalChart from "@/components/charts/CumulativeGoalChart";
+import {
+  Crown,
+  Flame,
+  Target,
+  TrendingUp,
+  Wallet,
+  Zap,
+  Sparkles,
+  Calendar,
+} from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
-  const stats = await statsForAll();
+export default async function Dashboard({
+  searchParams,
+}: {
+  searchParams: { bu?: string };
+}) {
+  const bu = searchParams.bu === "unicive" ? "unicive" : "cppem";
+  const snap = await dashboardSnapshot(bu);
   const quote = await getDailyQuote();
   const { year, month } = periodNow();
   const totalDays = daysInMonth(year, month);
   const day = todayDayOfMonth(year, month);
   const daysLeft = daysRemainingIncludingToday(year, month);
 
-  const cppem = stats.filter((s) => s.bu === "cppem");
-  const unicive = stats.filter((s) => s.bu === "unicive");
+  const isUni = bu === "unicive";
+  const color = BU_COLOR[bu];
+  const logo = bu === "cppem" ? LOGO_CPPEM : LOGO_UNICIVE;
 
-  const cppemMeta = cppem.reduce((a, b) => a + b.metaTotal, 0);
-  const cppemReal = cppem.reduce((a, b) => a + b.realizado, 0);
-  const cppemPct = cppemMeta > 0 ? (cppemReal / cppemMeta) * 100 : 0;
+  const { totals, daily, cumulative } = snap.series;
+  const pct = totals.meta > 0 ? ((isUni ? totals.qtd : totals.valor) / totals.meta) * 100 : 0;
+  const realizado = isUni ? totals.qtd : totals.valor;
+  const falta = Math.max(0, totals.meta - realizado);
+  const fmtMeta = (n: number) => (isUni ? fmtInt.format(Math.round(n)) : BRL.format(n));
 
-  const uniMeta = unicive.reduce((a, b) => a + b.metaTotal, 0);
-  const uniReal = unicive.reduce((a, b) => a + b.realizado, 0);
-  const uniPct = uniMeta > 0 ? (uniReal / uniMeta) * 100 : 0;
+  const todayLabel = `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}`;
+  const hojeBucket = daily.find((d) => d.day === todayLabel);
+  const realizadoHoje = isUni ? hojeBucket?.qtd || 0 : hojeBucket?.valor || 0;
 
-  const cppemFalta = Math.max(0, cppemMeta - cppemReal);
-  const uniFalta = Math.max(0, uniMeta - uniReal);
-
-  const metaDiaCppem = cppemFalta / daysLeft;
-  const metaDiaUnicive = uniFalta / daysLeft;
-
-  const rankingCppem = [...cppem].sort((a, b) => b.pctSucesso - a.pctSucesso);
-  const rankingUnicive = [...unicive].sort((a, b) => b.pctSucesso - a.pctSucesso);
-
+  const ranking = [...snap.sellers].sort((a, b) => b.pctSucesso - a.pctSucesso);
   const monthName = new Date(year, month - 1, 1).toLocaleDateString("pt-BR", {
     month: "long",
     year: "numeric",
   });
 
+  const metaDia = falta / daysLeft;
+  const status = pct >= 100 ? "Meta atingida! Missao cumprida." : pct >= 80 ? "Quase la, foco e fechamento!" : "Bora ritmar o jogo.";
+
   return (
     <div className="space-y-6">
-      {/* Header com frase motivacional */}
-      <div className="card relative overflow-hidden">
-        <div className="absolute inset-0 shimmer pointer-events-none opacity-30" />
-        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Header */}
+      <div className="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div
+            className="w-16 h-16 rounded-2xl bg-panel2 grid place-items-center p-2"
+            style={{ boxShadow: `0 0 0 2px ${color}33 inset` }}
+          >
+            <Image src={logo} alt={BU_LABEL[bu]} width={56} height={56} className="object-contain" />
+          </div>
           <div>
-            <div className="flex items-center gap-2 text-xs text-white/50 uppercase tracking-wider">
+            <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-white/50">
               <Calendar className="w-3.5 h-3.5" /> {monthName} - dia {day}/{totalDays} - faltam {daysLeft} dia{daysLeft > 1 ? "s" : ""}
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold mt-1">Hub Comercial</h1>
+            <h1 className="text-3xl xl:text-4xl font-bold mt-1">
+              Dashboard {BU_LABEL[bu]}
+            </h1>
             <div className="text-sm text-white/60 mt-1 flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-accent" /> "{quote.text}"
               {quote.author && <span className="text-white/40">- {quote.author}</span>}
             </div>
           </div>
         </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <BUTabs current={bu} />
+          <DashboardControls />
+        </div>
       </div>
 
-      {/* Visao geral CPPEM x UNICIVE */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <BUOverview
-          title="CPPEM"
-          accent="#7c5cff"
-          meta={cppemMeta}
-          real={cppemReal}
-          pct={cppemPct}
-          falta={cppemFalta}
-          metaDia={metaDiaCppem}
-          isCurrency
-          subline={`${cppem.length} vendedor${cppem.length === 1 ? "" : "es"}`}
+      {/* KPIs grandes */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <BigStatCard
+          label={isUni ? "Matriculas (Real)" : "Total Vendido"}
+          value={isUni ? fmtInt.format(totals.qtd) : BRL.format(totals.valor)}
+          hint="Resultado acumulado"
+          icon={isUni ? <TrendingUp /> : <Wallet />}
+          accent={color}
+          valueColor={color}
         />
-        <BUOverview
-          title="UNICIVE"
-          accent="#22d3ee"
-          meta={uniMeta}
-          real={uniReal}
-          pct={uniPct}
-          falta={uniFalta}
-          metaDia={metaDiaUnicive}
-          isCurrency={false}
-          subline={`${unicive.length} vendedor${unicive.length === 1 ? "" : "es"} - matriculas`}
+        <BigStatCard
+          label={isUni ? "Meta de Matriculas" : "Meta do Mes"}
+          value={fmtMeta(totals.meta)}
+          hint={`Missao de ${monthName}`}
+          icon={<Target />}
+          accent="#facc15"
+          valueColor="#facc15"
         />
-      </section>
-
-      {/* KPIs gerais */}
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Vendas hoje (CPPEM)"
-          value={BRL.format(cppem.reduce((a, b) => a + b.valorHoje, 0))}
-          hint={`Total faturado em ${day}/${totalDays}`}
-          icon={<TrendingUp className="w-4 h-4" />}
-          accent="#7c5cff"
+        <BigStatCard
+          label="% da Meta"
+          value={fmtPct(pct)}
+          hint={pct >= 100 ? "Meta batida!" : `Faltam ${fmtMeta(falta)}`}
+          icon={<TrendingUp />}
+          accent={pct >= 100 ? "#22c55e" : color}
+          valueColor={pct >= 100 ? "#22c55e" : "#a3e635"}
         />
-        <StatCard
-          label="Matriculas hoje"
-          value={fmtInt.format(unicive.reduce((a, b) => a + b.qtdHoje, 0))}
-          hint="Quantidade vendida hoje (Unicive)"
-          icon={<TrendingUp className="w-4 h-4" />}
-          accent="#22d3ee"
-        />
-        <StatCard
-          label="Total vendedores ativos"
-          value={fmtInt.format(stats.length)}
-          icon={<Users className="w-4 h-4" />}
-          accent="#22c55e"
-        />
-        <StatCard
-          label="Leads recebidos no mes"
-          value={fmtInt.format(stats.reduce((a, b) => a + b.leads, 0))}
-          icon={<Target className="w-4 h-4" />}
-          accent="#f59e0b"
+        <BigStatCard
+          label="Ticket Medio"
+          value={BRL.format(totals.ticketReal)}
+          hint={`Meta: ${BRL.format(totals.ticketMeta)} - ${snap.sellers.reduce((a, b) => a + b.vendasCount, 0)} vendas`}
+          icon={<Wallet />}
+          accent="#06b6d4"
+          valueColor="#7dd3fc"
         />
       </section>
 
-      {/* Rankings */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RankingPanel title="Ranking CPPEM" accent="#7c5cff" rows={rankingCppem} valueAsCurrency />
-        <RankingPanel
-          title="Ranking UNICIVE"
-          accent="#22d3ee"
-          rows={rankingUnicive}
-          valueAsCurrency={false}
-        />
-      </section>
-    </div>
-  );
-}
-
-function BUOverview({
-  title,
-  accent,
-  meta,
-  real,
-  pct,
-  falta,
-  metaDia,
-  isCurrency,
-  subline,
-}: {
-  title: string;
-  accent: string;
-  meta: number;
-  real: number;
-  pct: number;
-  falta: number;
-  metaDia: number;
-  isCurrency: boolean;
-  subline: string;
-}) {
-  const fmt = (n: number) => (isCurrency ? BRL.format(n) : fmtInt.format(Math.round(n)));
-  return (
-    <div className="card">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="text-xs uppercase tracking-wider" style={{ color: accent }}>
-            {title}
+      {/* Progresso da meta */}
+      <section className="card-lg">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Target className="w-4 h-4 text-accent" /> Meta em Andamento
           </div>
-          <div className="text-xl font-semibold mt-1">Meta x Realizado do mes</div>
-          <div className="text-xs text-white/50">{subline}</div>
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-accent/15 text-accent text-xs font-semibold">
+            <Zap className="w-3.5 h-3.5" /> {fmtPct(pct)}
+          </div>
         </div>
-        <ProgressRing value={pct} color={accent} label="da meta" />
-      </div>
-
-      <div className="grid grid-cols-3 gap-3 mt-4">
-        <Cell label="Meta" value={fmt(meta)} />
-        <Cell label="Realizado" value={fmt(real)} accent={accent} />
-        <Cell label="Falta" value={fmt(falta)} />
-      </div>
-
-      <div className="mt-4">
-        <ProgressBar value={pct} color={accent} />
-        <div className="flex items-center justify-between mt-2 text-xs text-white/60">
-          <span>0</span>
-          <span>{fmtPct(pct)}</span>
-          <span>100%</span>
+        <ProgressBar value={pct} color={color} height={16} />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-3 gap-2 text-sm">
+          <div>
+            <div className="kpi-label">Realizado</div>
+            <div className="text-2xl font-bold">{fmtMeta(realizado)}</div>
+          </div>
+          <div className="text-center text-white/60 text-xs flex-1">{status}</div>
+          <div className="text-right">
+            <div className="kpi-label">Meta</div>
+            <div className="text-2xl font-bold text-warning">{fmtMeta(totals.meta)}</div>
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div className="mt-4 p-3 rounded-xl bg-panel2 flex items-center gap-3">
-        <Flame className="w-5 h-5" style={{ color: accent }} />
-        <div className="flex-1">
-          <div className="text-xs text-white/50 uppercase tracking-wider">Meta do dia</div>
-          <div className="text-lg font-semibold">{fmt(metaDia)}</div>
+      {/* Charts */}
+      <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div className="card-lg">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="text-sm font-semibold">Evolucao Diaria de Vendas</div>
+              <div className="text-xs text-white/50">Faturamento (ou matriculas) por dia</div>
+            </div>
+            <div className="text-xs px-3 py-1 rounded-full bg-panel2 text-white/70">
+              {monthName}
+            </div>
+          </div>
+          <DailySalesChart
+            data={daily}
+            color={color}
+            field={isUni ? "qtd" : "valor"}
+            unit={isUni ? "int" : "currency"}
+          />
         </div>
-        <div className="text-xs text-white/50">para bater no ritmo</div>
+        <div className="card-lg">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="text-sm font-semibold">% da Meta Acumulada</div>
+              <div className="text-xs text-white/50">Linha pontilhada = ritmo ideal</div>
+            </div>
+            <div className="text-xs px-3 py-1 rounded-full bg-panel2 text-white/70">
+              dia {day}/{totalDays}
+            </div>
+          </div>
+          <CumulativeGoalChart data={cumulative} color={color} />
+        </div>
+      </section>
+
+      {/* Linha de baixo: Meta do dia + Ranking + Conversao */}
+      <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <div className="card-lg">
+          <div className="flex items-center gap-2 text-sm font-semibold mb-3">
+            <Flame className="w-4 h-4 text-warning" /> Meta do Dia
+          </div>
+          <div className="big-num" style={{ color }}>
+            {fmtMeta(metaDia)}
+          </div>
+          <div className="text-xs text-white/50 mt-2">
+            Para bater a meta no ritmo, hoje precisa fechar pelo menos {fmtMeta(metaDia)}.
+          </div>
+          <div className="mt-4 p-3 rounded-xl bg-panel2 flex items-center justify-between">
+            <span className="text-xs text-white/60">Realizado hoje</span>
+            <span className="text-base font-semibold">{fmtMeta(realizadoHoje)}</span>
+          </div>
+        </div>
+
+        <div className="card-lg xl:col-span-2">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-semibold flex items-center gap-2">
+              <Crown className="w-4 h-4" style={{ color }} /> Ranking {BU_LABEL[bu]}
+            </div>
+            <div className="text-xs text-white/40">
+              Leads: {fmtInt.format(snap.leadsTotal)} - Conversao: {fmtPct(snap.taxaConversao)}
+            </div>
+          </div>
+          {ranking.length === 0 ? (
+            <div className="text-sm text-white/50">Nenhum vendedor nesta BU ainda.</div>
+          ) : (
+            <ol className="space-y-2">
+              {ranking.map((r, i) => (
+                <li
+                  key={r.sellerId}
+                  className="flex items-center gap-3 p-3 rounded-xl bg-panel2/60 hover:bg-panel2 transition"
+                >
+                  <div
+                    className="w-9 h-9 grid place-items-center rounded-xl text-sm font-bold"
+                    style={{
+                      background: i === 0 ? "#facc1522" : "#1f3a2a",
+                      color: i === 0 ? "#facc15" : "#fff",
+                    }}
+                  >
+                    {i + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold truncate">{r.sellerName}</div>
+                    <ProgressBar value={r.pctSucesso} color={color} height={6} />
+                  </div>
+                  <div className="text-right">
+                    <div className="text-base font-bold">{fmtPct(r.pctSucesso)}</div>
+                    <div className="text-[11px] text-white/50">
+                      {isUni ? fmtInt.format(r.realizado) : BRL.format(r.realizado)}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      </section>
+
+      <div className="text-center text-[11px] text-white/30">
+        O dashboard atualiza sozinho a cada 1 minuto. Aperte tela cheia para projetar na TV.
       </div>
     </div>
   );
 }
 
-function Cell({ label, value, accent }: { label: string; value: string; accent?: string }) {
+function BUTabs({ current }: { current: "cppem" | "unicive" }) {
+  const tabs: { id: "cppem" | "unicive"; label: string }[] = [
+    { id: "cppem", label: "CPPEM" },
+    { id: "unicive", label: "UNICIVE" },
+  ];
   return (
-    <div className="rounded-xl bg-panel2 p-3">
-      <div className="text-[10px] uppercase tracking-wider text-white/50">{label}</div>
-      <div className="text-base font-semibold" style={accent ? { color: accent } : undefined}>
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function RankingPanel({
-  title,
-  accent,
-  rows,
-  valueAsCurrency,
-}: {
-  title: string;
-  accent: string;
-  rows: Awaited<ReturnType<typeof statsForAll>>;
-  valueAsCurrency: boolean;
-}) {
-  const fmt = (n: number) => (valueAsCurrency ? BRL.format(n) : fmtInt.format(Math.round(n)));
-  return (
-    <div className="card">
-      <div className="flex items-center justify-between mb-4">
-        <div className="text-sm font-semibold flex items-center gap-2">
-          <Crown className="w-4 h-4" style={{ color: accent }} /> {title}
-        </div>
-        <div className="text-xs text-white/40">por % da meta</div>
-      </div>
-      {rows.length === 0 ? (
-        <div className="text-sm text-white/50">Nenhum vendedor cadastrado nesta BU.</div>
-      ) : (
-        <ol className="space-y-2">
-          {rows.map((r, i) => (
-            <li
-              key={r.sellerId}
-              className="flex items-center gap-3 p-2 rounded-xl hover:bg-panel2 transition"
-            >
-              <div
-                className="w-7 h-7 grid place-items-center rounded-lg text-xs font-bold"
-                style={{
-                  background: i === 0 ? "#facc1522" : "#222638",
-                  color: i === 0 ? "#facc15" : "#fff",
-                }}
-              >
-                {i + 1}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate">{r.sellerName}</div>
-                <ProgressBar value={r.pctSucesso} color={accent} height={6} />
-              </div>
-              <div className="text-right">
-                <div className="text-sm font-semibold">{fmtPct(r.pctSucesso)}</div>
-                <div className="text-[11px] text-white/50">{fmt(r.realizado)}</div>
-              </div>
-            </li>
-          ))}
-        </ol>
-      )}
+    <div className="inline-flex p-1 rounded-xl bg-panel border border-border">
+      {tabs.map((t) => (
+        <Link
+          key={t.id}
+          href={`/dashboard?bu=${t.id}`}
+          scroll={false}
+          className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition ${
+            current === t.id
+              ? "bg-accent text-black"
+              : "text-white/60 hover:text-white"
+          }`}
+        >
+          {t.label}
+        </Link>
+      ))}
     </div>
   );
 }

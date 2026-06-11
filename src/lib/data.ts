@@ -1,5 +1,12 @@
 import { supabaseAdmin } from "./supabase";
-import { computeSellerStats, periodNow, type SellerStats } from "./calc";
+import {
+  computeSellerStats,
+  daysInMonth,
+  daysRemainingIncludingToday,
+  periodNow,
+  todayDayOfMonth,
+  type SellerStats,
+} from "./calc";
 
 export type Seller = {
   id: string;
@@ -81,3 +88,148 @@ export async function statsForAll(opts?: { year?: number; month?: number }): Pro
   const sellers = await listSellers({ onlyActive: true });
   return Promise.all(sellers.map((s) => statsForSellerWith(s, opts)));
 }
+
+// ----------- Series para os gráficos -----------
+
+export type DailySeriesRow = { day: string; valor: number; qtd: number };
+export type CumulativeRow = { day: string; pct: number; idealPct: number };
+
+export type BUSeries = {
+  daily: DailySeriesRow[];
+  cumulative: CumulativeRow[];
+  totals: { valor: number; qtd: number; meta: number; ticketReal: number; ticketMeta: number };
+};
+
+export async function buSeries(
+  bu: "cppem" | "unicive",
+  opts?: { year?: number; month?: number }
+): Promise<BUSeries> {
+  const { year, month } = { ...periodNow(), ...opts };
+  const firstDay = `${year}-${String(month).padStart(2, "0")}-01`;
+  const next = month === 12 ? { y: year + 1, m: 1 } : { y: year, m: month + 1 };
+  const lastDay = `${next.y}-${String(next.m).padStart(2, "0")}-01`;
+  const total = daysInMonth(year, month);
+
+  const sellers = await listSellers({ onlyActive: true });
+  const buSellers = sellers.filter((s) => s.bu === bu);
+  const ids = buSellers.map((s) => s.id);
+
+  if (ids.length === 0) {
+    const empty: DailySeriesRow[] = Array.from({ length: total }, (_, i) => ({
+      day: String(i + 1).padStart(2, "0") + "/" + String(month).padStart(2, "0"),
+      valor: 0,
+      qtd: 0,
+    }));
+    return {
+      daily: empty,
+      cumulative: empty.map((d, i) => ({
+        day: d.day,
+        pct: 0,
+        idealPct: ((i + 1) / total) * 100,
+      })),
+      totals: { valor: 0, qtd: 0, meta: 0, ticketReal: 0, ticketMeta: 0 },
+    };
+  }
+
+  const [{ data: sales }, { data: pgoals }, { data: mgoals }] = await Promise.all([
+    supabaseAdmin
+      .from("sales")
+      .select("seller_id, sale_date, valor, quantidade")
+      .in("seller_id", ids)
+      .gte("sale_date", firstDay)
+      .lt("sale_date", lastDay),
+    supabaseAdmin
+      .from("product_goals")
+      .select("seller_id, valor_meta, quantidade_meta")
+      .in("seller_id", ids)
+      .eq("year", year)
+      .eq("month", month),
+    supabaseAdmin
+      .from("monthly_goals")
+      .select("seller_id, ticket_medio_meta")
+      .in("seller_id", ids)
+      .eq("year", year)
+      .eq("month", month),
+  ]);
+
+  const valorMeta = (pgoals || []).reduce((a: number, b: any) => a + Number(b.valor_meta || 0), 0);
+  const qtdMeta = (pgoals || []).reduce(
+    (a: number, b: any) => a + Number(b.quantidade_meta || 0),
+    0
+  );
+  const ticketMetaAvg =
+    (mgoals || []).length > 0
+      ? (mgoals || []).reduce((a: number, b: any) => a + Number(b.ticket_medio_meta || 0), 0) /
+        (mgoals || []).length
+      : 0;
+
+  // bucket por dia
+  const buckets: Record<string, { valor: number; qtd: number }> = {};
+  for (let d = 1; d <= total; d++) {
+    const k = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    buckets[k] = { valor: 0, qtd: 0 };
+  }
+  for (const r of (sales as any[]) || []) {
+    const k = String(r.sale_date).slice(0, 10);
+    if (!buckets[k]) buckets[k] = { valor: 0, qtd: 0 };
+    buckets[k].valor += Number(r.valor || 0);
+    buckets[k].qtd += Number(r.quantidade || 0);
+  }
+
+  const isUni = bu === "unicive";
+  const meta = isUni ? qtdMeta : valorMeta;
+
+  const daily: DailySeriesRow[] = [];
+  const cumulative: CumulativeRow[] = [];
+  let runValor = 0;
+  let runQtd = 0;
+  for (let d = 1; d <= total; d++) {
+    const k = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const b = buckets[k];
+    runValor += b.valor;
+    runQtd += b.qtd;
+    const label = `${String(d).padStart(2, "0")}/${String(month).padStart(2, "0")}`;
+    daily.push({ day: label, valor: b.valor, qtd: b.qtd });
+    const real = isUni ? runQtd : runValor;
+    const pct = meta > 0 ? (real / meta) * 100 : 0;
+    cumulative.push({
+      day: label,
+      pct,
+      idealPct: (d / total) * 100,
+    });
+  }
+
+  const totalValor = Object.values(buckets).reduce((a, b) => a + b.valor, 0);
+  const totalQtd = Object.values(buckets).reduce((a, b) => a + b.qtd, 0);
+  const ticketReal = totalQtd > 0 ? totalValor / totalQtd : 0;
+
+  // só mostrar série até o dia atual (incluído) — dias futuros entram zerados
+  return {
+    daily,
+    cumulative,
+    totals: { valor: totalValor, qtd: totalQtd, meta, ticketReal, ticketMeta: ticketMetaAvg },
+  };
+}
+
+export type DashboardSnapshot = {
+  bu: "cppem" | "unicive";
+  series: BUSeries;
+  sellers: SellerStats[];
+  taxaConversao: number;
+  leadsTotal: number;
+};
+
+export async function dashboardSnapshot(
+  bu: "cppem" | "unicive",
+  opts?: { year?: number; month?: number }
+): Promise<DashboardSnapshot> {
+  const series = await buSeries(bu, opts);
+  const all = await statsForAll(opts);
+  const sellers = all.filter((s) => s.bu === bu);
+  const leadsTotal = sellers.reduce((a, b) => a + b.leads, 0);
+  const vendas = sellers.reduce((a, b) => a + b.vendasCount, 0);
+  const taxaConversao = leadsTotal > 0 ? (vendas / leadsTotal) * 100 : 0;
+  return { bu, series, sellers, leadsTotal, taxaConversao };
+}
+
+export { daysInMonth, daysRemainingIncludingToday, todayDayOfMonth, periodNow };

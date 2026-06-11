@@ -1,7 +1,8 @@
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getSeller } from "@/lib/data";
-import TopBar from "@/components/TopBar";
+import AppShell from "@/components/AppShell";
+import type { SidebarItem } from "@/components/Sidebar";
 
 export default async function SellerLayout({ children }: { children: React.ReactNode }) {
   const s = await getSession();
@@ -11,16 +12,15 @@ export default async function SellerLayout({ children }: { children: React.React
   const seller = await getSeller(s.sellerId);
   if (!seller) redirect("/escolher-vendedor");
 
-  const items = [
-    { href: "/dashboard", label: "Dashboard" },
-    { href: "/seller", label: "Meu Painel" },
-    { href: "/seller/sales", label: "Minhas Vendas" },
+  const items: SidebarItem[] = [
+    { href: "/dashboard", label: "Dashboard TV", icon: "trophy" },
+    { href: "/seller", label: "Meu Painel", icon: "dashboard" },
+    { href: "/seller/sales", label: "Minhas Vendas", icon: "cart" },
   ];
 
   return (
-    <>
-      <TopBar role="seller" sellerName={seller.name} items={items} />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">{children}</main>
-    </>
+    <AppShell role="seller" sellerName={seller.name} items={items}>
+      {children}
+    </AppShell>
   );
 }

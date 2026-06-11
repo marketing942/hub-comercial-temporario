@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth";
 import { getSeller } from "@/lib/data";
-import TopBar from "@/components/TopBar";
+import AppShell from "@/components/AppShell";
+import type { SidebarItem } from "@/components/Sidebar";
 import { redirect } from "next/navigation";
 
 export default async function DashLayout({ children }: { children: React.ReactNode }) {
@@ -9,24 +10,23 @@ export default async function DashLayout({ children }: { children: React.ReactNo
   const isAdmin = s.role === "admin";
   const seller = !isAdmin && s.sellerId ? await getSeller(s.sellerId) : null;
 
-  const items = isAdmin
+  const items: SidebarItem[] = isAdmin
     ? [
-        { href: "/admin", label: "Visao Geral" },
-        { href: "/admin/sellers", label: "Vendedores" },
-        { href: "/admin/goals", label: "Metas" },
-        { href: "/admin/leads", label: "Leads" },
-        { href: "/dashboard", label: "Dashboard publico" },
+        { href: "/admin", label: "Visao Geral", icon: "dashboard" },
+        { href: "/admin/sellers", label: "Vendedores", icon: "users" },
+        { href: "/admin/goals", label: "Metas", icon: "target" },
+        { href: "/admin/leads", label: "Leads", icon: "leads" },
+        { href: "/dashboard", label: "Dashboard TV", icon: "trophy" },
       ]
     : [
-        { href: "/dashboard", label: "Dashboard" },
-        { href: "/seller", label: "Meu Painel" },
-        { href: "/seller/sales", label: "Minhas Vendas" },
+        { href: "/dashboard", label: "Dashboard TV", icon: "trophy" },
+        { href: "/seller", label: "Meu Painel", icon: "dashboard" },
+        { href: "/seller/sales", label: "Minhas Vendas", icon: "cart" },
       ];
 
   return (
-    <>
-      <TopBar role={s.role} sellerName={seller?.name} items={items} />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">{children}</main>
-    </>
+    <AppShell role={s.role} sellerName={seller?.name} items={items}>
+      {children}
+    </AppShell>
   );
 }
