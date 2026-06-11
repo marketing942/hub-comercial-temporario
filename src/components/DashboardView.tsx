@@ -6,8 +6,9 @@ import BigStatCard from "@/components/BigStatCard";
 import ProgressBar from "@/components/ProgressBar";
 import DailySalesChart from "@/components/charts/DailySalesChart";
 import CumulativeGoalChart from "@/components/charts/CumulativeGoalChart";
+import ProductRevenueBreakdown from "@/components/ProductRevenueBreakdown";
+import TurmasBreakdown from "@/components/TurmasBreakdown";
 import {
-  Crown,
   Flame,
   Target,
   TrendingUp,
@@ -30,7 +31,7 @@ export default function DashboardView({
   daysLeft: number;
   monthName: string;
 }) {
-  const { bu, series, sellers, leadsTotal, taxaConversao } = snap;
+  const { bu, series, sellers, leadsTotal, taxaConversao, breakdown } = snap;
   const isUni = bu === "unicive";
   const color = BU_COLOR[bu];
   const logo = bu === "cppem" ? LOGO_CPPEM : LOGO_UNICIVE;
@@ -40,8 +41,6 @@ export default function DashboardView({
   const pct = t.meta > 0 ? (realizado / t.meta) * 100 : 0;
   const falta = Math.max(0, t.meta - realizado);
   const fmtMeta = (n: number) => (isUni ? fmtInt.format(Math.round(n)) : BRL.format(n));
-
-  const ranking = [...sellers].sort((a, b) => b.pctSucesso - a.pctSucesso);
 
   const statusBar =
     pct >= 100
@@ -77,7 +76,7 @@ export default function DashboardView({
         </div>
       </div>
 
-      {/* 4 KPIs grandes (Meta do Dia entrou no lugar do Ticket Medio) */}
+      {/* 4 KPIs grandes */}
       <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <BigStatCard
           label={isUni ? "Matriculas (Real)" : "Total Vendido"}
@@ -170,9 +169,9 @@ export default function DashboardView({
         </div>
       </section>
 
-      {/* Linha de baixo: 4 mini KPIs + Ranking */}
+      {/* Receita por categoria + mini KPIs */}
       <section className="grid grid-cols-1 xl:grid-cols-5 gap-4">
-        <div className="xl:col-span-2 grid grid-cols-2 gap-3">
+        <div className="xl:col-span-2 grid grid-cols-2 gap-3 content-start">
           <MiniStat
             label="Ticket Medio"
             value={BRL.format(t.ticketReal)}
@@ -203,47 +202,13 @@ export default function DashboardView({
           />
         </div>
 
-        <div className="card-lg xl:col-span-3">
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-sm font-semibold flex items-center gap-2">
-              <Crown className="w-4 h-4" style={{ color }} /> Ranking {BU_LABEL[bu]}
-            </div>
-            <div className="text-xs text-white/40">por % da meta</div>
-          </div>
-          {ranking.length === 0 ? (
-            <div className="text-sm text-white/50">Nenhum vendedor nesta BU ainda.</div>
-          ) : (
-            <ol className="space-y-2">
-              {ranking.map((r, i) => (
-                <li
-                  key={r.sellerId}
-                  className="flex items-center gap-3 p-3 rounded-xl bg-panel2/60 hover:bg-panel2 transition"
-                >
-                  <div
-                    className="w-9 h-9 grid place-items-center rounded-xl text-sm font-bold"
-                    style={{
-                      background: i === 0 ? "#facc1522" : "#1f3a2a",
-                      color: i === 0 ? "#facc15" : "#fff",
-                    }}
-                  >
-                    {i + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold truncate">{r.sellerName}</div>
-                    <ProgressBar value={r.pctSucesso} color={color} height={6} />
-                  </div>
-                  <div className="text-right">
-                    <div className="text-base font-bold">{fmtPct(r.pctSucesso)}</div>
-                    <div className="text-[11px] text-white/50">
-                      {isUni ? fmtInt.format(r.realizado) : BRL.format(r.realizado)}
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
+        <div className="xl:col-span-3">
+          <ProductRevenueBreakdown rows={breakdown} color={color} isUnicive={isUni} />
         </div>
       </section>
+
+      {/* Turmas presenciais — apenas CPPEM */}
+      {!isUni && <TurmasBreakdown rows={breakdown} />}
     </div>
   );
 }

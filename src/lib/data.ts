@@ -7,6 +7,7 @@ import {
   todayDayOfMonth,
   type SellerStats,
 } from "./calc";
+import { productLabel } from "./products";
 
 export type Seller = {
   id: string;
@@ -265,25 +266,100 @@ export async function buSeries(
   };
 }
 
+export type ProductBreakdownRow = {
+  product_line: string;
+  label: string;
+  valor: number;
+  qtd: number;
+  valor_meta: number;
+  quantidade_meta: number;
+};
+
+export async function productBreakdown(
+  bu: "cppem" | "unicive",
+  opts?: { year?: number; month?: number }
+): Promise<ProductBreakdownRow[]> {
+  const { year, month } = { ...periodNow(), ...opts };
+  const firstDay = `${year}-${String(month).padStart(2, "0")}-01`;
+  const next = month === 12 ? { y: year + 1, m: 1 } : { y: year, m: month + 1 };
+  const lastDay = `${next.y}-${String(next.m).padStart(2, "0")}-01`;
+
+  const sellers = await listSellers({ onlyActive: true });
+  const buSellers = sellers.filter((s) => s.bu === bu);
+  const ids = buSellers.map((s) => s.id);
+
+  const lines =
+    bu === "cppem"
+      ? ["mentorias", "cursos_digitais", "fisicos", "turma_pmal", "turma_pmpe", "turma_carreiras"]
+      : ["matriculas"];
+
+  const map: Record<string, ProductBreakdownRow> = {};
+  lines.forEach((id) => {
+    map[id] = {
+      product_line: id,
+      label: productLabel(id),
+      valor: 0,
+      qtd: 0,
+      valor_meta: 0,
+      quantidade_meta: 0,
+    };
+  });
+
+  if (ids.length === 0) return Object.values(map);
+
+  const [{ data: sales }, { data: goals }] = await Promise.all([
+    supabaseAdmin
+      .from("sales")
+      .select("product_line, valor, quantidade")
+      .in("seller_id", ids)
+      .gte("sale_date", firstDay)
+      .lt("sale_date", lastDay),
+    supabaseAdmin
+      .from("product_goals")
+      .select("product_line, valor_meta, quantidade_meta")
+      .in("seller_id", ids)
+      .eq("year", year)
+      .eq("month", month),
+  ]);
+
+  for (const s of (sales as any[]) || []) {
+    if (map[s.product_line]) {
+      map[s.product_line].valor += Number(s.valor || 0);
+      map[s.product_line].qtd += Number(s.quantidade || 0);
+    }
+  }
+  for (const g of (goals as any[]) || []) {
+    if (map[g.product_line]) {
+      map[g.product_line].valor_meta += Number(g.valor_meta || 0);
+      map[g.product_line].quantidade_meta += Number(g.quantidade_meta || 0);
+    }
+  }
+  return Object.values(map);
+}
+
 export type DashboardSnapshot = {
   bu: "cppem" | "unicive";
   series: BUSeries;
   sellers: SellerStats[];
   taxaConversao: number;
   leadsTotal: number;
+  breakdown: ProductBreakdownRow[];
 };
 
 export async function dashboardSnapshot(
   bu: "cppem" | "unicive",
   opts?: { year?: number; month?: number }
 ): Promise<DashboardSnapshot> {
-  const series = await buSeries(bu, opts);
-  const all = await statsForAll(opts);
+  const [series, all, breakdown] = await Promise.all([
+    buSeries(bu, opts),
+    statsForAll(opts),
+    productBreakdown(bu, opts),
+  ]);
   const sellers = all.filter((s) => s.bu === bu);
   const leadsTotal = sellers.reduce((a, b) => a + b.leads, 0);
   const vendas = sellers.reduce((a, b) => a + b.vendasCount, 0);
   const taxaConversao = leadsTotal > 0 ? (vendas / leadsTotal) * 100 : 0;
-  return { bu, series, sellers, leadsTotal, taxaConversao };
+  return { bu, series, sellers, leadsTotal, taxaConversao, breakdown };
 }
 
 export { daysInMonth, daysRemainingIncludingToday, todayDayOfMonth, periodNow };

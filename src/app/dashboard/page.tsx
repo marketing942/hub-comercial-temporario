@@ -2,6 +2,7 @@ import { dashboardSnapshot, daysInMonth, daysRemainingIncludingToday, periodNow,
 import { getDailyQuote } from "@/lib/quotes";
 import DashboardCarousel from "@/components/DashboardCarousel";
 import DashboardView from "@/components/DashboardView";
+import SellersGameView from "@/components/SellersGameView";
 import { Sparkles } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,8 @@ export default async function DashboardPage() {
     dashboardSnapshot("unicive", { year, month }),
     getDailyQuote(),
   ]);
+
+  const allSellers = [...cppem.sellers, ...unicive.sellers];
 
   const slides = [
     {
@@ -46,6 +49,19 @@ export default async function DashboardPage() {
           totalDays={totalDays}
           daysLeft={daysLeft}
           monthName={monthName}
+        />
+      ),
+    },
+    {
+      key: "sellers",
+      label: "Vendedores",
+      node: (
+        <SellersGameView
+          stats={allSellers}
+          monthName={monthName}
+          day={day}
+          totalDays={totalDays}
+          daysLeft={daysLeft}
         />
       ),
     },
