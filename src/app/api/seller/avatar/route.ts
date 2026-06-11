@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
-const MAX_SIZE = 3 * 1024 * 1024; // 3 MB
+const MAX_SIZE = 10 * 1024 * 1024; // 10 MB (margem; cliente comprime antes)
 const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 export async function POST(req: Request) {
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Formato invalido. Use JPG, PNG, WEBP ou GIF." }, { status: 400 });
   }
   if (file.size > MAX_SIZE) {
-    return NextResponse.json({ error: "Arquivo maior que 3MB." }, { status: 400 });
+    return NextResponse.json({ error: "Arquivo maior que 10MB depois da compressao." }, { status: 400 });
   }
 
   const ext = (file.name.split(".").pop() || file.type.split("/")[1] || "jpg").toLowerCase();

@@ -427,7 +427,7 @@ export default function GoalsClient({
                 <tr className="text-left">
                   <th className="py-2">Vendedor</th>
                   <th className="text-right">Faturamento</th>
-                  <th className="text-right">Quantidade</th>
+                  {isUni && <th className="text-right">Matriculas (qtd)</th>}
                   <th className="text-right">Ticket meta (R$)</th>
                   <th className="text-right">Conversao meta (%)</th>
                   <th className="text-right">% da BU</th>
@@ -456,13 +456,15 @@ export default function GoalsClient({
                           onChange={(v) => updateSeller(s.id, { valor_meta: v })}
                         />
                       </td>
-                      <td className="text-right">
-                        <NumberField
-                          className="input h-9 text-right"
-                          value={g.quantidade_meta}
-                          onChange={(v) => updateSeller(s.id, { quantidade_meta: v })}
-                        />
-                      </td>
+                      {isUni && (
+                        <td className="text-right">
+                          <NumberField
+                            className="input h-9 text-right"
+                            value={g.quantidade_meta}
+                            onChange={(v) => updateSeller(s.id, { quantidade_meta: v })}
+                          />
+                        </td>
+                      )}
                       <td className="text-right">
                         <NumberField
                           step="0.01"
@@ -488,7 +490,9 @@ export default function GoalsClient({
                 <tr className="border-t border-border">
                   <td className="py-2 text-xs uppercase tracking-wider text-white/40">TOTAL</td>
                   <td className="text-right font-semibold">{BRL(totalsSellers.fat)}</td>
-                  <td className="text-right font-semibold">{INT(totalsSellers.qtd)}</td>
+                  {isUni && (
+                    <td className="text-right font-semibold">{INT(totalsSellers.qtd)}</td>
+                  )}
                   <td colSpan={2}></td>
                   <td className="text-right text-xs text-white/40">
                     {metaGeralPrincipal > 0

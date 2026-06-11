@@ -23,7 +23,7 @@ export default function DailySalesChart({
   unit?: "currency" | "int";
 }) {
   return (
-    <div className="h-72 sm:h-80">
+    <div className="h-60 sm:h-64">
       <ResponsiveContainer>
         <BarChart data={data} margin={{ top: 16, left: -8, right: 8, bottom: 0 }}>
           <defs>

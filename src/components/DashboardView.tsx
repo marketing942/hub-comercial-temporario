@@ -59,25 +59,25 @@ export default function DashboardView({
       : "No ritmo ideal — bote pra dentro!";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header da BU */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <div
-          className="w-16 h-16 rounded-2xl bg-panel2 grid place-items-center p-2"
+          className="w-14 h-14 rounded-2xl bg-panel2 grid place-items-center p-1.5"
           style={{ boxShadow: `0 0 0 2px ${color}33 inset` }}
         >
-          <Image src={logo} alt={BU_LABEL[bu]} width={56} height={56} className="object-contain" />
+          <Image src={logo} alt={BU_LABEL[bu]} width={48} height={48} className="object-contain" />
         </div>
         <div>
-          <div className="text-xs uppercase tracking-wider text-white/50">
+          <div className="text-[11px] uppercase tracking-wider text-white/50">
             {monthName} - dia {day}/{totalDays} - faltam {daysLeft} dia{daysLeft > 1 ? "s" : ""}
           </div>
-          <h2 className="text-3xl xl:text-4xl font-bold mt-1">Dashboard {BU_LABEL[bu]}</h2>
+          <h2 className="text-2xl xl:text-3xl font-bold mt-0.5">Dashboard {BU_LABEL[bu]}</h2>
         </div>
       </div>
 
       {/* 4 KPIs grandes */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <BigStatCard
           label={isUni ? "Matriculas (Real)" : "Total Vendido"}
           value={isUni ? fmtInt.format(t.qtd) : BRL.format(t.valor)}
@@ -112,9 +112,41 @@ export default function DashboardView({
         />
       </section>
 
-      {/* Barra de progresso */}
+      {/* 4 mini stats — agora ACIMA da meta em andamento */}
+      <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+        <MiniStat
+          label="Ticket Medio"
+          value={BRL.format(t.ticketReal)}
+          hint={`Meta ${BRL.format(t.ticketMeta)}`}
+          icon={<Wallet className="w-4 h-4" />}
+          accent="#06b6d4"
+        />
+        <MiniStat
+          label="Conversao"
+          value={fmtPct(taxaConversao)}
+          hint={`${sellers.reduce((a, b) => a + b.vendasCount, 0)} vendas`}
+          icon={<Target className="w-4 h-4" />}
+          accent="#a3e635"
+        />
+        <MiniStat
+          label="Leads no Mes"
+          value={fmtInt.format(leadsTotal)}
+          hint="Atualizados pelo admin"
+          icon={<Users className="w-4 h-4" />}
+          accent="#facc15"
+        />
+        <MiniStat
+          label="Realizado Hoje"
+          value={fmtMeta(t.realizadoHoje)}
+          hint={`Dia ${day}/${totalDays}`}
+          icon={<Trophy className="w-4 h-4" />}
+          accent={color}
+        />
+      </section>
+
+      {/* Meta em Andamento */}
       <section className="card-lg">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <Target className="w-4 h-4 text-accent" /> Meta em Andamento
           </div>
@@ -122,24 +154,30 @@ export default function DashboardView({
             <Zap className="w-3.5 h-3.5" /> {fmtPct(pct)}
           </div>
         </div>
-        <ProgressBar value={pct} color={color} height={16} />
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-3 gap-2 text-sm">
+        <ProgressBar value={pct} color={color} height={14} />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-2 gap-2 text-sm">
           <div>
             <div className="kpi-label">Realizado</div>
-            <div className="text-2xl font-bold">{fmtMeta(realizado)}</div>
+            <div className="text-xl font-bold">{fmtMeta(realizado)}</div>
           </div>
           <div className="text-center text-white/60 text-xs flex-1 px-2">{statusBar}</div>
           <div className="text-right">
             <div className="kpi-label">Meta</div>
-            <div className="text-2xl font-bold text-warning">{fmtMeta(t.meta)}</div>
+            <div className="text-xl font-bold text-warning">{fmtMeta(t.meta)}</div>
           </div>
         </div>
       </section>
 
-      {/* Charts */}
-      <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+      {/* Receita por categoria */}
+      <ProductRevenueBreakdown rows={breakdown} color={color} isUnicive={isUni} />
+
+      {/* Alunos por turma presencial — apenas CPPEM */}
+      {!isUni && <TurmasBreakdown rows={breakdown} />}
+
+      {/* Charts (por ultimo) */}
+      <section className="grid grid-cols-1 xl:grid-cols-2 gap-3">
         <div className="card-lg">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-2">
             <div>
               <div className="text-sm font-semibold">Evolucao Diaria de Vendas</div>
               <div className="text-xs text-white/50">
@@ -156,7 +194,7 @@ export default function DashboardView({
           />
         </div>
         <div className="card-lg">
-          <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center justify-between mb-2">
             <div>
               <div className="text-sm font-semibold">% da Meta Acumulada</div>
               <div className="text-xs text-white/50">Linha tracejada = ritmo ideal</div>
@@ -168,47 +206,6 @@ export default function DashboardView({
           <CumulativeGoalChart data={series.cumulative} color={color} />
         </div>
       </section>
-
-      {/* Receita por categoria + mini KPIs */}
-      <section className="grid grid-cols-1 xl:grid-cols-5 gap-4">
-        <div className="xl:col-span-2 grid grid-cols-2 gap-3 content-start">
-          <MiniStat
-            label="Ticket Medio"
-            value={BRL.format(t.ticketReal)}
-            hint={`Meta ${BRL.format(t.ticketMeta)}`}
-            icon={<Wallet className="w-4 h-4" />}
-            accent="#06b6d4"
-          />
-          <MiniStat
-            label="Conversao"
-            value={fmtPct(taxaConversao)}
-            hint={`${sellers.reduce((a, b) => a + b.vendasCount, 0)} vendas`}
-            icon={<Target className="w-4 h-4" />}
-            accent="#a3e635"
-          />
-          <MiniStat
-            label="Leads no Mes"
-            value={fmtInt.format(leadsTotal)}
-            hint="Atualizados pelo admin"
-            icon={<Users className="w-4 h-4" />}
-            accent="#facc15"
-          />
-          <MiniStat
-            label="Realizado Hoje"
-            value={fmtMeta(t.realizadoHoje)}
-            hint={`Dia ${day}/${totalDays}`}
-            icon={<Trophy className="w-4 h-4" />}
-            accent={color}
-          />
-        </div>
-
-        <div className="xl:col-span-3">
-          <ProductRevenueBreakdown rows={breakdown} color={color} isUnicive={isUni} />
-        </div>
-      </section>
-
-      {/* Turmas presenciais — apenas CPPEM */}
-      {!isUni && <TurmasBreakdown rows={breakdown} />}
     </div>
   );
 }
@@ -237,7 +234,7 @@ function MiniStat({
           {icon}
         </div>
       </div>
-      <div className="text-2xl font-bold mt-1" style={{ color: accent }}>
+      <div className="text-xl font-bold mt-0.5" style={{ color: accent }}>
         {value}
       </div>
       {hint && <div className="text-[11px] text-white/50 mt-0.5">{hint}</div>}

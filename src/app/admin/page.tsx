@@ -1,39 +1,38 @@
 import Link from "next/link";
-import { statsForAll, ligacaoBreakdown } from "@/lib/data";
+import type { SellerStats } from "@/lib/calc";
+import { statsForAll, ligacaoBreakdown, type LigacaoRow } from "@/lib/data";
 import { BRL, fmtInt, fmtPct, periodNow, daysRemainingIncludingToday } from "@/lib/calc";
 import { BU_COLOR, BU_LABEL } from "@/lib/brand";
 import ProgressBar from "@/components/ProgressBar";
-import BigStatCard from "@/components/BigStatCard";
 import LigacaoBreakdown from "@/components/LigacaoBreakdown";
-import { Users, Target, TrendingUp, Crown, Wallet, ArrowRight, Flame } from "lucide-react";
+import {
+  Users,
+  Target,
+  TrendingUp,
+  Crown,
+  Wallet,
+  ArrowRight,
+  Flame,
+} from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminHome() {
-  const [stats, ligacao] = await Promise.all([statsForAll(), ligacaoBreakdown()]);
+  const [stats, ligacaoCppem, ligacaoUni] = await Promise.all([
+    statsForAll(),
+    ligacaoBreakdown({ bu: "cppem" }),
+    ligacaoBreakdown({ bu: "unicive" }),
+  ]);
   const { year, month } = periodNow();
   const daysLeft = daysRemainingIncludingToday(year, month);
 
   const cppem = stats.filter((s) => s.bu === "cppem");
   const unicive = stats.filter((s) => s.bu === "unicive");
 
-  const sumStat = (rows: typeof stats, fields: (keyof (typeof stats)[number])[]) =>
-    fields.reduce(
-      (acc, f) => ({ ...acc, [f]: rows.reduce((a, b) => a + Number(b[f] || 0), 0) }),
-      {} as Record<string, number>
-    );
-
-  const cAgg = sumStat(cppem, ["metaTotal", "realizado", "leads", "vendasCount", "valorHoje", "qtdHoje"]);
-  const uAgg = sumStat(unicive, ["metaTotal", "realizado", "leads", "vendasCount", "valorHoje", "qtdHoje"]);
-  const cPct = cAgg.metaTotal > 0 ? (cAgg.realizado / cAgg.metaTotal) * 100 : 0;
-  const uPct = uAgg.metaTotal > 0 ? (uAgg.realizado / uAgg.metaTotal) * 100 : 0;
-
-  const rankAbsolute = [...stats].sort((a, b) =>
-    b.bu === a.bu ? b.realizado - a.realizado : a.bu.localeCompare(b.bu)
-  );
-  const rankPct = [...stats].sort((a, b) => b.pctSucesso - a.pctSucesso);
-  const rankTicket = [...stats].sort((a, b) => b.ticketReal - a.ticketReal);
-  const rankConversao = [...stats].sort((a, b) => b.conversaoReal - a.conversaoReal);
+  const cAgg = aggregate(cppem);
+  const uAgg = aggregate(unicive);
+  const cPct = cAgg.meta > 0 ? (cAgg.real / cAgg.meta) * 100 : 0;
+  const uPct = uAgg.meta > 0 ? (uAgg.real / uAgg.meta) * 100 : 0;
 
   const monthName = new Date(year, month - 1, 1).toLocaleDateString("pt-BR", {
     month: "long",
@@ -60,71 +59,161 @@ export default async function AdminHome() {
         </div>
       </div>
 
-      {/* Resumo BU x BU */}
+      {/* Cards comparativos por BU (mantidos) */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <BUResume
           bu="cppem"
-          meta={cAgg.metaTotal}
-          real={cAgg.realizado}
+          meta={cAgg.meta}
+          real={cAgg.real}
           pct={cPct}
           hoje={cAgg.valorHoje}
-          vendas={cAgg.vendasCount}
+          vendas={cAgg.vendas}
           leads={cAgg.leads}
           sellersCount={cppem.length}
           isCurrency
         />
         <BUResume
           bu="unicive"
-          meta={uAgg.metaTotal}
-          real={uAgg.realizado}
+          meta={uAgg.meta}
+          real={uAgg.real}
           pct={uPct}
           hoje={uAgg.qtdHoje}
-          vendas={uAgg.vendasCount}
+          vendas={uAgg.vendas}
           leads={uAgg.leads}
           sellersCount={unicive.length}
           isCurrency={false}
         />
       </section>
 
-      {/* Retorno do Onvox */}
-      <LigacaoBreakdown rows={ligacao} />
+      {/* Secao CPPEM */}
+      <BUSection
+        bu="cppem"
+        sellers={cppem}
+        ligacao={ligacaoCppem}
+      />
 
-      {/* 4 podios comparativos */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
-        <Podium title="Maior % da meta" icon={<Crown className="w-4 h-4" />} accent="#facc15" rows={rankPct.slice(0, 5).map((r) => ({
-          name: r.sellerName,
-          bu: r.bu,
-          value: fmtPct(r.pctSucesso),
-          sub: r.bu === "unicive" ? fmtInt.format(r.realizado) : BRL.format(r.realizado),
-        }))} />
-        <Podium title="Mais vendido (R$ / qtd)" icon={<TrendingUp className="w-4 h-4" />} accent="#22c55e" rows={rankAbsolute.slice(0, 5).map((r) => ({
-          name: r.sellerName,
-          bu: r.bu,
-          value: r.bu === "unicive" ? fmtInt.format(r.realizado) : BRL.format(r.realizado),
-          sub: fmtPct(r.pctSucesso),
-        }))} />
-        <Podium title="Ticket medio" icon={<Wallet className="w-4 h-4" />} accent="#06b6d4" rows={rankTicket.filter((r) => r.ticketReal > 0).slice(0, 5).map((r) => ({
-          name: r.sellerName,
-          bu: r.bu,
-          value: BRL.format(r.ticketReal),
-          sub: `meta ${BRL.format(r.ticketMeta)}`,
-        }))} />
-        <Podium title="Conversao" icon={<Target className="w-4 h-4" />} accent="#a3e635" rows={rankConversao.filter((r) => r.leads > 0).slice(0, 5).map((r) => ({
-          name: r.sellerName,
-          bu: r.bu,
-          value: fmtPct(r.conversaoReal),
-          sub: `${r.vendasCount} vendas / ${r.leads} leads`,
-        }))} />
-      </section>
+      {/* Secao UNICIVE */}
+      <BUSection
+        bu="unicive"
+        sellers={unicive}
+        ligacao={ligacaoUni}
+      />
+    </div>
+  );
+}
 
-      {/* Tabela comparativa */}
+function aggregate(rows: SellerStats[]) {
+  return rows.reduce(
+    (acc, r) => ({
+      meta: acc.meta + Number(r.metaTotal || 0),
+      real: acc.real + Number(r.realizado || 0),
+      leads: acc.leads + Number(r.leads || 0),
+      vendas: acc.vendas + Number(r.vendasCount || 0),
+      valorHoje: acc.valorHoje + Number(r.valorHoje || 0),
+      qtdHoje: acc.qtdHoje + Number(r.qtdHoje || 0),
+    }),
+    { meta: 0, real: 0, leads: 0, vendas: 0, valorHoje: 0, qtdHoje: 0 }
+  );
+}
+
+function BUSection({
+  bu,
+  sellers,
+  ligacao,
+}: {
+  bu: "cppem" | "unicive";
+  sellers: SellerStats[];
+  ligacao: LigacaoRow[];
+}) {
+  const color = BU_COLOR[bu];
+  const isUni = bu === "unicive";
+  const sortReal = (a: SellerStats, b: SellerStats) => b.realizado - a.realizado;
+  const sortTicket = (a: SellerStats, b: SellerStats) => b.ticketReal - a.ticketReal;
+  const sortConv = (a: SellerStats, b: SellerStats) => b.conversaoReal - a.conversaoReal;
+  const sortPct = (a: SellerStats, b: SellerStats) => b.pctSucesso - a.pctSucesso;
+
+  const rankReal = [...sellers].sort(sortReal);
+  const rankPct = [...sellers].sort(sortPct);
+  const rankTicket = [...sellers].sort(sortTicket).filter((r) => r.ticketReal > 0);
+  const rankConv = [...sellers].sort(sortConv).filter((r) => r.leads > 0);
+
+  const fmt = (n: number) => (isUni ? fmtInt.format(Math.round(n)) : BRL.format(n));
+
+  return (
+    <section className="space-y-4">
+      {/* Separator */}
+      <div className="flex items-center gap-3">
+        <div
+          className="px-3 py-1 rounded-full text-xs font-bold"
+          style={{ background: color + "22", color }}
+        >
+          {BU_LABEL[bu]}
+        </div>
+        <div className="flex-1 h-px" style={{ background: color + "33" }} />
+        <div className="text-[11px] text-white/40">
+          {sellers.length} vendedor{sellers.length === 1 ? "" : "es"}
+        </div>
+      </div>
+
+      {/* Onvox por BU */}
+      <LigacaoBreakdown
+        rows={ligacao}
+        title={`Retorno do Onvox - ${BU_LABEL[bu]}`}
+        hint="Origem das vendas dessa BU no mes"
+      />
+
+      {/* 4 podios da BU */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">
+        <Podium
+          title={isUni ? "Mais matriculas" : "Maior faturamento"}
+          icon={<TrendingUp className="w-4 h-4" />}
+          accent={color}
+          rows={rankReal.slice(0, 5).map((r) => ({
+            name: r.sellerName,
+            value: fmt(r.realizado),
+            sub: fmtPct(r.pctSucesso) + " da meta",
+          }))}
+        />
+        <Podium
+          title="Maior % da meta"
+          icon={<Crown className="w-4 h-4" />}
+          accent="#facc15"
+          rows={rankPct.slice(0, 5).map((r) => ({
+            name: r.sellerName,
+            value: fmtPct(r.pctSucesso),
+            sub: fmt(r.realizado),
+          }))}
+        />
+        <Podium
+          title="Ticket medio"
+          icon={<Wallet className="w-4 h-4" />}
+          accent="#06b6d4"
+          rows={rankTicket.slice(0, 5).map((r) => ({
+            name: r.sellerName,
+            value: BRL.format(r.ticketReal),
+            sub: r.ticketMeta > 0 ? `meta ${BRL.format(r.ticketMeta)}` : "sem meta",
+          }))}
+        />
+        <Podium
+          title="Conversao"
+          icon={<Target className="w-4 h-4" />}
+          accent="#a3e635"
+          rows={rankConv.slice(0, 5).map((r) => ({
+            name: r.sellerName,
+            value: fmtPct(r.conversaoReal),
+            sub: `${r.vendasCount} vendas / ${r.leads} leads`,
+          }))}
+        />
+      </div>
+
+      {/* Tabela completa da BU */}
       <div className="card-lg">
         <div className="flex items-center justify-between mb-3">
           <div className="text-sm font-semibold flex items-center gap-2">
-            <Users className="w-4 h-4 text-accent" /> Comparativo de vendedores
+            <Users className="w-4 h-4" style={{ color }} /> Comparativo {BU_LABEL[bu]}
           </div>
           <div className="text-xs text-white/40">
-            Ordenado por % da meta (clique numa coluna nao funciona ainda)
+            ordenado por {isUni ? "matriculas" : "faturamento"}
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -132,7 +221,6 @@ export default async function AdminHome() {
             <thead className="text-xs uppercase tracking-wider text-white/40">
               <tr className="text-left">
                 <th className="py-2 pl-2">Vendedor</th>
-                <th>BU</th>
                 <th className="text-right">Meta</th>
                 <th className="text-right">Realizado</th>
                 <th className="text-right">Falta</th>
@@ -140,28 +228,20 @@ export default async function AdminHome() {
                 <th className="text-right">Conversao</th>
                 <th className="text-right">Leads</th>
                 <th className="text-right">Hoje</th>
-                <th className="w-44">% Meta</th>
+                <th className="w-40">% Meta</th>
               </tr>
             </thead>
             <tbody>
-              {rankPct.length === 0 && (
+              {rankReal.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-6 text-center text-white/50">
-                    Cadastre vendedores em <Link href="/admin/sellers" className="text-accent">Vendedores</Link>.
+                  <td colSpan={9} className="py-6 text-center text-white/50">
+                    Nenhum vendedor ativo nesta BU.
                   </td>
                 </tr>
-              )}
-              {rankPct.map((s) => {
-                const isUni = s.bu === "unicive";
-                const fmt = (n: number) => (isUni ? fmtInt.format(Math.round(n)) : BRL.format(n));
-                return (
+              ) : (
+                rankReal.map((s) => (
                   <tr key={s.sellerId} className="border-t border-border hover:bg-panel2/40">
                     <td className="py-2 pl-2 font-medium">{s.sellerName}</td>
-                    <td>
-                      <span className={isUni ? "chip-unicive" : "chip-cppem"}>
-                        {BU_LABEL[s.bu]}
-                      </span>
-                    </td>
                     <td className="text-right">{fmt(s.metaTotal)}</td>
                     <td className="text-right font-semibold">{fmt(s.realizado)}</td>
                     <td className="text-right text-white/60">{fmt(s.falta)}</td>
@@ -180,18 +260,18 @@ export default async function AdminHome() {
                     </td>
                     <td>
                       <div className="flex items-center gap-2">
-                        <ProgressBar value={s.pctSucesso} color={BU_COLOR[s.bu]} />
+                        <ProgressBar value={s.pctSucesso} color={color} />
                         <span className="text-xs w-12 text-right">{fmtPct(s.pctSucesso)}</span>
                       </div>
                     </td>
                   </tr>
-                );
-              })}
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -281,7 +361,7 @@ function Podium({
   title: string;
   icon: React.ReactNode;
   accent: string;
-  rows: { name: string; bu: "cppem" | "unicive"; value: string; sub: string }[];
+  rows: { name: string; value: string; sub: string }[];
 }) {
   return (
     <div className="card-lg">
@@ -308,12 +388,7 @@ function Podium({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium truncate">{r.name}</div>
-                <div className="text-[11px] text-white/40 flex items-center gap-1">
-                  <span className={r.bu === "cppem" ? "chip-cppem" : "chip-unicive"}>
-                    {BU_LABEL[r.bu]}
-                  </span>
-                  <span>{r.sub}</span>
-                </div>
+                <div className="text-[11px] text-white/40">{r.sub}</div>
               </div>
               <div className="text-sm font-bold text-right" style={{ color: accent }}>
                 {r.value}
