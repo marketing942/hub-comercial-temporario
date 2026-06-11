@@ -9,6 +9,7 @@ import BigStatCard from "@/components/BigStatCard";
 import ProgressBar from "@/components/ProgressBar";
 import DailySalesChart from "@/components/charts/DailySalesChart";
 import CumulativeGoalChart from "@/components/charts/CumulativeGoalChart";
+import AvatarUploader from "@/components/AvatarUploader";
 import {
   Flame,
   Target,
@@ -42,12 +43,7 @@ export default async function MyPanel() {
       {/* Header */}
       <div className="card-lg flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex items-center gap-4">
-          <div
-            className="w-16 h-16 rounded-2xl grid place-items-center font-bold text-2xl"
-            style={{ background: seller.avatar_color }}
-          >
-            {seller.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
-          </div>
+          <AvatarUploader name={seller.name} initialUrl={seller.avatar_url} color={color} />
           <div>
             <div className="flex items-center gap-2">
               <Image src={logo} alt={BU_LABEL[seller.bu]} width={20} height={20} className="object-contain" />

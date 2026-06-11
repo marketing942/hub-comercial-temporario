@@ -11,11 +11,22 @@ create table if not exists public.sellers (
   name text not null,
   bu text not null check (bu in ('cppem', 'unicive')),
   active boolean not null default true,
-  avatar_color text not null default '#7c5cff',
+  avatar_color text not null default '#22c55e',
+  avatar_url text,
   created_at timestamptz not null default now()
 );
 
+-- migracao se ja existia sem avatar_url
+alter table public.sellers add column if not exists avatar_url text;
+
 create index if not exists sellers_bu_idx on public.sellers(bu);
+
+-- ---------- Storage: bucket de avatares ----------
+-- Criar o bucket 'avatars' como PUBLICO. Rodar uma vez.
+-- (Se ja existir, o insert e ignorado.)
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true)
+on conflict (id) do nothing;
 
 -- ---------- Metas por vendedor / mes ----------
 -- ticket medio e taxa de conversao

@@ -18,15 +18,15 @@ export default function BigStatCard({
   return (
     <div className="card-lg card-hover relative overflow-hidden">
       <div
-        className="absolute -top-12 -right-12 w-44 h-44 rounded-full opacity-20 blur-3xl pointer-events-none"
+        className="absolute -top-10 -right-10 w-32 h-32 rounded-full opacity-20 blur-3xl pointer-events-none"
         style={{ background: accent }}
       />
-      <div className="relative flex flex-col gap-3">
+      <div className="relative flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <div className="kpi-label">{label}</div>
           {icon && (
             <div
-              className="w-12 h-12 rounded-xl grid place-items-center text-xl"
+              className="w-9 h-9 rounded-lg grid place-items-center text-base"
               style={{ background: accent + "22", color: accent }}
             >
               {icon}
@@ -36,7 +36,7 @@ export default function BigStatCard({
         <div className="big-num" style={valueColor ? { color: valueColor } : undefined}>
           {value}
         </div>
-        {hint && <div className="text-xs text-white/50">{hint}</div>}
+        {hint && <div className="text-[11px] text-white/50 leading-snug">{hint}</div>}
       </div>
     </div>
   );

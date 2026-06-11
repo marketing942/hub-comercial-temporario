@@ -2,6 +2,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Save, RotateCw, SplitSquareHorizontal, Sparkles, ChevronDown, ChevronRight, Copy, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { BU_COLOR, BU_LABEL } from "@/lib/brand";
+import NumberField from "@/components/NumberField";
 
 type Seller = { id: string; name: string; bu: "cppem" | "unicive" };
 
@@ -362,7 +363,7 @@ export default function GoalsClient({
         </div>
         <div>
           <label className="label">Ano</label>
-          <input className="input" type="number" value={year} onChange={(e) => setYear(Number(e.target.value))} />
+          <NumberField className="input" value={year} onChange={setYear} />
         </div>
         <button className="btn-ghost" onClick={copyFromPreviousMonth} disabled={loading || buSellers.length === 0}>
           <Copy className="w-4 h-4" /> Copiar do mes anterior
@@ -395,12 +396,11 @@ export default function GoalsClient({
             <div className="kpi-label">Meta de Faturamento</div>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-white/40 text-sm">R$</span>
-              <input
+              <NumberField
                 className="input text-2xl font-bold"
-                type="number"
                 step="0.01"
                 value={metaGeralFat}
-                onChange={(e) => setMetaGeralFat(Number(e.target.value))}
+                onChange={setMetaGeralFat}
               />
             </div>
             <div className="text-xs text-white/50 mt-1">Soma das metas dos vendedores: {BRL(totals.fat)}</div>
@@ -408,11 +408,10 @@ export default function GoalsClient({
           <div className="rounded-xl bg-panel2 p-4">
             <div className="kpi-label">{isUni ? "Meta de Matriculas (qtd)" : "Meta de Quantidade total"}</div>
             <div className="flex items-center gap-2 mt-1">
-              <input
+              <NumberField
                 className="input text-2xl font-bold"
-                type="number"
                 value={metaGeralQtd}
-                onChange={(e) => setMetaGeralQtd(Number(e.target.value))}
+                onChange={setMetaGeralQtd}
               />
               <span className="text-white/40 text-sm">un.</span>
             </div>
@@ -501,42 +500,34 @@ export default function GoalsClient({
                         </td>
                         <td className="py-2 font-medium">{s.name}</td>
                         <td className="text-right">
-                          <input
-                            type="number"
+                          <NumberField
                             step="0.01"
                             className="input h-9 text-right"
                             value={tot.fat}
-                            onChange={(e) => updateSellerTotal(s.id, { fat: Number(e.target.value) })}
+                            onChange={(v) => updateSellerTotal(s.id, { fat: v })}
                           />
                         </td>
                         <td className="text-right">
-                          <input
-                            type="number"
+                          <NumberField
                             className="input h-9 text-right"
                             value={tot.qtd}
-                            onChange={(e) => updateSellerTotal(s.id, { qtd: Number(e.target.value) })}
+                            onChange={(v) => updateSellerTotal(s.id, { qtd: v })}
                           />
                         </td>
                         <td className="text-right">
-                          <input
-                            type="number"
+                          <NumberField
                             step="0.01"
                             className="input h-9 text-right"
                             value={g.ticket_medio_meta}
-                            onChange={(e) =>
-                              updateMonthly(s.id, { ticket_medio_meta: Number(e.target.value) })
-                            }
+                            onChange={(v) => updateMonthly(s.id, { ticket_medio_meta: v })}
                           />
                         </td>
                         <td className="text-right">
-                          <input
-                            type="number"
+                          <NumberField
                             step="0.1"
                             className="input h-9 text-right"
                             value={g.taxa_conversao_meta}
-                            onChange={(e) =>
-                              updateMonthly(s.id, { taxa_conversao_meta: Number(e.target.value) })
-                            }
+                            onChange={(v) => updateMonthly(s.id, { taxa_conversao_meta: v })}
                           />
                         </td>
                         <td className="text-right text-sm font-semibold" style={{ color }}>
@@ -556,24 +547,18 @@ export default function GoalsClient({
                                 return (
                                   <div key={l.id} className="grid grid-cols-[1fr_120px_100px] gap-2 items-center">
                                     <div className="text-xs text-white/70">{l.label}</div>
-                                    <input
-                                      type="number"
+                                    <NumberField
                                       step="0.01"
                                       className="input h-8 text-right text-xs"
                                       placeholder="R$"
                                       value={p.valor_meta}
-                                      onChange={(e) =>
-                                        updateLine(s.id, l.id, { valor_meta: Number(e.target.value) })
-                                      }
+                                      onChange={(v) => updateLine(s.id, l.id, { valor_meta: v })}
                                     />
-                                    <input
-                                      type="number"
+                                    <NumberField
                                       className="input h-8 text-right text-xs"
                                       placeholder="qtd"
                                       value={p.quantidade_meta}
-                                      onChange={(e) =>
-                                        updateLine(s.id, l.id, { quantidade_meta: Number(e.target.value) })
-                                      }
+                                      onChange={(v) => updateLine(s.id, l.id, { quantidade_meta: v })}
                                     />
                                   </div>
                                 );

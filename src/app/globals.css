@@ -17,13 +17,13 @@ body {
 
 @layer components {
   .card {
-    @apply bg-panel border border-border rounded-2xl p-5;
+    @apply bg-panel border border-border rounded-2xl p-4;
     background-image:
       radial-gradient(800px 200px at 0% 0%, rgba(34,197,94,0.06), transparent 60%);
   }
   .card-hover { @apply transition hover:border-accent/40 hover:shadow-glow; }
   .card-lg {
-    @apply bg-panel border border-border rounded-3xl p-6;
+    @apply bg-panel border border-border rounded-2xl p-5;
     background-image:
       radial-gradient(800px 300px at 0% 0%, rgba(34,197,94,0.08), transparent 60%);
   }
@@ -43,9 +43,9 @@ body {
   }
   .chip-cppem { @apply chip bg-cppem/15 text-cppem; }
   .chip-unicive { @apply chip bg-unicive/15 text-unicive; }
-  .kpi-num { @apply text-3xl font-bold tracking-tight; }
-  .kpi-label { @apply text-xs uppercase tracking-wider text-white/50; }
-  .big-num { @apply text-5xl xl:text-6xl font-bold tracking-tight; }
+  .kpi-num { @apply text-2xl font-bold tracking-tight; }
+  .kpi-label { @apply text-[11px] uppercase tracking-wider text-white/50; }
+  .big-num { @apply text-4xl xl:text-[2.75rem] font-bold tracking-tight leading-tight; }
 }
 
 .shimmer {
@@ -62,8 +62,11 @@ body {
 .pulse-dot { animation: pulseGlow 2s ease-out infinite; }
 
 /* Estilo TV / fullscreen */
-.tv-mode .kpi-num { font-size: 2.5rem; }
-.tv-mode .big-num { font-size: 4.5rem; line-height: 1; }
+.tv-mode .kpi-num { font-size: 2rem; }
+.tv-mode .big-num { font-size: 3.25rem; line-height: 1; }
+.tv-mode aside { display: none !important; }
+.tv-mode header.lg\:hidden { display: none !important; }
+.tv-mode main { max-width: 100% !important; padding: 1rem 1.25rem !important; }
 
 /* Scrollbar dark */
 ::-webkit-scrollbar { width: 10px; height: 10px; }

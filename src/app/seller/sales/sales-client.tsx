@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { productLabel, productLinesFor, TURMAS, type BU } from "@/lib/products";
 import { BRL, fmtInt } from "@/lib/calc";
 import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import NumberField from "@/components/NumberField";
 
 type Sale = {
   id: string;
@@ -108,23 +109,11 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
           )}
           <div>
             <label className="label">Valor (R$)</label>
-            <input
-              type="number"
-              step="0.01"
-              className="input"
-              value={valor}
-              onChange={(e) => setValor(Number(e.target.value))}
-            />
+            <NumberField step="0.01" className="input" value={valor} onChange={setValor} />
           </div>
           <div>
             <label className="label">Quantidade</label>
-            <input
-              type="number"
-              min={1}
-              className="input"
-              value={qtd}
-              onChange={(e) => setQtd(Number(e.target.value))}
-            />
+            <NumberField min={1} className="input" value={qtd} onChange={setQtd} />
           </div>
           <button className="btn-primary" disabled={saving || !valor} onClick={add}>
             <Plus className="w-4 h-4" /> Lancar
@@ -273,21 +262,10 @@ function Row({
         </select>
       </td>
       <td className="p-2">
-        <input
-          type="number"
-          step="0.01"
-          className="input h-9"
-          value={valor}
-          onChange={(e) => setValor(Number(e.target.value))}
-        />
+        <NumberField step="0.01" className="input h-9" value={valor} onChange={setValor} />
       </td>
       <td className="p-2">
-        <input
-          type="number"
-          className="input h-9"
-          value={qtd}
-          onChange={(e) => setQtd(Number(e.target.value))}
-        />
+        <NumberField className="input h-9" value={qtd} onChange={setQtd} />
       </td>
       <td className="p-2">
         <input className="input h-9" value={obs} onChange={(e) => setObs(e.target.value)} />

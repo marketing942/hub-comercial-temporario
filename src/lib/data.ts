@@ -15,6 +15,7 @@ export type Seller = {
   bu: "cppem" | "unicive";
   active: boolean;
   avatar_color: string;
+  avatar_url?: string | null;
 };
 
 export async function listSellers(opts?: { onlyActive?: boolean }): Promise<Seller[]> {
@@ -75,7 +76,13 @@ export async function statsForSellerWith(
   const leadsMonth = (lds || []).reduce((s: number, r: any) => s + Number(r.qty || 0), 0);
 
   return computeSellerStats({
-    seller: { id: seller.id, name: seller.name, bu: seller.bu },
+    seller: {
+      id: seller.id,
+      name: seller.name,
+      bu: seller.bu,
+      avatar_url: seller.avatar_url,
+      avatar_color: seller.avatar_color,
+    },
     productGoals: (pg as any) || [],
     monthly: (mg as any) || null,
     sales: (sl as any) || [],

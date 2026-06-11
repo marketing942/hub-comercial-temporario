@@ -1,8 +1,15 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Avatar from "@/components/Avatar";
 
-type Seller = { id: string; name: string; bu: "cppem" | "unicive"; avatar_color: string };
+type Seller = {
+  id: string;
+  name: string;
+  bu: "cppem" | "unicive";
+  avatar_color: string;
+  avatar_url?: string | null;
+};
 
 export default function PickSellerClient({ sellers }: { sellers: Seller[] }) {
   const router = useRouter();
@@ -38,12 +45,7 @@ export default function PickSellerClient({ sellers }: { sellers: Seller[] }) {
           disabled={loading !== null}
           className="card card-hover text-left disabled:opacity-50"
         >
-          <div
-            className="w-10 h-10 rounded-xl grid place-items-center text-white font-semibold mb-3"
-            style={{ background: s.avatar_color }}
-          >
-            {s.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
-          </div>
+          <Avatar name={s.name} url={s.avatar_url} color={s.avatar_color} size={48} className="mb-3" />
           <div className="font-medium">{s.name}</div>
           <div className={s.bu === "cppem" ? "chip-cppem mt-2" : "chip-unicive mt-2"}>
             {s.bu.toUpperCase()}

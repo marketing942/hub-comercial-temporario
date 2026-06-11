@@ -44,6 +44,8 @@ export type SellerStats = {
   sellerId: string;
   sellerName: string;
   bu: "cppem" | "unicive";
+  avatarUrl?: string | null;
+  avatarColor?: string;
   metaTotal: number;
   realizado: number;
   falta: number;
@@ -67,7 +69,13 @@ export type SellerStats = {
 };
 
 export function computeSellerStats(args: {
-  seller: { id: string; name: string; bu: "cppem" | "unicive" };
+  seller: {
+    id: string;
+    name: string;
+    bu: "cppem" | "unicive";
+    avatar_url?: string | null;
+    avatar_color?: string;
+  };
   productGoals: { product_line: string; valor_meta: number; quantidade_meta: number }[];
   monthly: { ticket_medio_meta: number; taxa_conversao_meta: number } | null;
   sales: SaleRow[];
@@ -120,6 +128,8 @@ export function computeSellerStats(args: {
     sellerId: seller.id,
     sellerName: seller.name,
     bu: seller.bu,
+    avatarUrl: seller.avatar_url ?? null,
+    avatarColor: seller.avatar_color,
     metaTotal,
     realizado,
     falta,

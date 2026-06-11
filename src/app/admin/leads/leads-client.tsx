@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Save } from "lucide-react";
+import NumberField from "@/components/NumberField";
 
 type Seller = { id: string; name: string; bu: "cppem" | "unicive" };
 
@@ -111,12 +112,7 @@ export default function LeadsClient({
         </div>
         <div>
           <label className="label">Ano</label>
-          <input
-            type="number"
-            className="input"
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
-          />
+          <NumberField className="input" value={year} onChange={setYear} />
         </div>
         <button className="btn-primary" disabled={saving} onClick={save}>
           <Save className="w-4 h-4" /> {saving ? "Salvando..." : "Salvar leads do dia"}
@@ -151,14 +147,11 @@ export default function LeadsClient({
                   </span>
                 </td>
                 <td className="p-3">
-                  <input
+                  <NumberField
                     className="input h-9"
-                    type="number"
                     min={0}
                     value={values[s.id] ?? 0}
-                    onChange={(e) =>
-                      setValues((v) => ({ ...v, [s.id]: Number(e.target.value) }))
-                    }
+                    onChange={(v) => setValues((m) => ({ ...m, [s.id]: v }))}
                   />
                 </td>
                 <td className="p-3 font-semibold">{monthly[s.id] ?? 0}</td>
