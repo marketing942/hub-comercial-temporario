@@ -56,7 +56,11 @@ export type SellerStats = {
   vendasCount: number;
   qtdRealizada: number;
   qtdMeta: number;
-  metaDia: number;
+  // Ritmo
+  metaRitmoInicial: number;   // meta / total_dias_mes (o quanto era pra fazer/dia desde o inicio)
+  metaIdealAteHoje: number;   // ritmo_inicial * dia_atual (era pra ter ate agora)
+  gap: number;                // metaIdealAteHoje - realizado (positivo = atrasado)
+  metaDia: number;            // (meta - realizado) / dias_restantes_incluindo_hoje
   realizadoHoje: number;
   qtdHoje: number;
   valorHoje: number;
@@ -89,18 +93,26 @@ export function computeSellerStats(args: {
   const qtdHoje = todaySales.reduce((a, b) => a + Number(b.quantidade || 0), 0);
   const realizadoHoje = isUni ? qtdHoje : valorHoje;
 
-  // Meta principal: Unicive = quantidade de matriculas, CPPEM = faturamento
   const metaTotal = isUni ? qtdMetaTotal : valorMetaTotal;
   const realizado = isUni ? realizadoQtd : realizadoValor;
   const falta = Math.max(0, metaTotal - realizado);
   const pctSucesso = metaTotal > 0 ? (realizado / metaTotal) * 100 : 0;
 
+  const totalDays = daysInMonth(year, month);
+  const today = todayDayOfMonth(year, month);
   const daysLeft = daysRemainingIncludingToday(year, month);
-  const metaDia = falta / daysLeft;
+
+  const metaRitmoInicial = metaTotal / totalDays;
+  const metaIdealAteHoje = metaRitmoInicial * today;
+  const gap = metaIdealAteHoje - realizado;
+
+  // Meta do dia: quanto precisa fazer HOJE pra voltar ao ritmo necessario.
+  // Se ja bateu meta, metaDia = 0. Caso contrario, divide o que falta
+  // pelos dias restantes incluindo hoje — ja embute o gap automaticamente.
+  const metaDia = falta > 0 ? falta / daysLeft : 0;
 
   const ticketReal = realizadoQtd > 0 ? realizadoValor / realizadoQtd : 0;
   const ticketMeta = Number(monthly?.ticket_medio_meta || 0);
-
   const conversaoReal = leadsMonth > 0 ? (vendasCount / leadsMonth) * 100 : 0;
   const conversaoMeta = Number(monthly?.taxa_conversao_meta || 0);
 
@@ -120,6 +132,9 @@ export function computeSellerStats(args: {
     vendasCount,
     qtdRealizada: realizadoQtd,
     qtdMeta: qtdMetaTotal,
+    metaRitmoInicial,
+    metaIdealAteHoje,
+    gap,
     metaDia,
     realizadoHoje,
     qtdHoje,

@@ -97,7 +97,21 @@ export type CumulativeRow = { day: string; pct: number; idealPct: number };
 export type BUSeries = {
   daily: DailySeriesRow[];
   cumulative: CumulativeRow[];
-  totals: { valor: number; qtd: number; meta: number; ticketReal: number; ticketMeta: number };
+  totals: {
+    valor: number;
+    qtd: number;
+    meta: number;
+    ticketReal: number;
+    ticketMeta: number;
+    metaIdealAteHoje: number;
+    metaRitmoInicial: number;
+    gap: number;
+    metaDia: number;
+    realizado: number;
+    valorHoje: number;
+    qtdHoje: number;
+    realizadoHoje: number;
+  };
 };
 
 export async function buSeries(
@@ -127,7 +141,21 @@ export async function buSeries(
         pct: 0,
         idealPct: ((i + 1) / total) * 100,
       })),
-      totals: { valor: 0, qtd: 0, meta: 0, ticketReal: 0, ticketMeta: 0 },
+      totals: {
+        valor: 0,
+        qtd: 0,
+        meta: 0,
+        ticketReal: 0,
+        ticketMeta: 0,
+        metaIdealAteHoje: 0,
+        metaRitmoInicial: 0,
+        gap: 0,
+        metaDia: 0,
+        realizado: 0,
+        valorHoje: 0,
+        qtdHoje: 0,
+        realizadoHoje: 0,
+      },
     };
   }
 
@@ -203,11 +231,37 @@ export async function buSeries(
   const totalQtd = Object.values(buckets).reduce((a, b) => a + b.qtd, 0);
   const ticketReal = totalQtd > 0 ? totalValor / totalQtd : 0;
 
-  // só mostrar série até o dia atual (incluído) — dias futuros entram zerados
+  const today = todayDayOfMonth(year, month);
+  const daysLeft = daysRemainingIncludingToday(year, month);
+  const realizado = isUni ? totalQtd : totalValor;
+  const falta = Math.max(0, meta - realizado);
+  const metaRitmoInicial = meta / total;
+  const metaIdealAteHoje = metaRitmoInicial * today;
+  const gap = metaIdealAteHoje - realizado;
+  const metaDia = falta > 0 ? falta / daysLeft : 0;
+
+  const todayLabel = `${String(today).padStart(2, "0")}/${String(month).padStart(2, "0")}`;
+  const hojeBucket = daily.find((d) => d.day === todayLabel) || { valor: 0, qtd: 0 };
+  const realizadoHoje = isUni ? hojeBucket.qtd : hojeBucket.valor;
+
   return {
     daily,
     cumulative,
-    totals: { valor: totalValor, qtd: totalQtd, meta, ticketReal, ticketMeta: ticketMetaAvg },
+    totals: {
+      valor: totalValor,
+      qtd: totalQtd,
+      meta,
+      ticketReal,
+      ticketMeta: ticketMetaAvg,
+      metaIdealAteHoje,
+      metaRitmoInicial,
+      gap,
+      metaDia,
+      realizado,
+      valorHoje: hojeBucket.valor,
+      qtdHoje: hojeBucket.qtd,
+      realizadoHoje,
+    },
   };
 }
 
