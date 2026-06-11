@@ -1,9 +1,9 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { productLabel, productLinesFor, TURMAS, type BU } from "@/lib/products";
+import { productLabel, productLinesFor, TURMAS, type BU, LIGACAO_STATUSES, ligacaoShort, ligacaoColor } from "@/lib/products";
 import { BRL, fmtInt } from "@/lib/calc";
-import { Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, X, Phone } from "lucide-react";
 import NumberField from "@/components/NumberField";
 
 type Sale = {
@@ -13,6 +13,7 @@ type Sale = {
   valor: number;
   quantidade: number;
   observacao?: string | null;
+  ligacao_status?: string | null;
 };
 
 type Seller = { id: string; name: string; bu: BU };
@@ -25,11 +26,9 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
   const router = useRouter();
   const [list, setList] = useState<Sale[]>(initial);
 
-  // form state
   const [date, setDate] = useState(todayISO());
   const isCppem = seller.bu === "cppem";
   const baseLines = productLinesFor(seller.bu);
-  // Para CPPEM, em vez de listar as 3 turmas, usamos "Turma Presencial" e um sub-select
   const selectLines = isCppem
     ? [
         { id: "mentorias", label: "Mentorias" },
@@ -43,13 +42,17 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
   const [turma, setTurma] = useState<string>(TURMAS[0].id);
   const [valor, setValor] = useState<number>(0);
   const [qtd, setQtd] = useState<number>(1);
-  const [obs, setObs] = useState<string>("");
+  const [ligacao, setLigacao] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   const totalValor = useMemo(() => list.reduce((a, b) => a + Number(b.valor || 0), 0), [list]);
   const totalQtd = useMemo(() => list.reduce((a, b) => a + Number(b.quantidade || 0), 0), [list]);
 
   async function add() {
+    if (!ligacao) {
+      alert("Escolha o status da ligacao antes de lancar.");
+      return;
+    }
     setSaving(true);
     const product_line = isCppem && line === "turma_presencial" ? turma : line;
     const r = await fetch("/api/sales", {
@@ -60,7 +63,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
         product_line,
         valor,
         quantidade: qtd,
-        observacao: obs || null,
+        ligacao_status: ligacao,
       }),
     });
     setSaving(false);
@@ -69,7 +72,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
       setList((l) => [data, ...l]);
       setValor(0);
       setQtd(1);
-      setObs("");
+      setLigacao("");
       router.refresh();
     } else {
       alert("Erro ao salvar venda.");
@@ -115,18 +118,42 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
             <label className="label">Quantidade</label>
             <NumberField min={1} className="input" value={qtd} onChange={setQtd} />
           </div>
-          <button className="btn-primary" disabled={saving || !valor} onClick={add}>
+          <button className="btn-primary" disabled={saving || !valor || !ligacao} onClick={add}>
             <Plus className="w-4 h-4" /> Lancar
           </button>
         </div>
-        <div className="mt-3">
-          <label className="label">Observacao (opcional)</label>
-          <input
-            className="input"
-            placeholder="Ex: aluno do PMAL turma 2026"
-            value={obs}
-            onChange={(e) => setObs(e.target.value)}
-          />
+
+        {/* Seletor obrigatorio de Ligacao */}
+        <div className="mt-4">
+          <label className="label flex items-center gap-1">
+            <Phone className="w-3 h-3" /> Origem da venda (obrigatorio)
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            {LIGACAO_STATUSES.map((opt) => {
+              const active = ligacao === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setLigacao(opt.id)}
+                  className={`text-left rounded-xl border p-3 transition ${
+                    active ? "border-accent bg-accent/10" : "border-border bg-panel2 hover:border-accent/40"
+                  }`}
+                  style={active ? { boxShadow: `0 0 0 1px ${opt.color}55` } : undefined}
+                >
+                  <div className="text-sm font-semibold" style={{ color: opt.color }}>
+                    {opt.short}
+                  </div>
+                  <div className="text-[11px] text-white/60 mt-0.5 leading-snug">{opt.label}</div>
+                </button>
+              );
+            })}
+          </div>
+          {!ligacao && (
+            <div className="text-[11px] text-warning mt-2">
+              Escolha como essa venda foi originada antes de lancar.
+            </div>
+          )}
         </div>
       </div>
 
@@ -145,7 +172,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
               <th className="p-3">Produto</th>
               <th className="p-3">Valor</th>
               <th className="p-3">Qtd</th>
-              <th className="p-3">Obs</th>
+              <th className="p-3">Origem</th>
               <th className="p-3 w-32"></th>
             </tr>
           </thead>
@@ -192,7 +219,7 @@ function Row({
   const [line, setLine] = useState(sale.product_line);
   const [valor, setValor] = useState(Number(sale.valor));
   const [qtd, setQtd] = useState(Number(sale.quantidade));
-  const [obs, setObs] = useState(sale.observacao || "");
+  const [ligacao, setLigacao] = useState(sale.ligacao_status || "sem_ligacao");
 
   const cppemLines = [
     { id: "mentorias", label: "Mentorias" },
@@ -209,10 +236,22 @@ function Row({
     const r = await fetch(`/api/sales/${sale.id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ sale_date: date, product_line: line, valor, quantidade: qtd, observacao: obs }),
+      body: JSON.stringify({
+        sale_date: date,
+        product_line: line,
+        valor,
+        quantidade: qtd,
+        ligacao_status: ligacao,
+      }),
     });
     if (r.ok) {
-      onChange({ sale_date: date, product_line: line, valor, quantidade: qtd, observacao: obs });
+      onChange({
+        sale_date: date,
+        product_line: line,
+        valor,
+        quantidade: qtd,
+        ligacao_status: ligacao,
+      });
       setEdit(false);
       onAfter();
     }
@@ -228,13 +267,24 @@ function Row({
   }
 
   if (!edit) {
+    const lig = sale.ligacao_status || "sem_ligacao";
     return (
       <tr className="border-t border-border">
         <td className="p-3">{new Date(sale.sale_date + "T00:00").toLocaleDateString("pt-BR")}</td>
         <td className="p-3">{productLabel(sale.product_line)}</td>
         <td className="p-3 font-semibold">{BRL.format(Number(sale.valor))}</td>
         <td className="p-3">{sale.quantidade}</td>
-        <td className="p-3 text-white/60">{sale.observacao || "-"}</td>
+        <td className="p-3">
+          <span
+            className="chip"
+            style={{
+              background: ligacaoColor(lig) + "22",
+              color: ligacaoColor(lig),
+            }}
+          >
+            <Phone className="w-3 h-3" /> {ligacaoShort(lig)}
+          </span>
+        </td>
         <td className="p-3 text-right">
           <button className="btn-ghost h-8 px-2 mr-1" onClick={() => setEdit(true)}>
             <Pencil className="w-3.5 h-3.5" />
@@ -268,7 +318,13 @@ function Row({
         <NumberField className="input h-9" value={qtd} onChange={setQtd} />
       </td>
       <td className="p-2">
-        <input className="input h-9" value={obs} onChange={(e) => setObs(e.target.value)} />
+        <select className="input h-9" value={ligacao} onChange={(e) => setLigacao(e.target.value)}>
+          {LIGACAO_STATUSES.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.short}
+            </option>
+          ))}
+        </select>
       </td>
       <td className="p-2 text-right">
         <button className="btn-primary h-8 px-2 mr-1" onClick={save}>

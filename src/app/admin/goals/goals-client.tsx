@@ -1,20 +1,29 @@
 "use client";
-import { Fragment, useEffect, useMemo, useState } from "react";
-import { Save, RotateCw, SplitSquareHorizontal, Sparkles, ChevronDown, ChevronRight, Copy, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Save, RotateCw, SplitSquareHorizontal, Sparkles, Copy, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { BU_COLOR, BU_LABEL } from "@/lib/brand";
 import NumberField from "@/components/NumberField";
 
-type Seller = { id: string; name: string; bu: "cppem" | "unicive" };
+type Seller = {
+  id: string;
+  name: string;
+  bu: "cppem" | "unicive";
+  active?: boolean;
+};
 
 type SellerGoal = {
   seller_id: string;
-  // Para CPPEM: valor_total e a soma da meta de faturamento. Detalhe por linha:
-  // mentorias, cursos_digitais, fisicos, turma_pmal, turma_pmpe, turma_carreiras
-  // Cada com {valor_meta, quantidade_meta}.
-  // Para UNICIVE: matriculas {valor_meta, quantidade_meta}.
-  products: Record<string, { valor_meta: number; quantidade_meta: number }>;
+  valor_meta: number;
+  quantidade_meta: number;
   ticket_medio_meta: number;
   taxa_conversao_meta: number;
+};
+
+type LineGoal = {
+  product_line: string;
+  label: string;
+  valor_meta: number;
+  quantidade_meta: number;
 };
 
 const MONTHS = [
@@ -30,15 +39,11 @@ const CPPEM_LINES = [
   { id: "turma_pmpe", label: "Turma PMPE" },
   { id: "turma_carreiras", label: "Turma Carreiras Policiais" },
 ];
-
 const UNICIVE_LINES = [{ id: "matriculas", label: "Matriculas" }];
 
-function emptyGoal(seller_id: string, bu: "cppem" | "unicive"): SellerGoal {
-  const lines = bu === "cppem" ? CPPEM_LINES : UNICIVE_LINES;
-  const products: SellerGoal["products"] = {};
-  lines.forEach((l) => (products[l.id] = { valor_meta: 0, quantidade_meta: 0 }));
-  return { seller_id, products, ticket_medio_meta: 0, taxa_conversao_meta: 0 };
-}
+const BRL = (n: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 }).format(n);
+const INT = (n: number) => new Intl.NumberFormat("pt-BR").format(Math.round(n));
 
 export default function GoalsClient({
   sellers,
@@ -53,285 +58,194 @@ export default function GoalsClient({
   const [year, setYear] = useState(defaultYear);
   const [month, setMonth] = useState(defaultMonth);
 
-  // meta GERAL da BU (input direto)
+  // Meta geral da BU (input direto)
   const [metaGeralFat, setMetaGeralFat] = useState(0);
   const [metaGeralQtd, setMetaGeralQtd] = useState(0);
 
-  // metas por vendedor
+  // Meta por linha de produto (da BU como um todo)
+  const [lines, setLines] = useState<LineGoal[]>([]);
+
+  // Meta por vendedor (livre)
   const [goals, setGoals] = useState<Record<string, SellerGoal>>({});
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "ok" | "err"; msg: string } | null>(null);
 
   const buSellers = useMemo(() => sellers.filter((s) => s.bu === bu), [sellers, bu]);
   const isUni = bu === "unicive";
+  const color = BU_COLOR[bu];
+  const linesDef = isUni ? UNICIVE_LINES : CPPEM_LINES;
 
-  // Carrega metas atuais quando muda BU / mes / ano
   useEffect(() => {
-    if (buSellers.length === 0) return;
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bu, year, month]);
+
+  async function load() {
     setLoading(true);
-    Promise.all(
-      buSellers.map((s) =>
-        fetch(`/api/goals?seller_id=${s.id}&year=${year}&month=${month}`).then((r) => r.json())
-      )
-    )
-      .then((results: any[]) => {
-        const lines = bu === "cppem" ? CPPEM_LINES : UNICIVE_LINES;
-        const next: Record<string, SellerGoal> = {};
-        buSellers.forEach((s, i) => {
-          const g = emptyGoal(s.id, bu);
-          const j = results[i] || {};
-          (j.products || []).forEach((p: any) => {
-            if (g.products[p.product_line]) {
-              g.products[p.product_line] = {
-                valor_meta: Number(p.valor_meta || 0),
-                quantidade_meta: Number(p.quantidade_meta || 0),
-              };
-            }
-          });
-          g.ticket_medio_meta = Number(j?.monthly?.ticket_medio_meta || 0);
-          g.taxa_conversao_meta = Number(j?.monthly?.taxa_conversao_meta || 0);
-          next[s.id] = g;
-        });
-        setGoals(next);
-        // Meta geral comeca = soma das existentes (assim quando voce abre o mes
-        // ja tem o resumo do que ja foi distribuido).
-        const totalFat = Object.values(next).reduce(
-          (a, g) => a + Object.values(g.products).reduce((aa, p) => aa + p.valor_meta, 0),
-          0
-        );
-        const totalQtd = Object.values(next).reduce(
-          (a, g) => a + Object.values(g.products).reduce((aa, p) => aa + p.quantidade_meta, 0),
-          0
-        );
-        setMetaGeralFat(totalFat);
-        setMetaGeralQtd(totalQtd);
-      })
-      .finally(() => setLoading(false));
-  }, [bu, year, month, buSellers]);
+    const j = await fetch(`/api/goals/period?bu=${bu}&year=${year}&month=${month}`).then((r) => r.json());
 
-  function sellerTotal(g: SellerGoal) {
-    let fat = 0,
-      qtd = 0;
-    Object.values(g.products).forEach((p) => {
-      fat += Number(p.valor_meta || 0);
-      qtd += Number(p.quantidade_meta || 0);
-    });
-    return { fat, qtd };
-  }
-
-  const totals = useMemo(() => {
-    let fat = 0,
-      qtd = 0;
-    Object.values(goals).forEach((g) => {
-      const t = sellerTotal(g);
-      fat += t.fat;
-      qtd += t.qtd;
-    });
-    return { fat, qtd };
-  }, [goals]);
-
-  function updateSellerTotal(
-    sellerId: string,
-    patch: { fat?: number; qtd?: number }
-  ) {
-    // Quando o admin altera o total do vendedor, jogamos em uma linha "principal":
-    // para CPPEM, na primeira linha que tem valor > 0; senao, na linha 'mentorias'.
-    // (Detalhamento por linha continua disponivel no collapse).
-    setGoals((prev) => {
-      const g = prev[sellerId];
-      if (!g) return prev;
-      const lines = bu === "cppem" ? CPPEM_LINES : UNICIVE_LINES;
-      // Se ja tem distribuicao detalhada, redistribuimos proporcionalmente.
-      const currTotalFat = Object.values(g.products).reduce((a, p) => a + p.valor_meta, 0);
-      const currTotalQtd = Object.values(g.products).reduce((a, p) => a + p.quantidade_meta, 0);
-      const products = { ...g.products };
-      if (patch.fat !== undefined) {
-        const newFat = Math.max(0, patch.fat);
-        if (currTotalFat > 0) {
-          const factor = newFat / currTotalFat;
-          lines.forEach((l) => {
-            products[l.id] = {
-              ...products[l.id],
-              valor_meta: Math.round(products[l.id].valor_meta * factor * 100) / 100,
-            };
-          });
-        } else {
-          const first = lines[0].id;
-          products[first] = { ...products[first], valor_meta: newFat };
-        }
-      }
-      if (patch.qtd !== undefined) {
-        const newQtd = Math.max(0, patch.qtd);
-        if (currTotalQtd > 0) {
-          const factor = newQtd / currTotalQtd;
-          lines.forEach((l) => {
-            products[l.id] = {
-              ...products[l.id],
-              quantidade_meta: Math.round(products[l.id].quantidade_meta * factor),
-            };
-          });
-        } else {
-          const first = lines[0].id;
-          products[first] = { ...products[first], quantidade_meta: newQtd };
-        }
-      }
-      return { ...prev, [sellerId]: { ...g, products } };
-    });
-  }
-
-  function updateLine(
-    sellerId: string,
-    line: string,
-    patch: { valor_meta?: number; quantidade_meta?: number }
-  ) {
-    setGoals((prev) => {
-      const g = prev[sellerId];
-      if (!g) return prev;
-      const cur = g.products[line] || { valor_meta: 0, quantidade_meta: 0 };
+    // Linhas
+    const nextLines = linesDef.map((l) => {
+      const f = (j.bu_product_goals || []).find((p: any) => p.product_line === l.id);
       return {
-        ...prev,
-        [sellerId]: {
-          ...g,
-          products: { ...g.products, [line]: { ...cur, ...patch } },
-        },
+        product_line: l.id,
+        label: l.label,
+        valor_meta: Number(f?.valor_meta || 0),
+        quantidade_meta: Number(f?.quantidade_meta || 0),
       };
     });
-  }
+    setLines(nextLines);
 
-  function updateMonthly(sellerId: string, patch: Partial<SellerGoal>) {
-    setGoals((prev) => ({ ...prev, [sellerId]: { ...prev[sellerId], ...patch } }));
-  }
-
-  function distributeEqually() {
-    if (buSellers.length === 0) return;
-    const perFat = metaGeralFat / buSellers.length;
-    const perQtd = metaGeralQtd / buSellers.length;
-    setGoals((prev) => {
-      const next = { ...prev };
-      buSellers.forEach((s) => {
-        next[s.id] = next[s.id] || emptyGoal(s.id, bu);
-      });
-      // Aplica via updateSellerTotal logic, mas inline aqui
-      buSellers.forEach((s) => {
-        const g = next[s.id];
-        const lines = bu === "cppem" ? CPPEM_LINES : UNICIVE_LINES;
-        const currTotalFat = Object.values(g.products).reduce((a, p) => a + p.valor_meta, 0);
-        const currTotalQtd = Object.values(g.products).reduce((a, p) => a + p.quantidade_meta, 0);
-        const products = { ...g.products };
-        if (currTotalFat > 0) {
-          const f = perFat / currTotalFat;
-          lines.forEach((l) => (products[l.id] = { ...products[l.id], valor_meta: Math.round(products[l.id].valor_meta * f * 100) / 100 }));
-        } else {
-          products[lines[0].id] = { ...products[lines[0].id], valor_meta: Math.round(perFat * 100) / 100 };
-        }
-        if (currTotalQtd > 0) {
-          const f = perQtd / currTotalQtd;
-          lines.forEach((l) => (products[l.id] = { ...products[l.id], quantidade_meta: Math.round(products[l.id].quantidade_meta * f) }));
-        } else {
-          products[lines[0].id] = { ...products[lines[0].id], quantidade_meta: Math.round(perQtd) };
-        }
-        next[s.id] = { ...g, products };
-      });
-      return next;
+    // Vendedores
+    const nextGoals: Record<string, SellerGoal> = {};
+    buSellers.forEach((s) => {
+      const m = (j.monthly || []).find((x: any) => x.seller_id === s.id);
+      nextGoals[s.id] = {
+        seller_id: s.id,
+        valor_meta: Number(m?.valor_meta || 0),
+        quantidade_meta: Number(m?.quantidade_meta || 0),
+        ticket_medio_meta: Number(m?.ticket_medio_meta || 0),
+        taxa_conversao_meta: Number(m?.taxa_conversao_meta || 0),
+      };
     });
+    setGoals(nextGoals);
+
+    // Meta geral comeca = soma das linhas (se existir).
+    const totalLineFat = nextLines.reduce((a, b) => a + b.valor_meta, 0);
+    const totalLineQtd = nextLines.reduce((a, b) => a + b.quantidade_meta, 0);
+    setMetaGeralFat(totalLineFat);
+    setMetaGeralQtd(totalLineQtd);
+
+    setLoading(false);
   }
 
   async function copyFromPreviousMonth() {
     const prevMonth = month === 1 ? 12 : month - 1;
     const prevYear = month === 1 ? year - 1 : year;
     setLoading(true);
-    try {
-      const results = await Promise.all(
-        buSellers.map((s) =>
-          fetch(`/api/goals?seller_id=${s.id}&year=${prevYear}&month=${prevMonth}`).then((r) => r.json())
-        )
-      );
-      const next: Record<string, SellerGoal> = {};
-      buSellers.forEach((s, i) => {
-        const g = emptyGoal(s.id, bu);
-        const j = results[i] || {};
-        (j.products || []).forEach((p: any) => {
-          if (g.products[p.product_line]) {
-            g.products[p.product_line] = {
-              valor_meta: Number(p.valor_meta || 0),
-              quantidade_meta: Number(p.quantidade_meta || 0),
-            };
-          }
-        });
-        g.ticket_medio_meta = Number(j?.monthly?.ticket_medio_meta || 0);
-        g.taxa_conversao_meta = Number(j?.monthly?.taxa_conversao_meta || 0);
-        next[s.id] = g;
-      });
-      setGoals(next);
-      const totalFat = Object.values(next).reduce(
-        (a, g) => a + Object.values(g.products).reduce((aa, p) => aa + p.valor_meta, 0),
-        0
-      );
-      const totalQtd = Object.values(next).reduce(
-        (a, g) => a + Object.values(g.products).reduce((aa, p) => aa + p.quantidade_meta, 0),
-        0
-      );
-      setMetaGeralFat(totalFat);
-      setMetaGeralQtd(totalQtd);
-      setFeedback({ kind: "ok", msg: "Metas copiadas do mes anterior. Ajuste e salve." });
-    } finally {
-      setLoading(false);
-    }
+    const j = await fetch(`/api/goals/period?bu=${bu}&year=${prevYear}&month=${prevMonth}`).then((r) => r.json());
+    const nextLines = linesDef.map((l) => {
+      const f = (j.bu_product_goals || []).find((p: any) => p.product_line === l.id);
+      return {
+        product_line: l.id,
+        label: l.label,
+        valor_meta: Number(f?.valor_meta || 0),
+        quantidade_meta: Number(f?.quantidade_meta || 0),
+      };
+    });
+    setLines(nextLines);
+    const nextGoals: Record<string, SellerGoal> = {};
+    buSellers.forEach((s) => {
+      const m = (j.monthly || []).find((x: any) => x.seller_id === s.id);
+      nextGoals[s.id] = {
+        seller_id: s.id,
+        valor_meta: Number(m?.valor_meta || 0),
+        quantidade_meta: Number(m?.quantidade_meta || 0),
+        ticket_medio_meta: Number(m?.ticket_medio_meta || 0),
+        taxa_conversao_meta: Number(m?.taxa_conversao_meta || 0),
+      };
+    });
+    setGoals(nextGoals);
+    setMetaGeralFat(nextLines.reduce((a, b) => a + b.valor_meta, 0));
+    setMetaGeralQtd(nextLines.reduce((a, b) => a + b.quantidade_meta, 0));
+    setLoading(false);
+    setFeedback({ kind: "ok", msg: "Metas copiadas do mes anterior. Ajuste e salve." });
   }
+
+  function distributeSellersEqually() {
+    if (buSellers.length === 0) return;
+    const perFat = metaGeralFat / buSellers.length;
+    const perQtd = metaGeralQtd / buSellers.length;
+    setGoals((prev) => {
+      const next = { ...prev };
+      buSellers.forEach((s) => {
+        next[s.id] = {
+          ...(next[s.id] || {
+            seller_id: s.id,
+            ticket_medio_meta: 0,
+            taxa_conversao_meta: 0,
+            valor_meta: 0,
+            quantidade_meta: 0,
+          }),
+          valor_meta: Math.round(perFat * 100) / 100,
+          quantidade_meta: Math.round(perQtd),
+        };
+      });
+      return next;
+    });
+  }
+
+  function updateLine(idx: number, patch: Partial<LineGoal>) {
+    setLines((p) => p.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+  }
+  function updateSeller(id: string, patch: Partial<SellerGoal>) {
+    setGoals((p) => ({
+      ...p,
+      [id]: {
+        ...(p[id] || {
+          seller_id: id,
+          valor_meta: 0,
+          quantidade_meta: 0,
+          ticket_medio_meta: 0,
+          taxa_conversao_meta: 0,
+        }),
+        ...patch,
+      },
+    }));
+  }
+
+  const totalsLine = useMemo(
+    () => ({
+      fat: lines.reduce((a, b) => a + b.valor_meta, 0),
+      qtd: lines.reduce((a, b) => a + b.quantidade_meta, 0),
+    }),
+    [lines]
+  );
+  const totalsSellers = useMemo(
+    () => ({
+      fat: Object.values(goals).reduce((a, b) => a + b.valor_meta, 0),
+      qtd: Object.values(goals).reduce((a, b) => a + b.quantidade_meta, 0),
+    }),
+    [goals]
+  );
+
+  const metaGeralPrincipal = isUni ? metaGeralQtd : metaGeralFat;
+  const totalsSellersPrincipal = isUni ? totalsSellers.qtd : totalsSellers.fat;
+  const totalsLinesPrincipal = isUni ? totalsLine.qtd : totalsLine.fat;
+  const diffSellers = totalsSellersPrincipal - metaGeralPrincipal;
+  const diffLines = totalsLinesPrincipal - metaGeralPrincipal;
 
   async function saveAll() {
     setSaving(true);
     setFeedback(null);
-    const results = await Promise.all(
-      Object.values(goals).map((g) =>
-        fetch("/api/goals", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            seller_id: g.seller_id,
-            year,
-            month,
-            ticket_medio_meta: g.ticket_medio_meta,
-            taxa_conversao_meta: g.taxa_conversao_meta,
-            product_goals: Object.entries(g.products).map(([product_line, p]) => ({
-              product_line,
-              valor_meta: p.valor_meta,
-              quantidade_meta: p.quantidade_meta,
-            })),
-          }),
-        })
-      )
-    );
+    const res = await fetch("/api/goals/period", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        bu,
+        year,
+        month,
+        bu_product_goals: lines.map((l) => ({
+          product_line: l.product_line,
+          valor_meta: l.valor_meta,
+          quantidade_meta: l.quantidade_meta,
+        })),
+        sellers: Object.values(goals),
+      }),
+    });
     setSaving(false);
-    if (results.every((r) => r.ok)) {
-      setFeedback({ kind: "ok", msg: "Metas salvas! O dashboard e os vendedores ja veem os novos numeros." });
+    if (res.ok) {
+      setFeedback({
+        kind: "ok",
+        msg: "Metas salvas! Os vendedores e o dashboard ja veem os novos numeros.",
+      });
     } else {
-      setFeedback({ kind: "err", msg: "Algumas metas nao salvaram. Tente novamente." });
+      const j = await res.json().catch(() => ({}));
+      setFeedback({ kind: "err", msg: "Erro ao salvar: " + (j.error || "tente novamente") });
     }
   }
-
-  const lines = bu === "cppem" ? CPPEM_LINES : UNICIVE_LINES;
-  const color = BU_COLOR[bu];
-
-  const principalKind = isUni ? "qtd" : "fat";
-  const principalLabel = isUni ? "matriculas" : "faturamento";
-  const metaGeralPrincipal = isUni ? metaGeralQtd : metaGeralFat;
-  const totalsPrincipal = isUni ? totals.qtd : totals.fat;
-  const diff = totalsPrincipal - metaGeralPrincipal;
-  const status =
-    metaGeralPrincipal === 0
-      ? null
-      : Math.abs(diff) < (isUni ? 1 : 0.5)
-      ? "match"
-      : diff > 0
-      ? "over"
-      : "under";
-
-  const BRL = (n: number) =>
-    new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 }).format(n);
-  const INT = (n: number) => new Intl.NumberFormat("pt-BR").format(Math.round(n));
 
   return (
     <div className="space-y-5">
@@ -365,7 +279,7 @@ export default function GoalsClient({
           <label className="label">Ano</label>
           <NumberField className="input" value={year} onChange={setYear} />
         </div>
-        <button className="btn-ghost" onClick={copyFromPreviousMonth} disabled={loading || buSellers.length === 0}>
+        <button className="btn-ghost" onClick={copyFromPreviousMonth} disabled={loading}>
           <Copy className="w-4 h-4" /> Copiar do mes anterior
         </button>
       </div>
@@ -378,16 +292,18 @@ export default function GoalsClient({
               2 - Meta geral {BU_LABEL[bu]}
             </div>
             <div className="text-lg font-semibold">
-              {isUni ? "Quantas matriculas a Unicive precisa fechar?" : "Quanto a CPPEM precisa faturar no mes?"}
+              {isUni
+                ? "Quantas matriculas a Unicive precisa fechar no mes?"
+                : "Quanto a CPPEM precisa faturar no mes?"}
             </div>
           </div>
           <button
             className="btn-primary text-sm"
             disabled={metaGeralPrincipal === 0 || buSellers.length === 0}
-            onClick={distributeEqually}
+            onClick={distributeSellersEqually}
             title="Distribuir igualmente entre vendedores ativos"
           >
-            <SplitSquareHorizontal className="w-4 h-4" /> Distribuir igualmente
+            <SplitSquareHorizontal className="w-4 h-4" /> Distribuir igualmente nos vendedores
           </button>
         </div>
 
@@ -403,10 +319,11 @@ export default function GoalsClient({
                 onChange={setMetaGeralFat}
               />
             </div>
-            <div className="text-xs text-white/50 mt-1">Soma das metas dos vendedores: {BRL(totals.fat)}</div>
           </div>
           <div className="rounded-xl bg-panel2 p-4">
-            <div className="kpi-label">{isUni ? "Meta de Matriculas (qtd)" : "Meta de Quantidade total"}</div>
+            <div className="kpi-label">
+              {isUni ? "Meta de Matriculas (qtd)" : "Meta de Quantidade total"}
+            </div>
             <div className="flex items-center gap-2 mt-1">
               <NumberField
                 className="input text-2xl font-bold"
@@ -415,61 +332,102 @@ export default function GoalsClient({
               />
               <span className="text-white/40 text-sm">un.</span>
             </div>
-            <div className="text-xs text-white/50 mt-1">Soma das metas dos vendedores: {INT(totals.qtd)}</div>
           </div>
         </div>
-
-        {status && (
-          <div
-            className={`mt-3 text-xs flex items-center gap-2 ${
-              status === "match"
-                ? "text-success"
-                : status === "over"
-                ? "text-warning"
-                : "text-danger"
-            }`}
-          >
-            {status === "match" ? (
-              <CheckCircle2 className="w-4 h-4" />
-            ) : (
-              <AlertTriangle className="w-4 h-4" />
-            )}
-            {status === "match" && "Distribuicao bate com a meta geral."}
-            {status === "over" &&
-              `Distribuicao esta ${isUni ? INT(Math.abs(diff)) + " matriculas" : BRL(Math.abs(diff))} ACIMA da meta geral.`}
-            {status === "under" &&
-              `Faltam ${isUni ? INT(Math.abs(diff)) + " matriculas" : BRL(Math.abs(diff))} para fechar a meta geral.`}
-          </div>
-        )}
       </div>
 
-      {/* Step 3 - Distribuicao por vendedor */}
+      {/* Step 3 - Meta por linha de produto (da BU) */}
       <div className="card-lg">
         <div className="flex items-center justify-between mb-3">
           <div>
             <div className="text-xs uppercase tracking-wider" style={{ color }}>
-              3 - Por vendedor
+              3 - Meta por linha de produto - {BU_LABEL[bu]}
             </div>
-            <div className="text-lg font-semibold">Ajuste por pessoa e salve</div>
+            <div className="text-sm font-semibold">
+              Metas totais por categoria (nao por vendedor)
+            </div>
           </div>
           <div className="text-xs text-white/40">
-            Edite a meta principal de cada um direto na tabela. Pra detalhar por linha de produto, expanda a linha.
+            Soma das linhas: <b className="text-white">{BRL(totalsLine.fat)}</b> /{" "}
+            <b className="text-white">{INT(totalsLine.qtd)} un.</b>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-xs uppercase tracking-wider text-white/40">
+              <tr className="text-left">
+                <th className="py-2">Linha de produto</th>
+                <th className="text-right">Meta faturamento</th>
+                <th className="text-right">Meta quantidade</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map((l, i) => (
+                <tr key={l.product_line} className="border-t border-border">
+                  <td className="py-2">{l.label}</td>
+                  <td className="text-right">
+                    <NumberField
+                      step="0.01"
+                      className="input h-9 text-right"
+                      value={l.valor_meta}
+                      onChange={(v) => updateLine(i, { valor_meta: v })}
+                    />
+                  </td>
+                  <td className="text-right">
+                    <NumberField
+                      className="input h-9 text-right"
+                      value={l.quantidade_meta}
+                      onChange={(v) => updateLine(i, { quantidade_meta: v })}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {metaGeralPrincipal > 0 && Math.abs(diffLines) > (isUni ? 0.5 : 0.5) && (
+          <div className="mt-3 text-xs flex items-center gap-2 text-warning">
+            <AlertTriangle className="w-4 h-4" />
+            Soma das linhas {diffLines > 0 ? "esta acima" : "esta abaixo"} da meta geral em{" "}
+            {isUni ? INT(Math.abs(diffLines)) + " un." : BRL(Math.abs(diffLines))} (aviso, nao bloqueia).
+          </div>
+        )}
+        {metaGeralPrincipal > 0 && Math.abs(diffLines) <= (isUni ? 0.5 : 0.5) && totalsLinesPrincipal > 0 && (
+          <div className="mt-3 text-xs flex items-center gap-2 text-success">
+            <CheckCircle2 className="w-4 h-4" /> Soma das linhas bate com a meta geral.
+          </div>
+        )}
+      </div>
+
+      {/* Step 4 - Meta por vendedor */}
+      <div className="card-lg">
+        <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
+          <div>
+            <div className="text-xs uppercase tracking-wider" style={{ color }}>
+              4 - Meta por vendedor
+            </div>
+            <div className="text-sm font-semibold">
+              Edite livremente — voce pode desafiar um vendedor sem alterar a meta geral
+            </div>
+          </div>
+          <div className="text-xs text-white/40">
+            Soma dos vendedores: <b className="text-white">{BRL(totalsSellers.fat)}</b> /{" "}
+            <b className="text-white">{INT(totalsSellers.qtd)} un.</b>
           </div>
         </div>
 
         {buSellers.length === 0 ? (
           <div className="text-sm text-white/60">
-            Cadastre vendedores em <a className="text-accent" href="/admin/sellers">Vendedores</a> e depois volte aqui.
+            Cadastre vendedores em <a href="/admin/sellers" className="text-accent">Vendedores</a>.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-xs uppercase tracking-wider text-white/40">
                 <tr className="text-left">
-                  <th className="py-2"></th>
-                  <th>Vendedor</th>
-                  <th className="text-right">{isUni ? "Faturamento" : "Faturamento (meta)"}</th>
-                  <th className="text-right">{isUni ? "Matriculas (meta)" : "Quantidade"}</th>
+                  <th className="py-2">Vendedor</th>
+                  <th className="text-right">Faturamento</th>
+                  <th className="text-right">Quantidade</th>
                   <th className="text-right">Ticket meta (R$)</th>
                   <th className="text-right">Conversao meta (%)</th>
                   <th className="text-right">% da BU</th>
@@ -477,136 +435,99 @@ export default function GoalsClient({
               </thead>
               <tbody>
                 {buSellers.map((s) => {
-                  const g = goals[s.id] || emptyGoal(s.id, bu);
-                  const tot = sellerTotal(g);
-                  const isExp = !!expanded[s.id];
+                  const g = goals[s.id] || {
+                    seller_id: s.id,
+                    valor_meta: 0,
+                    quantidade_meta: 0,
+                    ticket_medio_meta: 0,
+                    taxa_conversao_meta: 0,
+                  };
+                  const principal = isUni ? g.quantidade_meta : g.valor_meta;
                   const pctOfBu =
-                    metaGeralPrincipal > 0
-                      ? ((isUni ? tot.qtd : tot.fat) / metaGeralPrincipal) * 100
-                      : 0;
+                    metaGeralPrincipal > 0 ? (principal / metaGeralPrincipal) * 100 : 0;
                   return (
-                    <Fragment key={s.id}>
-                      <tr className="border-t border-border">
-                        <td className="py-2">
-                          {bu === "cppem" && (
-                            <button
-                              onClick={() => setExpanded((p) => ({ ...p, [s.id]: !p[s.id] }))}
-                              className="w-7 h-7 grid place-items-center rounded-lg hover:bg-panel2 text-white/60"
-                              title="Detalhar por linha de produto"
-                            >
-                              {isExp ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                            </button>
-                          )}
-                        </td>
-                        <td className="py-2 font-medium">{s.name}</td>
-                        <td className="text-right">
-                          <NumberField
-                            step="0.01"
-                            className="input h-9 text-right"
-                            value={tot.fat}
-                            onChange={(v) => updateSellerTotal(s.id, { fat: v })}
-                          />
-                        </td>
-                        <td className="text-right">
-                          <NumberField
-                            className="input h-9 text-right"
-                            value={tot.qtd}
-                            onChange={(v) => updateSellerTotal(s.id, { qtd: v })}
-                          />
-                        </td>
-                        <td className="text-right">
-                          <NumberField
-                            step="0.01"
-                            className="input h-9 text-right"
-                            value={g.ticket_medio_meta}
-                            onChange={(v) => updateMonthly(s.id, { ticket_medio_meta: v })}
-                          />
-                        </td>
-                        <td className="text-right">
-                          <NumberField
-                            step="0.1"
-                            className="input h-9 text-right"
-                            value={g.taxa_conversao_meta}
-                            onChange={(v) => updateMonthly(s.id, { taxa_conversao_meta: v })}
-                          />
-                        </td>
-                        <td className="text-right text-sm font-semibold" style={{ color }}>
-                          {pctOfBu.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
-                        </td>
-                      </tr>
-                      {bu === "cppem" && isExp && (
-                        <tr className="bg-panel2/40 border-t border-border">
-                          <td></td>
-                          <td colSpan={6} className="py-3 pr-3">
-                            <div className="text-xs uppercase tracking-wider text-white/40 mb-2">
-                              Detalhe por linha de produto
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              {lines.map((l) => {
-                                const p = g.products[l.id] || { valor_meta: 0, quantidade_meta: 0 };
-                                return (
-                                  <div key={l.id} className="grid grid-cols-[1fr_120px_100px] gap-2 items-center">
-                                    <div className="text-xs text-white/70">{l.label}</div>
-                                    <NumberField
-                                      step="0.01"
-                                      className="input h-8 text-right text-xs"
-                                      placeholder="R$"
-                                      value={p.valor_meta}
-                                      onChange={(v) => updateLine(s.id, l.id, { valor_meta: v })}
-                                    />
-                                    <NumberField
-                                      className="input h-8 text-right text-xs"
-                                      placeholder="qtd"
-                                      value={p.quantidade_meta}
-                                      onChange={(v) => updateLine(s.id, l.id, { quantidade_meta: v })}
-                                    />
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </Fragment>
+                    <tr key={s.id} className="border-t border-border">
+                      <td className="py-2 font-medium">{s.name}</td>
+                      <td className="text-right">
+                        <NumberField
+                          step="0.01"
+                          className="input h-9 text-right"
+                          value={g.valor_meta}
+                          onChange={(v) => updateSeller(s.id, { valor_meta: v })}
+                        />
+                      </td>
+                      <td className="text-right">
+                        <NumberField
+                          className="input h-9 text-right"
+                          value={g.quantidade_meta}
+                          onChange={(v) => updateSeller(s.id, { quantidade_meta: v })}
+                        />
+                      </td>
+                      <td className="text-right">
+                        <NumberField
+                          step="0.01"
+                          className="input h-9 text-right"
+                          value={g.ticket_medio_meta}
+                          onChange={(v) => updateSeller(s.id, { ticket_medio_meta: v })}
+                        />
+                      </td>
+                      <td className="text-right">
+                        <NumberField
+                          step="0.1"
+                          className="input h-9 text-right"
+                          value={g.taxa_conversao_meta}
+                          onChange={(v) => updateSeller(s.id, { taxa_conversao_meta: v })}
+                        />
+                      </td>
+                      <td className="text-right text-sm font-semibold" style={{ color }}>
+                        {pctOfBu.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
+                      </td>
+                    </tr>
                   );
                 })}
                 <tr className="border-t border-border">
-                  <td></td>
                   <td className="py-2 text-xs uppercase tracking-wider text-white/40">TOTAL</td>
-                  <td className="text-right font-semibold">{BRL(totals.fat)}</td>
-                  <td className="text-right font-semibold">{INT(totals.qtd)}</td>
+                  <td className="text-right font-semibold">{BRL(totalsSellers.fat)}</td>
+                  <td className="text-right font-semibold">{INT(totalsSellers.qtd)}</td>
                   <td colSpan={2}></td>
                   <td className="text-right text-xs text-white/40">
-                    {metaGeralPrincipal > 0 ? ((totalsPrincipal / metaGeralPrincipal) * 100).toFixed(1) + "%" : "-"}
+                    {metaGeralPrincipal > 0
+                      ? ((totalsSellersPrincipal / metaGeralPrincipal) * 100).toFixed(1) + "%"
+                      : "-"}
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
         )}
+
+        {metaGeralPrincipal > 0 && Math.abs(diffSellers) > (isUni ? 0.5 : 0.5) && (
+          <div className="mt-3 text-xs flex items-center gap-2 text-warning">
+            <AlertTriangle className="w-4 h-4" />
+            Aviso: soma das metas dos vendedores{" "}
+            {diffSellers > 0 ? "esta " + (isUni ? INT(diffSellers) + " un." : BRL(diffSellers)) + " acima" : "esta " + (isUni ? INT(-diffSellers) + " un." : BRL(-diffSellers)) + " abaixo"}{" "}
+            da meta geral. Nao bloqueia o salvamento.
+          </div>
+        )}
       </div>
 
-      {/* Step 4 - Salvar */}
+      {/* Step 5 - Salvar */}
       <div className="sticky bottom-3">
         <div className="card flex items-center justify-between gap-3 flex-wrap">
           <div className="text-xs text-white/60 flex items-center gap-2">
             <Sparkles className="w-3.5 h-3.5 text-accent" />
             {loading
               ? "Carregando..."
-              : "Salva ticket medio, taxa de conversao e a distribuicao das metas dos vendedores."}
+              : "Salva metas por linha (BU), metas individuais e ticket/conversao."}
           </div>
           {feedback && (
             <div className={`text-xs ${feedback.kind === "ok" ? "text-success" : "text-danger"}`}>
               {feedback.msg}
             </div>
           )}
-          <button
-            className="btn-primary"
-            onClick={saveAll}
-            disabled={saving || loading || buSellers.length === 0}
-          >
+          <button className="btn-primary" onClick={saveAll} disabled={saving || loading}>
             {saving ? <RotateCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {saving ? "Salvando..." : "4 - Salvar metas do mes"}
+            {saving ? "Salvando..." : "5 - Salvar metas do mes"}
           </button>
         </div>
       </div>

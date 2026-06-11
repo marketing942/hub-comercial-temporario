@@ -9,10 +9,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Apenas vendedores logados." }, { status: 401 });
   }
   const b = await req.json();
-  const { sale_date, product_line, valor, quantidade, observacao } = b || {};
+  const { sale_date, product_line, valor, quantidade, observacao, ligacao_status } = b || {};
   if (!sale_date || !product_line) {
     return NextResponse.json({ error: "Faltam sale_date / product_line." }, { status: 400 });
   }
+  const validStatus = ["consegui_direto", "consegui_indireto", "sem_ligacao"];
+  const status = validStatus.includes(ligacao_status) ? ligacao_status : "sem_ligacao";
   const { data, error } = await supabaseAdmin
     .from("sales")
     .insert({
@@ -22,6 +24,7 @@ export async function POST(req: Request) {
       valor: Number(valor || 0),
       quantidade: Number(quantidade || 1),
       observacao: observacao || null,
+      ligacao_status: status,
     })
     .select()
     .single();

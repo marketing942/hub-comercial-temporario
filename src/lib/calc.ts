@@ -77,7 +77,12 @@ export function computeSellerStats(args: {
     avatar_color?: string;
   };
   productGoals: { product_line: string; valor_meta: number; quantidade_meta: number }[];
-  monthly: { ticket_medio_meta: number; taxa_conversao_meta: number } | null;
+  monthly: {
+    ticket_medio_meta: number;
+    taxa_conversao_meta: number;
+    valor_meta?: number;
+    quantidade_meta?: number;
+  } | null;
   sales: SaleRow[];
   leadsMonth: number;
   year: number;
@@ -86,8 +91,14 @@ export function computeSellerStats(args: {
   const { seller, productGoals, monthly, sales, leadsMonth, year, month } = args;
   const isUni = seller.bu === "unicive";
 
-  const valorMetaTotal = productGoals.reduce((s, g) => s + Number(g.valor_meta || 0), 0);
-  const qtdMetaTotal = productGoals.reduce((s, g) => s + Number(g.quantidade_meta || 0), 0);
+  // Fonte preferencial: monthly_goals.valor_meta/quantidade_meta (fluxo novo).
+  // Fallback: soma de product_goals (compat com dados antigos).
+  const sumProdValor = productGoals.reduce((s, g) => s + Number(g.valor_meta || 0), 0);
+  const sumProdQtd = productGoals.reduce((s, g) => s + Number(g.quantidade_meta || 0), 0);
+  const monthlyValor = Number(monthly?.valor_meta || 0);
+  const monthlyQtd = Number(monthly?.quantidade_meta || 0);
+  const valorMetaTotal = monthlyValor > 0 ? monthlyValor : sumProdValor;
+  const qtdMetaTotal = monthlyQtd > 0 ? monthlyQtd : sumProdQtd;
 
   const realizadoValor = sales.reduce((s, r) => s + Number(r.valor || 0), 0);
   const realizadoQtd = sales.reduce((s, r) => s + Number(r.quantidade || 0), 0);

@@ -7,11 +7,11 @@ import {
   Crown,
   Flame,
   Rocket,
-  Sparkles,
   Trophy,
-  CheckCircle2,
   Clock,
   Users,
+  Wallet,
+  Target,
 } from "lucide-react";
 
 type Status = "batido" | "quase" | "andamento" | "atrasado";
@@ -66,8 +66,13 @@ export default function SellersGameView({
   totalDays: number;
   daysLeft: number;
 }) {
-  const cppemRanking = stats.filter((s) => s.bu === "cppem").sort((a, b) => b.pctSucesso - a.pctSucesso);
-  const uniRanking = stats.filter((s) => s.bu === "unicive").sort((a, b) => b.pctSucesso - a.pctSucesso);
+  // Ranking pela METRICA PRIMARIA da BU:
+  // CPPEM = faturamento (valor); UNICIVE = quantidade de matriculas.
+  // Ja temos isso em `realizado`.
+  const sortByReal = (a: SellerStats, b: SellerStats) => b.realizado - a.realizado;
+  const cppemRanking = stats.filter((s) => s.bu === "cppem").sort(sortByReal);
+  const uniRanking = stats.filter((s) => s.bu === "unicive").sort(sortByReal);
+
   const totalSellers = stats.length;
   const batidos = stats.filter((s) => s.pctSucesso >= 100);
   const pctBatidos = totalSellers > 0 ? (batidos.length / totalSellers) * 100 : 0;
@@ -123,16 +128,13 @@ export default function SellersGameView({
         </div>
       </section>
 
-      {/* Dois podios lado a lado */}
+      {/* Dois podios lado a lado (ordenados por realizado) */}
       <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <BUPodium title="Top 3 CPPEM" ranking={cppemRanking} accent={BU_COLOR.cppem} />
         <BUPodium title="Top 3 UNICIVE" ranking={uniRanking} accent={BU_COLOR.unicive} />
       </section>
 
-      {/* CPPEM section */}
       <BUGroup title="CPPEM" sellers={cppemRanking} accent={BU_COLOR.cppem} />
-
-      {/* UNICIVE section */}
       <BUGroup title="UNICIVE" sellers={uniRanking} accent={BU_COLOR.unicive} />
     </div>
   );
@@ -184,7 +186,8 @@ function SellerCard({
   buColor: string;
 }) {
   const isUni = s.bu === "unicive";
-  const fmt = (n: number) => (isUni ? fmtInt.format(Math.round(n)) : BRL.format(n));
+  const fmtPrincipal = (n: number) =>
+    isUni ? fmtInt.format(Math.round(n)) : BRL.format(n);
   const st = statusFor(s.pctSucesso, s.gap);
   const meta = STATUS_META[st];
   return (
@@ -201,7 +204,7 @@ function SellerCard({
         <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-success/30 blur-3xl pointer-events-none" />
       )}
       <div className="relative">
-        <div className="flex items-start gap-3">
+        <div className="flex items-center gap-3">
           <Avatar
             name={s.sellerName}
             url={s.avatarUrl}
@@ -218,48 +221,80 @@ function SellerCard({
               </span>
               <div className="text-sm font-semibold truncate">{s.sellerName}</div>
             </div>
-            <span
-              className="chip mt-1"
-              style={{ background: meta.bg, color: meta.color }}
-            >
-              {meta.icon} {meta.label}
-            </span>
+            <div className="mt-1">
+              <span className="chip" style={{ background: meta.bg, color: meta.color }}>
+                {meta.icon} {meta.label}
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-baseline gap-2 mt-3">
-          <span className="text-3xl xl:text-4xl font-bold leading-none" style={{ color: meta.color }}>
-            {fmtPct(s.pctSucesso)}
-          </span>
-          <span className="text-[11px] text-white/50">da meta</span>
+        {/* % grande + total realizado */}
+        <div className="flex items-end justify-between gap-2 mt-3">
+          <div>
+            <div className="text-3xl xl:text-4xl font-bold leading-none" style={{ color: meta.color }}>
+              {fmtPct(s.pctSucesso)}
+            </div>
+            <div className="text-[11px] text-white/50 mt-0.5">da meta</div>
+          </div>
+          <div className="text-right">
+            <div className="text-[10px] uppercase tracking-wider text-white/40">
+              {isUni ? "Matriculas" : "Faturamento"}
+            </div>
+            <div className="text-base font-semibold" style={{ color: buColor }}>
+              {fmtPrincipal(s.realizado)}
+            </div>
+          </div>
         </div>
 
         <div className="mt-2">
-          <ProgressBar value={s.pctSucesso} color={meta.color} height={8} />
+          <ProgressBar value={s.pctSucesso} color={meta.color} height={7} />
         </div>
 
-        <div className="grid grid-cols-2 gap-2 mt-3">
-          <Stat label="Realizado" value={fmt(s.realizado)} accent={buColor} />
-          <Stat label="Meta" value={fmt(s.metaTotal)} />
-          <Stat
-            label="Falta"
-            value={s.pctSucesso >= 100 ? "0" : fmt(s.falta)}
-            accent={s.pctSucesso >= 100 ? "#22c55e" : "#facc15"}
+        {/* 3 mini stats: Ticket, Conversao, Leads */}
+        <div className="grid grid-cols-3 gap-2 mt-3">
+          <MiniStat
+            label="Ticket"
+            icon={<Wallet className="w-3 h-3" />}
+            value={BRL.format(s.ticketReal)}
+            sub={s.ticketMeta > 0 ? `meta ${BRL.format(s.ticketMeta)}` : "sem meta"}
           />
-          <Stat label="Hoje" value={fmt(s.realizadoHoje)} />
+          <MiniStat
+            label="Conversao"
+            icon={<Target className="w-3 h-3" />}
+            value={fmtPct(s.conversaoReal)}
+            sub={s.conversaoMeta > 0 ? `meta ${fmtPct(s.conversaoMeta)}` : `${s.vendasCount} vendas`}
+          />
+          <MiniStat
+            label="Leads"
+            icon={<Users className="w-3 h-3" />}
+            value={fmtInt.format(s.leads)}
+            sub="no mes"
+          />
         </div>
-
-        {st === "batido" && (
-          <div className="mt-2 text-xs text-success flex items-center gap-1">
-            <CheckCircle2 className="w-3.5 h-3.5" /> Missao cumprida no mes!
-          </div>
-        )}
-        {st === "quase" && (
-          <div className="mt-2 text-xs text-warning flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5" /> Falta pouco — bora fechar!
-          </div>
-        )}
       </div>
+    </div>
+  );
+}
+
+function MiniStat({
+  label,
+  icon,
+  value,
+  sub,
+}: {
+  label: string;
+  icon?: React.ReactNode;
+  value: React.ReactNode;
+  sub?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg bg-panel2 p-2">
+      <div className="text-[10px] uppercase tracking-wider text-white/50 flex items-center gap-1">
+        {icon} {label}
+      </div>
+      <div className="text-sm font-semibold mt-0.5">{value}</div>
+      {sub && <div className="text-[10px] text-white/40 leading-tight">{sub}</div>}
     </div>
   );
 }
@@ -292,6 +327,8 @@ function BUPodium({
             const pos = ranking.indexOf(s) + 1;
             const isFirst = pos === 1;
             const isUni = s.bu === "unicive";
+            const label = isUni ? "matriculas" : "faturado";
+            const valueStr = isUni ? fmtInt.format(s.realizado) : BRL.format(s.realizado);
             return (
               <div
                 key={s.sellerId}
@@ -316,36 +353,16 @@ function BUPodium({
                   />
                 </div>
                 <div className="text-sm font-semibold truncate">{s.sellerName}</div>
-                <div className="text-2xl xl:text-3xl font-bold mt-1" style={{ color: accent }}>
-                  {fmtPct(s.pctSucesso)}
+                <div className="text-xl xl:text-2xl font-bold mt-1" style={{ color: accent }}>
+                  {valueStr}
                 </div>
-                <div className="text-[11px] text-white/50">
-                  {isUni ? fmtInt.format(s.realizado) : BRL.format(s.realizado)}
-                </div>
+                <div className="text-[11px] text-white/50">{label}</div>
+                <div className="text-[11px] text-white/40 mt-0.5">{fmtPct(s.pctSucesso)} da meta</div>
               </div>
             );
           })}
         </div>
       )}
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent?: string;
-}) {
-  return (
-    <div className="rounded-lg bg-panel2 p-2">
-      <div className="text-[10px] uppercase tracking-wider text-white/50">{label}</div>
-      <div className="text-sm font-semibold" style={accent ? { color: accent } : undefined}>
-        {value}
-      </div>
     </div>
   );
 }

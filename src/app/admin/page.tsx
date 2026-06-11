@@ -1,15 +1,16 @@
 import Link from "next/link";
-import { statsForAll } from "@/lib/data";
+import { statsForAll, ligacaoBreakdown } from "@/lib/data";
 import { BRL, fmtInt, fmtPct, periodNow, daysRemainingIncludingToday } from "@/lib/calc";
 import { BU_COLOR, BU_LABEL } from "@/lib/brand";
 import ProgressBar from "@/components/ProgressBar";
 import BigStatCard from "@/components/BigStatCard";
+import LigacaoBreakdown from "@/components/LigacaoBreakdown";
 import { Users, Target, TrendingUp, Crown, Wallet, ArrowRight, Flame } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminHome() {
-  const stats = await statsForAll();
+  const [stats, ligacao] = await Promise.all([statsForAll(), ligacaoBreakdown()]);
   const { year, month } = periodNow();
   const daysLeft = daysRemainingIncludingToday(year, month);
 
@@ -84,6 +85,9 @@ export default async function AdminHome() {
           isCurrency={false}
         />
       </section>
+
+      {/* Retorno do Onvox */}
+      <LigacaoBreakdown rows={ligacao} />
 
       {/* 4 podios comparativos */}
       <section className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4">

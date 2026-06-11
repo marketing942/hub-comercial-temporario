@@ -54,7 +54,7 @@ export async function statsForSellerWith(
       .eq("month", month),
     supabaseAdmin
       .from("monthly_goals")
-      .select("*")
+      .select("ticket_medio_meta, taxa_conversao_meta, valor_meta, quantidade_meta")
       .eq("seller_id", seller.id)
       .eq("year", year)
       .eq("month", month)
@@ -312,21 +312,33 @@ export async function productBreakdown(
     };
   });
 
-  if (ids.length === 0) return Object.values(map);
-
-  const [{ data: sales }, { data: goals }] = await Promise.all([
+  // Vendas vem dos vendedores; metas POR LINHA vem agora de bu_product_goals
+  // (meta total da BU, nao mais somada dos vendedores). Fallback: se nao houver
+  // bu_product_goals do periodo, cai pra soma de product_goals dos vendedores
+  // (compat com dados antigos).
+  const [{ data: sales }, { data: buGoals }, { data: legacyGoals }] = await Promise.all([
+    ids.length === 0
+      ? Promise.resolve({ data: [] })
+      : supabaseAdmin
+          .from("sales")
+          .select("product_line, valor, quantidade")
+          .in("seller_id", ids)
+          .gte("sale_date", firstDay)
+          .lt("sale_date", lastDay),
     supabaseAdmin
-      .from("sales")
-      .select("product_line, valor, quantidade")
-      .in("seller_id", ids)
-      .gte("sale_date", firstDay)
-      .lt("sale_date", lastDay),
-    supabaseAdmin
-      .from("product_goals")
+      .from("bu_product_goals")
       .select("product_line, valor_meta, quantidade_meta")
-      .in("seller_id", ids)
+      .eq("bu", bu)
       .eq("year", year)
       .eq("month", month),
+    ids.length === 0
+      ? Promise.resolve({ data: [] })
+      : supabaseAdmin
+          .from("product_goals")
+          .select("product_line, valor_meta, quantidade_meta")
+          .in("seller_id", ids)
+          .eq("year", year)
+          .eq("month", month),
   ]);
 
   for (const s of (sales as any[]) || []) {
@@ -335,13 +347,72 @@ export async function productBreakdown(
       map[s.product_line].qtd += Number(s.quantidade || 0);
     }
   }
-  for (const g of (goals as any[]) || []) {
-    if (map[g.product_line]) {
-      map[g.product_line].valor_meta += Number(g.valor_meta || 0);
-      map[g.product_line].quantidade_meta += Number(g.quantidade_meta || 0);
+  const hasBuGoals = (buGoals as any[])?.length > 0;
+  if (hasBuGoals) {
+    for (const g of (buGoals as any[]) || []) {
+      if (map[g.product_line]) {
+        map[g.product_line].valor_meta = Number(g.valor_meta || 0);
+        map[g.product_line].quantidade_meta = Number(g.quantidade_meta || 0);
+      }
+    }
+  } else {
+    for (const g of (legacyGoals as any[]) || []) {
+      if (map[g.product_line]) {
+        map[g.product_line].valor_meta += Number(g.valor_meta || 0);
+        map[g.product_line].quantidade_meta += Number(g.quantidade_meta || 0);
+      }
     }
   }
   return Object.values(map);
+}
+
+export type LigacaoRow = { status: string; count: number; valor: number };
+
+export async function ligacaoBreakdown(opts?: {
+  bu?: "cppem" | "unicive";
+  year?: number;
+  month?: number;
+}): Promise<LigacaoRow[]> {
+  const { year, month } = { ...periodNow(), ...opts };
+  const firstDay = `${year}-${String(month).padStart(2, "0")}-01`;
+  const next = month === 12 ? { y: year + 1, m: 1 } : { y: year, m: month + 1 };
+  const lastDay = `${next.y}-${String(next.m).padStart(2, "0")}-01`;
+
+  let sellerIds: string[] | null = null;
+  if (opts?.bu) {
+    const sellers = await listSellers({ onlyActive: true });
+    sellerIds = sellers.filter((s) => s.bu === opts.bu).map((s) => s.id);
+    if (sellerIds.length === 0) return seedLigacao();
+  }
+
+  let q = supabaseAdmin
+    .from("sales")
+    .select("ligacao_status, valor")
+    .gte("sale_date", firstDay)
+    .lt("sale_date", lastDay);
+  if (sellerIds) q = q.in("seller_id", sellerIds);
+  const { data } = await q;
+
+  const acc: Record<string, LigacaoRow> = {
+    consegui_direto: { status: "consegui_direto", count: 0, valor: 0 },
+    consegui_indireto: { status: "consegui_indireto", count: 0, valor: 0 },
+    sem_ligacao: { status: "sem_ligacao", count: 0, valor: 0 },
+  };
+  for (const r of (data as any[]) || []) {
+    const k = r.ligacao_status || "sem_ligacao";
+    if (!acc[k]) acc[k] = { status: k, count: 0, valor: 0 };
+    acc[k].count += 1;
+    acc[k].valor += Number(r.valor || 0);
+  }
+  return Object.values(acc);
+}
+
+function seedLigacao(): LigacaoRow[] {
+  return [
+    { status: "consegui_direto", count: 0, valor: 0 },
+    { status: "consegui_indireto", count: 0, valor: 0 },
+    { status: "sem_ligacao", count: 0, valor: 0 },
+  ];
 }
 
 export type DashboardSnapshot = {
@@ -351,22 +422,24 @@ export type DashboardSnapshot = {
   taxaConversao: number;
   leadsTotal: number;
   breakdown: ProductBreakdownRow[];
+  ligacao: LigacaoRow[];
 };
 
 export async function dashboardSnapshot(
   bu: "cppem" | "unicive",
   opts?: { year?: number; month?: number }
 ): Promise<DashboardSnapshot> {
-  const [series, all, breakdown] = await Promise.all([
+  const [series, all, breakdown, ligacao] = await Promise.all([
     buSeries(bu, opts),
     statsForAll(opts),
     productBreakdown(bu, opts),
+    ligacaoBreakdown({ bu, ...opts }),
   ]);
   const sellers = all.filter((s) => s.bu === bu);
   const leadsTotal = sellers.reduce((a, b) => a + b.leads, 0);
   const vendas = sellers.reduce((a, b) => a + b.vendasCount, 0);
   const taxaConversao = leadsTotal > 0 ? (vendas / leadsTotal) * 100 : 0;
-  return { bu, series, sellers, leadsTotal, taxaConversao, breakdown };
+  return { bu, series, sellers, leadsTotal, taxaConversao, breakdown, ligacao };
 }
 
 export { daysInMonth, daysRemainingIncludingToday, todayDayOfMonth, periodNow };
