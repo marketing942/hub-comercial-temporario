@@ -98,28 +98,34 @@ export default async function MyPanel({
               value={`${fmtInt.format(stats.realizado)} / ${fmtInt.format(stats.metaTotal)}`}
               hint={`${fmtPct(stats.pctSucesso)} da meta`}
               icon={<TrendingUp className="w-4 h-4" />}
-              accent={pctTone}
+              accent={COLOR.neutral}
             />
             <StatCard
               label="Faturamento (Real / Meta)"
               value={`${BRL.format(series.totals.valor)} / ${BRL.format(series.totals.metaValor)}`}
               hint={series.totals.metaValor > 0 ? `${fmtPct(pctFat)} da meta` : "Sem meta"}
               icon={<Wallet className="w-4 h-4" />}
-              accent={COLOR.warning}
+              accent={COLOR.neutral}
             />
             <StatCard
               label="Meta do Dia (matriculas)"
               value={fmtInt.format(Math.round(stats.metaDia))}
               hint={stats.gap > 0 ? `Atrasado em ${fmtInt.format(Math.round(stats.gap))}` : "No ritmo"}
               icon={<Flame className="w-4 h-4" />}
-              accent={COLOR.warning}
+              accent={pctTone}
             />
             <StatCard
               label="Ticket Medio"
               value={BRL.format(stats.ticketReal)}
               hint={stats.ticketMeta > 0 ? `Meta ${BRL.format(stats.ticketMeta)}` : "Sem meta"}
               icon={<Wallet className="w-4 h-4" />}
-              accent={COLOR.info}
+              accent={
+                stats.ticketMeta > 0
+                  ? stats.ticketReal >= stats.ticketMeta
+                    ? COLOR.ok
+                    : COLOR.danger
+                  : COLOR.neutral
+              }
             />
           </>
         ) : (
@@ -129,28 +135,40 @@ export default async function MyPanel({
               value={`${BRL.format(stats.realizado)} / ${BRL.format(stats.metaTotal)}`}
               hint={`${fmtPct(stats.pctSucesso)} da meta`}
               icon={<Wallet className="w-4 h-4" />}
-              accent={pctTone}
+              accent={COLOR.neutral}
             />
             <StatCard
               label="Meta do Dia"
               value={BRL.format(stats.metaDia)}
               hint={stats.gap > 0 ? `Atrasado em ${BRL.format(stats.gap)}` : "No ritmo"}
               icon={<Flame className="w-4 h-4" />}
-              accent={COLOR.warning}
+              accent={pctTone}
             />
             <StatCard
               label="Ticket Medio"
               value={BRL.format(stats.ticketReal)}
               hint={stats.ticketMeta > 0 ? `Meta ${BRL.format(stats.ticketMeta)}` : "Sem meta"}
               icon={<Wallet className="w-4 h-4" />}
-              accent={COLOR.info}
+              accent={
+                stats.ticketMeta > 0
+                  ? stats.ticketReal >= stats.ticketMeta
+                    ? COLOR.ok
+                    : COLOR.danger
+                  : COLOR.neutral
+              }
             />
             <StatCard
               label="Conversao"
               value={fmtPct(stats.conversaoReal)}
               hint={stats.conversaoMeta > 0 ? `Meta ${fmtPct(stats.conversaoMeta)}` : `${stats.vendasCount} vendas`}
               icon={<Target className="w-4 h-4" />}
-              accent={COLOR.info}
+              accent={
+                stats.conversaoMeta > 0
+                  ? stats.conversaoReal >= stats.conversaoMeta
+                    ? COLOR.ok
+                    : COLOR.danger
+                  : COLOR.info
+              }
             />
           </>
         )}
@@ -181,7 +199,7 @@ export default async function MyPanel({
           value={fmtMeta(stats.realizadoHoje)}
           hint={`${stats.vendasCount} venda${stats.vendasCount === 1 ? "" : "s"} no mes`}
           icon={<Trophy className="w-4 h-4" />}
-          accent={stats.realizadoHoje > 0 ? COLOR.ok : COLOR.mute}
+          accent={stats.realizadoHoje > 0 ? COLOR.ok : COLOR.neutral}
         />
         {isQtd ? (
           <StatCard
@@ -189,7 +207,13 @@ export default async function MyPanel({
             value={fmtPct(stats.conversaoReal)}
             hint={stats.conversaoMeta > 0 ? `Meta ${fmtPct(stats.conversaoMeta)}` : `${stats.vendasCount} vendas`}
             icon={<Target className="w-4 h-4" />}
-            accent={COLOR.info}
+            accent={
+              stats.conversaoMeta > 0
+                ? stats.conversaoReal >= stats.conversaoMeta
+                  ? COLOR.ok
+                  : COLOR.danger
+                : COLOR.info
+            }
           />
         ) : (
           <StatCard
@@ -197,7 +221,7 @@ export default async function MyPanel({
             value={BRL.format(stats.falta)}
             hint={stats.pctSucesso >= 100 ? "Meta batida" : `Pra fechar a meta`}
             icon={<TrendingUp className="w-4 h-4" />}
-            accent={stats.pctSucesso >= 100 ? COLOR.ok : COLOR.warning}
+            accent={stats.pctSucesso >= 100 ? COLOR.ok : COLOR.danger}
           />
         )}
         <StatCard
@@ -213,7 +237,13 @@ export default async function MyPanel({
             value={fmtPct(pctFat)}
             hint={series.totals.metaValor > 0 ? `Meta ${BRL.format(series.totals.metaValor)}` : "Sem meta"}
             icon={<Wallet className="w-4 h-4" />}
-            accent={pctFat >= 100 ? COLOR.ok : COLOR.warning}
+            accent={
+              series.totals.metaValor > 0
+                ? pctFat >= 100
+                  ? COLOR.ok
+                  : COLOR.danger
+                : COLOR.neutral
+            }
           />
         )}
       </section>

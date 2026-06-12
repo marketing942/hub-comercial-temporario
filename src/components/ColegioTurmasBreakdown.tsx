@@ -42,7 +42,8 @@ export default function ColegioTurmasBreakdown({ rows }: { rows: ProductBreakdow
           const meta = t.row?.quantidade_meta || 0;
           const pct = meta > 0 ? (qtd / meta) * 100 : 0;
           const falta = Math.max(0, meta - qtd);
-          const tone = pct >= 100 ? COLOR.ok : COLOR.neutral;
+          const tone = meta <= 0 ? COLOR.neutral : pct >= 100 ? COLOR.ok : COLOR.neutral;
+          const barTone = meta <= 0 ? COLOR.neutral : pct >= 100 ? COLOR.ok : COLOR.info;
           return (
             <div key={t.id} className="rounded-xl bg-panel2 p-3">
               <div className="flex items-center justify-between mb-1">
@@ -56,7 +57,7 @@ export default function ColegioTurmasBreakdown({ rows }: { rows: ProductBreakdow
                 <span className="text-xs text-white/40">/ {fmtInt.format(meta)}</span>
               </div>
               <div className="mt-2">
-                <ProgressBar value={pct} color={tone} height={6} />
+                <ProgressBar value={pct} color={barTone} height={6} />
               </div>
               <div className="flex items-center justify-between mt-1 text-[10px]">
                 <span className="text-white/50">

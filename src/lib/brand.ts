@@ -49,10 +49,29 @@ export const COLOR = {
 };
 
 // Cor estrategica do numero baseada em estado (sucesso / atencao / atraso)
+// REGRA GERAL:
+// - branco = numero neutro (base)
+// - verde  = bom / atingiu / superou
+// - vermelho = ruim / atrasado
+// - azul (info) = informativo mediano sem comparacao direta
 export function tonePctMeta(pct: number, gap: number): string {
   if (pct >= 100) return COLOR.ok;
   if (gap > 0) return COLOR.danger;
   return COLOR.neutral;
+}
+
+// Compara real x meta (mesma metrica). Verde se bateu, vermelho se nao,
+// branco se nao ha meta definida.
+export function toneVsMeta(real: number, meta: number): string {
+  if (meta <= 0) return COLOR.neutral;
+  return real >= meta ? COLOR.ok : COLOR.danger;
+}
+
+// Para metricas onde "maior e melhor" mas sem comparacao com meta
+// (ex.: ticket sem meta, leads sem meta). Mantem branco/info.
+export function toneInfoOrOk(real: number, meta: number): string {
+  if (meta <= 0) return COLOR.neutral;
+  return real >= meta ? COLOR.ok : COLOR.neutral;
 }
 
 // ====== Tema visual por BU (brand books oficiais) ======

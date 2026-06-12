@@ -44,7 +44,10 @@ export default function UniciveCategoriasBreakdown({ rows }: { rows: ProductBrea
           const valorMeta = r?.valor_meta || 0;
           const pctQ = meta > 0 ? (qtd / meta) * 100 : 0;
           const pctV = valorMeta > 0 ? (valor / valorMeta) * 100 : 0;
-          const tone = pctQ >= 100 ? COLOR.ok : COLOR.neutral;
+          const toneQ = meta <= 0 ? COLOR.neutral : pctQ >= 100 ? COLOR.ok : COLOR.neutral;
+          const barToneQ = meta <= 0 ? COLOR.neutral : pctQ >= 100 ? COLOR.ok : COLOR.info;
+          const toneV = valorMeta <= 0 ? COLOR.neutral : pctV >= 100 ? COLOR.ok : COLOR.neutral;
+          const barToneV = valorMeta <= 0 ? COLOR.neutral : pctV >= 100 ? COLOR.ok : COLOR.info;
           const Icon = i.icon;
           return (
             <div key={i.id} className="rounded-xl bg-panel2/60 p-3">
@@ -59,23 +62,23 @@ export default function UniciveCategoriasBreakdown({ rows }: { rows: ProductBrea
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <div className="text-xs text-white/60">
-                    <span className="font-semibold" style={{ color: tone }}>
+                    <span className="font-semibold" style={{ color: toneQ }}>
                       {fmtInt.format(qtd)}
                     </span>
                     <span className="text-white/40"> / {fmtInt.format(meta)} un.</span>
                   </div>
-                  <ProgressBar value={pctQ} color={tone} height={6} />
-                  <div className="text-[11px] mt-1" style={{ color: tone }}>{fmtPct(pctQ)}</div>
+                  <ProgressBar value={pctQ} color={barToneQ} height={6} />
+                  <div className="text-[11px] mt-1" style={{ color: toneQ }}>{fmtPct(pctQ)}</div>
                 </div>
                 <div>
                   <div className="text-xs text-white/60">
-                    <span className="font-semibold" style={{ color: pctV >= 100 ? COLOR.ok : COLOR.neutral }}>
+                    <span className="font-semibold" style={{ color: toneV }}>
                       {BRL.format(valor)}
                     </span>
                     <span className="text-white/40"> / {BRL.format(valorMeta)}</span>
                   </div>
-                  <ProgressBar value={pctV} color={pctV >= 100 ? COLOR.ok : COLOR.warning} height={6} />
-                  <div className="text-[11px] mt-1" style={{ color: pctV >= 100 ? COLOR.ok : COLOR.warning }}>{fmtPct(pctV)}</div>
+                  <ProgressBar value={pctV} color={barToneV} height={6} />
+                  <div className="text-[11px] mt-1" style={{ color: toneV }}>{fmtPct(pctV)}</div>
                 </div>
               </div>
             </div>

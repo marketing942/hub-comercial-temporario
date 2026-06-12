@@ -173,6 +173,7 @@ export type BUSeries = {
     valorHoje: number;
     qtdHoje: number;
     realizadoHoje: number;
+    leadsMeta: number;
   };
 };
 
@@ -204,11 +205,12 @@ export async function buSeries(
         valor: 0, qtd: 0, meta: 0, metaValor: 0, ticketReal: 0, ticketMeta: 0,
         metaIdealAteHoje: 0, metaRitmoInicial: 0, gap: 0, metaDia: 0,
         realizado: 0, valorHoje: 0, qtdHoje: 0, realizadoHoje: 0,
+        leadsMeta: 0,
       },
     };
   }
 
-  const [{ data: sales }, { data: pgoals }, { data: mgoals }] = await Promise.all([
+  const [{ data: sales }, { data: pgoals }, { data: mgoals }, { data: bm }] = await Promise.all([
     supabaseAdmin
       .from("sales")
       .select("seller_id, sale_date, valor, quantidade, product_line")
@@ -230,7 +232,15 @@ export async function buSeries(
       .eq("bu", bu)
       .eq("year", year)
       .eq("month", month),
+    supabaseAdmin
+      .from("bu_meta")
+      .select("leads_meta")
+      .eq("bu", bu)
+      .eq("year", year)
+      .eq("month", month)
+      .maybeSingle(),
   ]);
+  const leadsMeta = Number((bm as any)?.leads_meta || 0);
 
   // Meta total: prioridade pra monthly_goals (fluxo novo); fallback pra soma de product_goals
   const mgValor = (mgoals || []).reduce((a: number, b: any) => a + Number(b.valor_meta || 0), 0);
@@ -310,6 +320,7 @@ export async function buSeries(
       valorHoje: hojeBucket.valor,
       qtdHoje: hojeBucket.qtd,
       realizadoHoje,
+      leadsMeta,
     },
   };
 }

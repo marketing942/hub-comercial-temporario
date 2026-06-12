@@ -36,7 +36,9 @@ export default function ProductRevenueBreakdown({
             const pctValor = r.valor_meta > 0 ? (r.valor / r.valor_meta) * 100 : 0;
             const pctQtd = r.quantidade_meta > 0 ? (r.qtd / r.quantidade_meta) * 100 : 0;
             const pct = r.valor_meta > 0 ? pctValor : pctQtd;
-            const tone = pct >= 100 ? COLOR.ok : COLOR.neutral;
+            const hasMeta = r.valor_meta > 0 || r.quantidade_meta > 0;
+            const tone = !hasMeta ? COLOR.neutral : pct >= 100 ? COLOR.ok : COLOR.neutral;
+            const barTone = !hasMeta ? COLOR.neutral : pct >= 100 ? COLOR.ok : COLOR.info;
             return (
               <div key={r.product_line} className="rounded-xl bg-panel2/60 p-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-2 mb-1">
@@ -53,7 +55,7 @@ export default function ProductRevenueBreakdown({
                     )}
                   </div>
                 </div>
-                <ProgressBar value={pct} color={tone} height={7} />
+                <ProgressBar value={pct} color={barTone} height={7} />
                 <div className="flex items-center justify-between mt-1 text-[11px] text-white/50">
                   <span>
                     {pct >= 100

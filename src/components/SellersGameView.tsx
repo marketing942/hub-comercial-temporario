@@ -151,16 +151,19 @@ function SellerCard({
   const st = statusFor(s.pctSucesso, s.gap);
   const meta = STATUS_META[st];
 
-  // Pra cada mini stat: "real / meta"
+  // Cores semanticas: verde se bateu, vermelho se nao bateu (e tem meta),
+  // branco se nao ha meta definida.
   const ticketTone =
-    s.ticketMeta > 0 && s.ticketReal >= s.ticketMeta ? COLOR.ok : COLOR.neutral;
+    s.ticketMeta > 0
+      ? s.ticketReal >= s.ticketMeta
+        ? COLOR.ok
+        : COLOR.danger
+      : COLOR.neutral;
   const convTone =
-    s.conversaoMeta > 0 && s.conversaoReal >= s.conversaoMeta ? COLOR.ok : COLOR.neutral;
-  const leadsTone =
-    s.leadsMeta > 0 && s.leads >= s.leadsMeta
-      ? COLOR.ok
-      : s.leadsMeta > 0 && s.leads < s.leadsMeta
-      ? COLOR.warning
+    s.conversaoMeta > 0
+      ? s.conversaoReal >= s.conversaoMeta
+        ? COLOR.ok
+        : COLOR.danger
       : COLOR.neutral;
 
   return (
@@ -241,12 +244,10 @@ function SellerCard({
             meta={s.conversaoMeta > 0 ? fmtPct(s.conversaoMeta) : "—"}
             tone={convTone}
           />
-          <CompareStat
+          <SoloStat
             label="Leads"
             icon={<Users className="w-3 h-3" />}
-            real={fmtInt.format(s.leads)}
-            meta={s.leadsMeta > 0 ? fmtInt.format(s.leadsMeta) : "—"}
-            tone={leadsTone}
+            value={fmtInt.format(s.leads)}
           />
         </div>
       </div>
@@ -277,6 +278,25 @@ function CompareStat({
         <span className="text-white/30 mx-1">/</span>
         <span className="text-white/40 font-normal text-xs">{meta}</span>
       </div>
+    </div>
+  );
+}
+
+function SoloStat({
+  label,
+  icon,
+  value,
+}: {
+  label: string;
+  icon?: React.ReactNode;
+  value: string;
+}) {
+  return (
+    <div className="rounded-lg bg-panel2 p-2 leading-tight">
+      <div className="text-[10px] uppercase tracking-wider text-white/50 flex items-center gap-1">
+        {icon} {label}
+      </div>
+      <div className="text-sm font-semibold mt-0.5 text-white">{value}</div>
     </div>
   );
 }
@@ -354,11 +374,16 @@ function BUPodium({
                 >
                   {s.sellerName}
                 </div>
-                <div className="text-xl xl:text-2xl font-bold mt-1" style={{ color: accent }}>
+                <div className="text-xl xl:text-2xl font-bold mt-1 text-white">
                   {valueStr}
                 </div>
                 <div className="text-[11px] text-white/50">{label}</div>
-                <div className="text-[11px] text-white/40 mt-0.5">{fmtPct(s.pctSucesso)} da meta</div>
+                <div
+                  className="text-[11px] mt-0.5"
+                  style={{ color: s.pctSucesso >= 100 ? COLOR.ok : COLOR.neutral }}
+                >
+                  {fmtPct(s.pctSucesso)} da meta
+                </div>
               </div>
             );
           })}

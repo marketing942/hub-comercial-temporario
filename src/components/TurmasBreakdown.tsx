@@ -49,7 +49,8 @@ export default function TurmasBreakdown({
           const meta = r?.quantidade_meta || 0;
           const pct = meta > 0 ? (qtd / meta) * 100 : 0;
           const falta = Math.max(0, meta - qtd);
-          const tone = pct >= 100 ? COLOR.ok : COLOR.neutral;
+          const tone = meta <= 0 ? COLOR.neutral : pct >= 100 ? COLOR.ok : COLOR.neutral;
+          const barTone = meta <= 0 ? COLOR.neutral : pct >= 100 ? COLOR.ok : COLOR.info;
 
           if (variant === "stack") {
             return (
@@ -64,7 +65,7 @@ export default function TurmasBreakdown({
                   </span>
                   <span className="text-xs text-white/40">/ {fmtInt.format(meta)} alunos</span>
                 </div>
-                <ProgressBar value={pct} color={tone} height={6} />
+                <ProgressBar value={pct} color={barTone} height={6} />
                 <div className="flex items-center justify-between mt-1 text-[11px]">
                   <span className="text-white/50">
                     {pct >= 100 ? "Bateu" : `Faltam ${fmtInt.format(falta)}`}
@@ -88,7 +89,7 @@ export default function TurmasBreakdown({
                 <span className="text-sm text-white/40">/ {fmtInt.format(meta)}</span>
               </div>
               <div className="mt-2">
-                <ProgressBar value={pct} color={tone} height={6} />
+                <ProgressBar value={pct} color={barTone} height={6} />
               </div>
               <div className="flex items-center justify-between mt-1 text-[11px]">
                 <span className="text-white/50">

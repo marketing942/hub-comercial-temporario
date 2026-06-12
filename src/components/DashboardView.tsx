@@ -115,7 +115,7 @@ export default function DashboardView({
         </div>
       </div>
 
-      {/* 4 KPIs grandes */}
+      {/* 4 KPIs grandes — numeros base brancos, comparativos coloridos */}
       <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         {isQtd ? (
           <>
@@ -124,7 +124,7 @@ export default function DashboardView({
               value={`${fmtInt.format(t.qtd)} / ${fmtInt.format(t.meta)}`}
               hint={pct >= 100 ? "Meta batida" : `Faltam ${fmtInt.format(falta)}`}
               icon={<TrendingUp />}
-              accent={COLOR.ok}
+              accent={COLOR.info}
               valueColor={COLOR.neutral}
             />
             <BigStatCard
@@ -132,7 +132,7 @@ export default function DashboardView({
               value={`${BRL.format(t.valor)} / ${BRL.format(t.metaValor)}`}
               hint={pctFat >= 100 ? "Meta de R$ batida" : `Faltam ${BRL.format(faltaFat)}`}
               icon={<Wallet />}
-              accent={COLOR.warning}
+              accent={COLOR.info}
               valueColor={COLOR.neutral}
             />
             <BigStatCard
@@ -161,7 +161,7 @@ export default function DashboardView({
               value={BRL.format(t.valor)}
               hint="Acumulado do mes"
               icon={<Wallet />}
-              accent={COLOR.ok}
+              accent={COLOR.info}
               valueColor={COLOR.neutral}
             />
             <BigStatCard
@@ -169,7 +169,7 @@ export default function DashboardView({
               value={BRL.format(t.meta)}
               hint={pct >= 100 ? "Meta batida" : `Faltam ${BRL.format(falta)}`}
               icon={<Target />}
-              accent={COLOR.warning}
+              accent={COLOR.info}
               valueColor={COLOR.neutral}
             />
             <BigStatCard
@@ -194,14 +194,20 @@ export default function DashboardView({
         )}
       </section>
 
-      {/* Mini stats (Ticket / Conversao / Leads / Realizado hoje) */}
+      {/* Mini stats - cores semanticas */}
       <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <MiniStat
           label="Ticket Medio"
           value={BRL.format(t.ticketReal)}
           hint={t.ticketMeta > 0 ? `Meta ${BRL.format(t.ticketMeta)}` : "Sem meta"}
           icon={<Wallet className="w-4 h-4" />}
-          accent={COLOR.info}
+          accent={
+            t.ticketMeta > 0
+              ? t.ticketReal >= t.ticketMeta
+                ? COLOR.ok
+                : COLOR.danger
+              : COLOR.neutral
+          }
         />
         <MiniStat
           label="Conversao"
@@ -212,17 +218,33 @@ export default function DashboardView({
         />
         <MiniStat
           label="Leads no Mes"
-          value={fmtInt.format(leadsTotal)}
-          hint="Admin atualiza diariamente"
+          value={
+            t.leadsMeta > 0
+              ? `${fmtInt.format(leadsTotal)} / ${fmtInt.format(t.leadsMeta)}`
+              : fmtInt.format(leadsTotal)
+          }
+          hint={
+            t.leadsMeta > 0
+              ? leadsTotal >= t.leadsMeta
+                ? "Meta de leads batida"
+                : `Faltam ${fmtInt.format(t.leadsMeta - leadsTotal)} leads`
+              : "Sem meta de leads"
+          }
           icon={<Users className="w-4 h-4" />}
-          accent={COLOR.neutral}
+          accent={
+            t.leadsMeta > 0
+              ? leadsTotal >= t.leadsMeta
+                ? COLOR.ok
+                : COLOR.danger
+              : COLOR.neutral
+          }
         />
         <MiniStat
           label="Realizado Hoje"
           value={fmtMeta(t.realizadoHoje)}
           hint={`Dia ${day}/${totalDays}`}
           icon={<Trophy className="w-4 h-4" />}
-          accent={t.realizadoHoje > 0 ? COLOR.ok : COLOR.mute}
+          accent={t.realizadoHoje > 0 ? COLOR.ok : COLOR.neutral}
         />
       </section>
 

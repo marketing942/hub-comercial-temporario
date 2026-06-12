@@ -114,6 +114,19 @@ alter table public.bu_product_goals add constraint bu_product_goals_bu_check
 create index if not exists bu_product_goals_period_idx
   on public.bu_product_goals(bu, year, month);
 
+-- ---------- Meta geral da BU (leads, etc) ----------
+create table if not exists public.bu_meta (
+  bu text not null,
+  year int not null check (year between 2024 and 2100),
+  month int not null check (month between 1 and 12),
+  leads_meta int not null default 0,
+  updated_at timestamptz not null default now(),
+  primary key (bu, year, month)
+);
+alter table public.bu_meta drop constraint if exists bu_meta_bu_check;
+alter table public.bu_meta add constraint bu_meta_bu_check
+  check (bu in ('cppem','unicive','colegio_cppem'));
+
 -- ---------- Leads recebidos por vendedor por dia ----------
 create table if not exists public.daily_leads (
   id uuid primary key default gen_random_uuid(),

@@ -26,7 +26,6 @@ type SellerGoal = {
   quantidade_meta: number;
   ticket_medio_meta: number;
   taxa_conversao_meta: number;
-  leads_meta: number;
 };
 
 type LineGoal = {
@@ -74,6 +73,7 @@ export default function GoalsClient({
 
   const [metaGeralFat, setMetaGeralFat] = useState(0);
   const [metaGeralQtd, setMetaGeralQtd] = useState(0);
+  const [metaLeads, setMetaLeads] = useState(0);
 
   const [lines, setLines] = useState<LineGoal[]>([]);
   const [goals, setGoals] = useState<Record<string, SellerGoal>>({});
@@ -124,13 +124,13 @@ export default function GoalsClient({
         quantidade_meta: Number(m?.quantidade_meta || 0),
         ticket_medio_meta: Number(m?.ticket_medio_meta || 0),
         taxa_conversao_meta: Number(m?.taxa_conversao_meta || 0),
-        leads_meta: Number(m?.leads_meta || 0),
       };
     });
     setGoals(nextGoals);
 
     setMetaGeralFat(nextLines.reduce((a, b) => a + b.valor_meta, 0));
     setMetaGeralQtd(nextLines.reduce((a, b) => a + b.quantidade_meta, 0));
+    setMetaLeads(Number(j?.bu_leads_meta || 0));
 
     setLoading(false);
   }
@@ -159,12 +159,12 @@ export default function GoalsClient({
         quantidade_meta: Number(m?.quantidade_meta || 0),
         ticket_medio_meta: Number(m?.ticket_medio_meta || 0),
         taxa_conversao_meta: Number(m?.taxa_conversao_meta || 0),
-        leads_meta: Number(m?.leads_meta || 0),
       };
     });
     setGoals(nextGoals);
     setMetaGeralFat(nextLines.reduce((a, b) => a + b.valor_meta, 0));
     setMetaGeralQtd(nextLines.reduce((a, b) => a + b.quantidade_meta, 0));
+    setMetaLeads(Number(j?.bu_leads_meta || 0));
     setLoading(false);
     setFeedback({ kind: "ok", msg: "Metas copiadas do mes anterior." });
   }
@@ -183,7 +183,6 @@ export default function GoalsClient({
             taxa_conversao_meta: 0,
             valor_meta: 0,
             quantidade_meta: 0,
-            leads_meta: 0,
           }),
           valor_meta: Math.round(perFat * 100) / 100,
           quantidade_meta: Math.round(perQtd),
@@ -207,7 +206,6 @@ export default function GoalsClient({
           quantidade_meta: 0,
           ticket_medio_meta: 0,
           taxa_conversao_meta: 0,
-          leads_meta: 0,
         }),
         ...patch,
       },
@@ -218,7 +216,6 @@ export default function GoalsClient({
     () => ({
       fat: Object.values(goals).reduce((a, b) => a + b.valor_meta, 0),
       qtd: Object.values(goals).reduce((a, b) => a + b.quantidade_meta, 0),
-      leads: Object.values(goals).reduce((a, b) => a + b.leads_meta, 0),
     }),
     [goals]
   );
@@ -252,6 +249,7 @@ export default function GoalsClient({
           quantidade_meta: l.quantidade_meta,
         })),
         sellers: Object.values(goals),
+        bu_leads_meta: metaLeads,
       }),
     });
     setSaving(false);
@@ -353,6 +351,17 @@ export default function GoalsClient({
                 onChange={setMetaGeralQtd}
               />
             </div>
+            <div>
+              <div className="label">Meta de leads (mes)</div>
+              <NumberField
+                className="input text-xl font-bold"
+                value={metaLeads}
+                onChange={setMetaLeads}
+              />
+              <div className="text-[10px] text-white/40 mt-1">
+                Acompanhada no dashboard como Leads no Mes (real / meta).
+              </div>
+            </div>
             <button
               className="btn-ghost w-full text-xs"
               onClick={distributeSellersEqually}
@@ -427,8 +436,6 @@ export default function GoalsClient({
               Soma:{" "}
               <b className="text-white">{BRL(totalsSellers.fat)}</b> /{" "}
               <b className="text-white">{INT(totalsSellers.qtd)} un.</b>
-              {" · "}
-              <b className="text-white">{INT(totalsSellers.leads)}</b> leads
             </div>
           </div>
           {metaGeralPrincipal > 0 && (
@@ -452,7 +459,6 @@ export default function GoalsClient({
                   {isQtd && <th className="text-right">Matriculas (qtd)</th>}
                   <th className="text-right">Ticket meta (R$)</th>
                   <th className="text-right">Conversao meta (%)</th>
-                  <th className="text-right">Leads meta</th>
                   <th className="text-right">% da BU</th>
                 </tr>
               </thead>
@@ -464,7 +470,6 @@ export default function GoalsClient({
                     quantidade_meta: 0,
                     ticket_medio_meta: 0,
                     taxa_conversao_meta: 0,
-                    leads_meta: 0,
                   };
                   const principal = isQtd ? g.quantidade_meta : g.valor_meta;
                   const pctOfBu =
@@ -503,13 +508,6 @@ export default function GoalsClient({
                           className="input h-8 text-right text-xs"
                           value={g.taxa_conversao_meta}
                           onChange={(v) => updateSeller(s.id, { taxa_conversao_meta: v })}
-                        />
-                      </td>
-                      <td className="text-right">
-                        <NumberField
-                          className="input h-8 text-right text-xs"
-                          value={g.leads_meta}
-                          onChange={(v) => updateSeller(s.id, { leads_meta: v })}
                         />
                       </td>
                       <td className="text-right text-xs font-semibold" style={{ color }}>

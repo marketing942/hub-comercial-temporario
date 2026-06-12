@@ -121,15 +121,19 @@ function BUResume({ bu, sellers }: { bu: BU; sellers: SellerStats[] }) {
           label={isQtd ? "Matriculas" : "Faturamento"}
           meta={fmt(agg.meta)}
           real={fmt(agg.real)}
-          tone={pct >= 100 ? COLOR.ok : COLOR.neutral}
+          tone={
+            agg.meta > 0 ? (pct >= 100 ? COLOR.ok : COLOR.danger) : COLOR.neutral
+          }
         />
         <CompareCell
           label="Ticket medio"
           meta={agg.ticketMetaAvg > 0 ? BRL.format(agg.ticketMetaAvg) : "—"}
           real={BRL.format(ticketRealConsol)}
           tone={
-            agg.ticketMetaAvg > 0 && ticketRealConsol >= agg.ticketMetaAvg
-              ? COLOR.ok
+            agg.ticketMetaAvg > 0
+              ? ticketRealConsol >= agg.ticketMetaAvg
+                ? COLOR.ok
+                : COLOR.danger
               : COLOR.neutral
           }
         />
@@ -138,8 +142,10 @@ function BUResume({ bu, sellers }: { bu: BU; sellers: SellerStats[] }) {
           meta={agg.convMetaAvg > 0 ? fmtPct(agg.convMetaAvg) : "—"}
           real={fmtPct(conversaoReal)}
           tone={
-            agg.convMetaAvg > 0 && conversaoReal >= agg.convMetaAvg
-              ? COLOR.ok
+            agg.convMetaAvg > 0
+              ? conversaoReal >= agg.convMetaAvg
+                ? COLOR.ok
+                : COLOR.danger
               : COLOR.neutral
           }
         />
