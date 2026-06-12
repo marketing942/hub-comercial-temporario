@@ -7,14 +7,17 @@ import { Layers } from "lucide-react";
 export default function ProductRevenueBreakdown({
   rows,
   color,
+  excludeIds = [],
 }: {
   rows: ProductBreakdownRow[];
   color: string;
+  excludeIds?: readonly string[];
 }) {
-  const visible = rows.filter(
+  const filtered = rows.filter((r) => !excludeIds.includes(r.product_line));
+  const visible = filtered.filter(
     (r) => r.valor_meta > 0 || r.valor > 0 || r.quantidade_meta > 0 || r.qtd > 0
   );
-  const data = visible.length > 0 ? visible : rows;
+  const data = visible.length > 0 ? visible : filtered;
 
   return (
     <div className="card-lg h-full">

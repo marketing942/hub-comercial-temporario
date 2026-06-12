@@ -2,13 +2,27 @@ import { dashboardSnapshot, daysInMonth, daysRemainingIncludingToday, periodNow,
 import DashboardCarousel from "@/components/DashboardCarousel";
 import DashboardView from "@/components/DashboardView";
 import SellersGameView from "@/components/SellersGameView";
+import PeriodNav from "@/components/PeriodNav";
 import { ALL_BUS } from "@/lib/products";
 import { BU_LABEL } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
-  const { year, month } = periodNow();
+function parseYearMonth(searchParams: { year?: string; month?: string }) {
+  const now = periodNow();
+  const y = Number(searchParams.year);
+  const m = Number(searchParams.month);
+  const year = y >= 2024 && y <= 2100 ? y : now.year;
+  const month = m >= 1 && m <= 12 ? m : now.month;
+  return { year, month };
+}
+
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: { year?: string; month?: string };
+}) {
+  const { year, month } = parseYearMonth(searchParams);
   const totalDays = daysInMonth(year, month);
   const day = todayDayOfMonth(year, month);
   const daysLeft = daysRemainingIncludingToday(year, month);
@@ -18,8 +32,6 @@ export default async function DashboardPage() {
   });
 
   const snaps = await Promise.all(ALL_BUS.map((bu) => dashboardSnapshot(bu, { year, month })));
-  const [cppem, unicive, colegio] = snaps;
-
   const allSellers = snaps.flatMap((s) => s.sellers);
 
   const slides = [
@@ -51,5 +63,12 @@ export default async function DashboardPage() {
     },
   ];
 
-  return <DashboardCarousel slides={slides} intervalSec={25} refreshMs={60000} />;
+  return (
+    <DashboardCarousel
+      slides={slides}
+      intervalSec={25}
+      refreshMs={60000}
+      periodNav={<PeriodNav year={year} month={month} />}
+    />
+  );
 }

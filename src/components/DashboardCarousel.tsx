@@ -9,10 +9,12 @@ export default function DashboardCarousel({
   slides,
   intervalSec = 20,
   refreshMs = 60000,
+  periodNav,
 }: {
   slides: Slide[];
   intervalSec?: number;
   refreshMs?: number;
+  periodNav?: React.ReactNode;
 }) {
   const router = useRouter();
   const [idx, setIdx] = useState(0);
@@ -110,7 +112,8 @@ export default function DashboardCarousel({
           })}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {periodNav}
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-panel border border-border text-xs">
             <span className="w-2 h-2 rounded-full bg-accent pulse-dot" />
             <span className="text-white/60">Atualizado em</span>

@@ -12,6 +12,7 @@ export const PRODUCT_LINES_CPPEM = [
 
 export const PRODUCT_LINES_UNICIVE = [
   { id: "matriculas", label: "Matriculas" },
+  { id: "bolsas_unicive", label: "Bolsas" },
 ] as const;
 
 // Colegio: matriculas quebradas por turma (1o ao 9o do fundamental + 1o ao 3o EM) + fardamentos
@@ -41,7 +42,7 @@ export const COLEGIO_MATRICULAS_IDS = [
 export const CPPEM_PRODUCT_IDS = [
   "mentorias","cursos_digitais","fisicos","turma_pmal","turma_pmpe","turma_carreiras",
 ] as const;
-export const UNICIVE_PRODUCT_IDS = ["matriculas"] as const;
+export const UNICIVE_PRODUCT_IDS = ["matriculas", "bolsas_unicive"] as const;
 export const COLEGIO_PRODUCT_IDS = PRODUCT_LINES_COLEGIO.map((p) => p.id) as readonly string[];
 
 export type ProductLineId =
