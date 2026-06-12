@@ -1,9 +1,16 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Save } from "lucide-react";
 import NumberField from "@/components/NumberField";
+import { ALL_BUS, type BU } from "@/lib/products";
+import { BU_LABEL, BU_COLOR } from "@/lib/brand";
 
-type Seller = { id: string; name: string; bu: "cppem" | "unicive" | "colegio_cppem" };
+type Seller = {
+  id: string;
+  name: string;
+  bu: BU;
+  bus?: BU[];
+};
 
 const MONTHS = [
   "Janeiro","Fevereiro","Marco","Abril","Maio","Junho",
@@ -12,6 +19,13 @@ const MONTHS = [
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function busOf(s: Seller): BU[] {
+  const arr = Array.isArray(s.bus)
+    ? s.bus.filter((x) => x === "cppem" || x === "unicive" || x === "colegio_cppem")
+    : [];
+  return arr.length > 0 ? Array.from(new Set(arr)) : [s.bu];
 }
 
 export default function LeadsClient({
@@ -83,6 +97,18 @@ export default function LeadsClient({
     }
   }
 
+  const grouped = useMemo(() => {
+    const out: Record<BU, Seller[]> = { cppem: [], unicive: [], colegio_cppem: [] };
+    for (const s of sellers) {
+      const arr = out[s.bu] || (out[s.bu] = []);
+      arr.push(s);
+    }
+    for (const k of Object.keys(out) as BU[]) {
+      out[k].sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return out;
+  }, [sellers]);
+
   return (
     <div className="space-y-4">
       <div className="card grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
@@ -120,46 +146,94 @@ export default function LeadsClient({
         {saved && <div className="md:col-span-4 text-xs text-success">{saved}</div>}
       </div>
 
-      <div className="card p-0 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="text-xs uppercase tracking-wider text-white/40 bg-panel2">
-            <tr className="text-left">
-              <th className="p-3">Vendedor</th>
-              <th className="p-3">BU</th>
-              <th className="p-3 w-44">Leads no dia</th>
-              <th className="p-3 w-32">Total no mes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sellers.length === 0 && (
-              <tr>
-                <td colSpan={4} className="p-6 text-center text-white/50">
-                  Cadastre vendedores primeiro.
-                </td>
-              </tr>
-            )}
-            {sellers.map((s) => (
-              <tr key={s.id} className="border-t border-border">
-                <td className="p-3 font-medium">{s.name}</td>
-                <td className="p-3">
-                  <span className={s.bu === "cppem" ? "chip-cppem" : s.bu === "unicive" ? "chip-unicive" : "chip-colegio"}>
-                    {s.bu.toUpperCase()}
-                  </span>
-                </td>
-                <td className="p-3">
-                  <NumberField
-                    className="input h-9"
-                    min={0}
-                    value={values[s.id] ?? 0}
-                    onChange={(v) => setValues((m) => ({ ...m, [s.id]: v }))}
-                  />
-                </td>
-                <td className="p-3 font-semibold">{monthly[s.id] ?? 0}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {sellers.length === 0 ? (
+        <div className="card text-sm text-white/60 text-center py-6">
+          Cadastre vendedores primeiro.
+        </div>
+      ) : (
+        ALL_BUS.map((bu) => {
+          const rows = grouped[bu];
+          const color = BU_COLOR[bu];
+          return (
+            <section key={bu} className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div
+                  className="px-3 py-1 rounded-full text-xs font-bold"
+                  style={{ background: color + "22", color }}
+                >
+                  {BU_LABEL[bu]}
+                </div>
+                <div className="flex-1 h-px" style={{ background: color + "33" }} />
+                <div className="text-[11px] text-white/40">
+                  {rows.length} vendedor{rows.length === 1 ? "" : "es"}
+                </div>
+              </div>
+
+              <div className="card p-0 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="text-[10px] uppercase tracking-wider text-white/40 bg-panel2/60">
+                    <tr className="text-left">
+                      <th className="p-3">Vendedor</th>
+                      <th className="p-3">Tambem atua em</th>
+                      <th className="p-3 w-44">Leads no dia</th>
+                      <th className="p-3 w-32">Total no mes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="p-4 text-center text-white/40 text-xs">
+                          Nenhum vendedor nesta BU.
+                        </td>
+                      </tr>
+                    )}
+                    {rows.map((s) => {
+                      const sBus = busOf(s);
+                      const outras = sBus.filter((b) => b !== s.bu);
+                      return (
+                        <tr key={s.id} className="border-t border-border">
+                          <td className="p-3 font-medium">{s.name}</td>
+                          <td className="p-3">
+                            {outras.length === 0 ? (
+                              <span className="text-[11px] text-white/30">—</span>
+                            ) : (
+                              <div className="flex gap-1.5 flex-wrap">
+                                {outras.map((b) => (
+                                  <span
+                                    key={b}
+                                    className={
+                                      b === "cppem"
+                                        ? "chip-cppem"
+                                        : b === "unicive"
+                                        ? "chip-unicive"
+                                        : "chip-colegio"
+                                    }
+                                  >
+                                    {BU_LABEL[b]}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <NumberField
+                              className="input h-9"
+                              min={0}
+                              value={values[s.id] ?? 0}
+                              onChange={(v) => setValues((m) => ({ ...m, [s.id]: v }))}
+                            />
+                          </td>
+                          <td className="p-3 font-semibold">{monthly[s.id] ?? 0}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          );
+        })
+      )}
     </div>
   );
 }
