@@ -1,4 +1,5 @@
-export type BU = "cppem" | "unicive";
+export type BU = "cppem" | "unicive" | "colegio_cppem";
+export const ALL_BUS: BU[] = ["cppem", "unicive", "colegio_cppem"];
 
 export const PRODUCT_LINES_CPPEM = [
   { id: "mentorias", label: "Mentorias" },
@@ -13,38 +14,70 @@ export const PRODUCT_LINES_UNICIVE = [
   { id: "matriculas", label: "Matriculas" },
 ] as const;
 
+// Colegio: matriculas quebradas por turma (1o ao 9o do fundamental + 1o ao 3o EM) + fardamentos
+export const PRODUCT_LINES_COLEGIO = [
+  { id: "matricula_fund_1", label: "1o Ano Fundamental" },
+  { id: "matricula_fund_2", label: "2o Ano Fundamental" },
+  { id: "matricula_fund_3", label: "3o Ano Fundamental" },
+  { id: "matricula_fund_4", label: "4o Ano Fundamental" },
+  { id: "matricula_fund_5", label: "5o Ano Fundamental" },
+  { id: "matricula_fund_6", label: "6o Ano Fundamental" },
+  { id: "matricula_fund_7", label: "7o Ano Fundamental" },
+  { id: "matricula_fund_8", label: "8o Ano Fundamental" },
+  { id: "matricula_fund_9", label: "9o Ano Fundamental" },
+  { id: "matricula_em_1", label: "1o Ano Ensino Medio" },
+  { id: "matricula_em_2", label: "2o Ano Ensino Medio" },
+  { id: "matricula_em_3", label: "3o Ano Ensino Medio" },
+  { id: "fardamentos", label: "Fardamentos" },
+] as const;
+
+// Matriculas do colegio (sem fardamentos), pra metricas de "alunos por turma"
+export const COLEGIO_MATRICULAS_IDS = [
+  "matricula_fund_1","matricula_fund_2","matricula_fund_3","matricula_fund_4",
+  "matricula_fund_5","matricula_fund_6","matricula_fund_7","matricula_fund_8",
+  "matricula_fund_9","matricula_em_1","matricula_em_2","matricula_em_3",
+] as const;
+
 export const CPPEM_PRODUCT_IDS = [
-  "mentorias",
-  "cursos_digitais",
-  "fisicos",
-  "turma_pmal",
-  "turma_pmpe",
-  "turma_carreiras",
+  "mentorias","cursos_digitais","fisicos","turma_pmal","turma_pmpe","turma_carreiras",
 ] as const;
 export const UNICIVE_PRODUCT_IDS = ["matriculas"] as const;
+export const COLEGIO_PRODUCT_IDS = PRODUCT_LINES_COLEGIO.map((p) => p.id) as readonly string[];
 
 export type ProductLineId =
   | (typeof PRODUCT_LINES_CPPEM)[number]["id"]
-  | (typeof PRODUCT_LINES_UNICIVE)[number]["id"];
+  | (typeof PRODUCT_LINES_UNICIVE)[number]["id"]
+  | (typeof PRODUCT_LINES_COLEGIO)[number]["id"];
 
 export function productLinesFor(bu: BU) {
-  return bu === "cppem" ? PRODUCT_LINES_CPPEM : PRODUCT_LINES_UNICIVE;
+  if (bu === "cppem") return PRODUCT_LINES_CPPEM;
+  if (bu === "unicive") return PRODUCT_LINES_UNICIVE;
+  return PRODUCT_LINES_COLEGIO;
 }
 
 export function productIdsFor(bu: BU): readonly string[] {
-  return bu === "cppem" ? CPPEM_PRODUCT_IDS : UNICIVE_PRODUCT_IDS;
+  if (bu === "cppem") return CPPEM_PRODUCT_IDS;
+  if (bu === "unicive") return UNICIVE_PRODUCT_IDS;
+  return COLEGIO_PRODUCT_IDS;
 }
 
 export function buFromProductLine(pl: string): BU {
-  return (UNICIVE_PRODUCT_IDS as readonly string[]).includes(pl) ? "unicive" : "cppem";
+  if ((UNICIVE_PRODUCT_IDS as readonly string[]).includes(pl)) return "unicive";
+  if ((COLEGIO_PRODUCT_IDS as readonly string[]).includes(pl)) return "colegio_cppem";
+  return "cppem";
 }
 
 export function productLabel(id: string): string {
-  const all = [...PRODUCT_LINES_CPPEM, ...PRODUCT_LINES_UNICIVE];
+  const all = [...PRODUCT_LINES_CPPEM, ...PRODUCT_LINES_UNICIVE, ...PRODUCT_LINES_COLEGIO];
   return all.find((p) => p.id === id)?.label ?? id;
 }
 
-// Grupo apresentado no select de "Turma Presencial / Eventos" da venda CPPEM
+// Para Unicive e Colegio, a metrica primaria e quantidade (matriculas).
+// Para CPPEM, e faturamento (R$).
+export function isQtdPrimary(bu: BU): boolean {
+  return bu === "unicive" || bu === "colegio_cppem";
+}
+
 export const TURMAS_GROUP_LABEL = "Turmas Presenciais e Eventos";
 
 export const TURMAS = [
@@ -53,36 +86,15 @@ export const TURMAS = [
   { id: "turma_carreiras", label: "Carreiras Policiais" },
 ] as const;
 
-// ===== Status da ligacao Onvox no momento da venda =====
+// ===== Status da ligacao Onvox =====
 export const LIGACAO_STATUSES = [
-  {
-    id: "consegui_direto",
-    label: "Consegui diretamente pela ligacao",
-    short: "Direto pela ligacao",
-    color: "#22c55e",
-  },
-  {
-    id: "consegui_indireto",
-    label: "Consegui indiretamente com ligacao",
-    short: "Indireto com ligacao",
-    color: "#06b6d4",
-  },
-  {
-    id: "sem_ligacao",
-    label: "Nao houve nenhuma ligacao",
-    short: "Sem ligacao",
-    color: "#94a3b8",
-  },
+  { id: "consegui_direto", label: "Consegui diretamente pela ligacao", short: "Direto pela ligacao", color: "#22c55e" },
+  { id: "consegui_indireto", label: "Consegui indiretamente com ligacao", short: "Indireto com ligacao", color: "#06b6d4" },
+  { id: "sem_ligacao", label: "Nao houve nenhuma ligacao", short: "Sem ligacao", color: "#94a3b8" },
 ] as const;
 
 export type LigacaoStatusId = (typeof LIGACAO_STATUSES)[number]["id"];
 
-export function ligacaoLabel(id: string) {
-  return LIGACAO_STATUSES.find((s) => s.id === id)?.label || id;
-}
-export function ligacaoShort(id: string) {
-  return LIGACAO_STATUSES.find((s) => s.id === id)?.short || id;
-}
-export function ligacaoColor(id: string) {
-  return LIGACAO_STATUSES.find((s) => s.id === id)?.color || "#94a3b8";
-}
+export function ligacaoLabel(id: string) { return LIGACAO_STATUSES.find((s) => s.id === id)?.label || id; }
+export function ligacaoShort(id: string) { return LIGACAO_STATUSES.find((s) => s.id === id)?.short || id; }
+export function ligacaoColor(id: string) { return LIGACAO_STATUSES.find((s) => s.id === id)?.color || "#94a3b8"; }

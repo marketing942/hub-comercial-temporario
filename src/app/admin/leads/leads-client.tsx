@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Save } from "lucide-react";
 import NumberField from "@/components/NumberField";
 
-type Seller = { id: string; name: string; bu: "cppem" | "unicive" };
+type Seller = { id: string; name: string; bu: "cppem" | "unicive" | "colegio_cppem" };
 
 const MONTHS = [
   "Janeiro","Fevereiro","Marco","Abril","Maio","Junho",
@@ -142,7 +142,7 @@ export default function LeadsClient({
               <tr key={s.id} className="border-t border-border">
                 <td className="p-3 font-medium">{s.name}</td>
                 <td className="p-3">
-                  <span className={s.bu === "cppem" ? "chip-cppem" : "chip-unicive"}>
+                  <span className={s.bu === "cppem" ? "chip-cppem" : s.bu === "unicive" ? "chip-unicive" : "chip-colegio"}>
                     {s.bu.toUpperCase()}
                   </span>
                 </td>

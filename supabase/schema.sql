@@ -9,13 +9,18 @@ create extension if not exists "pgcrypto";
 create table if not exists public.sellers (
   id uuid primary key default gen_random_uuid(),
   name text not null,
-  bu text not null check (bu in ('cppem', 'unicive')),
+  bu text not null check (bu in ('cppem', 'unicive', 'colegio_cppem')),
   bus text[] not null default '{}',
   active boolean not null default true,
   avatar_color text not null default '#22c55e',
   avatar_url text,
   created_at timestamptz not null default now()
 );
+
+-- atualiza check pra incluir colegio_cppem se ja existia
+alter table public.sellers drop constraint if exists sellers_bu_check;
+alter table public.sellers add constraint sellers_bu_check
+  check (bu in ('cppem','unicive','colegio_cppem'));
 
 -- migracao se ja existia sem avatar_url
 alter table public.sellers add column if not exists avatar_url text;
@@ -94,7 +99,7 @@ create index if not exists product_goals_seller_period_idx
 -- (independente de vendedor — usado pelo dashboard de receita por categoria)
 create table if not exists public.bu_product_goals (
   id uuid primary key default gen_random_uuid(),
-  bu text not null check (bu in ('cppem','unicive')),
+  bu text not null check (bu in ('cppem','unicive','colegio_cppem')),
   month int not null check (month between 1 and 12),
   year int not null check (year between 2024 and 2100),
   product_line text not null,
@@ -102,6 +107,9 @@ create table if not exists public.bu_product_goals (
   quantidade_meta int not null default 0,
   unique (bu, year, month, product_line)
 );
+alter table public.bu_product_goals drop constraint if exists bu_product_goals_bu_check;
+alter table public.bu_product_goals add constraint bu_product_goals_bu_check
+  check (bu in ('cppem','unicive','colegio_cppem'));
 create index if not exists bu_product_goals_period_idx
   on public.bu_product_goals(bu, year, month);
 

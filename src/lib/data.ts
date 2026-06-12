@@ -12,16 +12,18 @@ import { productLabel, productIdsFor, buFromProductLine } from "./products";
 export type Seller = {
   id: string;
   name: string;
-  bu: "cppem" | "unicive";          // BU principal (compat)
-  bus: ("cppem" | "unicive")[];      // todas as BUs em que o vendedor atua
+  bu: "cppem" | "unicive" | "colegio_cppem";          // BU principal (compat)
+  bus: ("cppem" | "unicive" | "colegio_cppem")[];      // todas as BUs em que o vendedor atua
   active: boolean;
   avatar_color: string;
   avatar_url?: string | null;
 };
 
-function sanitizeBus(raw: any, fallbackBu: "cppem" | "unicive"): ("cppem" | "unicive")[] {
+function sanitizeBus(raw: any, fallbackBu: "cppem" | "unicive" | "colegio_cppem"): ("cppem" | "unicive" | "colegio_cppem")[] {
   const arr = Array.isArray(raw) ? raw : [];
-  const clean = arr.filter((x) => x === "cppem" || x === "unicive") as ("cppem" | "unicive")[];
+  const clean = arr.filter(
+    (x) => x === "cppem" || x === "unicive" || x === "colegio_cppem"
+  ) as ("cppem" | "unicive" | "colegio_cppem")[];
   return clean.length > 0 ? Array.from(new Set(clean)) : [fallbackBu];
 }
 
@@ -37,7 +39,7 @@ function normalizeSeller(row: any): Seller {
   };
 }
 
-export function buListOf(s: Pick<Seller, "bu" | "bus">): ("cppem" | "unicive")[] {
+export function buListOf(s: Pick<Seller, "bu" | "bus">): ("cppem" | "unicive" | "colegio_cppem")[] {
   return sanitizeBus(s.bus, s.bu);
 }
 
@@ -53,7 +55,7 @@ export async function getSeller(id: string): Promise<Seller | null> {
   return data ? normalizeSeller(data) : null;
 }
 
-export async function listSellersOfBu(bu: "cppem" | "unicive", opts?: { onlyActive?: boolean }): Promise<Seller[]> {
+export async function listSellersOfBu(bu: "cppem" | "unicive" | "colegio_cppem", opts?: { onlyActive?: boolean }): Promise<Seller[]> {
   const all = await listSellers(opts);
   return all.filter((s) => buListOf(s).includes(bu));
 }
@@ -64,7 +66,7 @@ export async function listSellersOfBu(bu: "cppem" | "unicive", opts?: { onlyActi
 // =====================================================
 export async function statsForSellerInBu(
   seller: Seller,
-  bu: "cppem" | "unicive",
+  bu: "cppem" | "unicive" | "colegio_cppem",
   opts?: { year?: number; month?: number }
 ): Promise<SellerStats> {
   const { year, month } = { ...periodNow(), ...opts };
@@ -175,7 +177,7 @@ export type BUSeries = {
 };
 
 export async function buSeries(
-  bu: "cppem" | "unicive",
+  bu: "cppem" | "unicive" | "colegio_cppem",
   opts?: { year?: number; month?: number }
 ): Promise<BUSeries> {
   const { year, month } = { ...periodNow(), ...opts };
@@ -254,8 +256,8 @@ export async function buSeries(
     buckets[k].qtd += Number(r.quantidade || 0);
   }
 
-  const isUni = bu === "unicive";
-  const meta = isUni ? qtdMeta : metaValor;
+  const isQtd = bu === "unicive" || bu === "colegio_cppem";
+  const meta = isQtd ? qtdMeta : metaValor;
 
   const daily: DailySeriesRow[] = [];
   const cumulative: CumulativeRow[] = [];
@@ -268,7 +270,7 @@ export async function buSeries(
     runQtd += b.qtd;
     const label = `${String(d).padStart(2, "0")}/${String(month).padStart(2, "0")}`;
     daily.push({ day: label, valor: b.valor, qtd: b.qtd });
-    const real = isUni ? runQtd : runValor;
+    const real = isQtd ? runQtd : runValor;
     const pct = meta > 0 ? (real / meta) * 100 : 0;
     cumulative.push({ day: label, pct, idealPct: (d / total) * 100 });
   }
@@ -279,7 +281,7 @@ export async function buSeries(
 
   const today = todayDayOfMonth(year, month);
   const daysLeft = daysRemainingIncludingToday(year, month);
-  const realizado = isUni ? totalQtd : totalValor;
+  const realizado = isQtd ? totalQtd : totalValor;
   const falta = Math.max(0, meta - realizado);
   const metaRitmoInicial = meta / total;
   const metaIdealAteHoje = metaRitmoInicial * today;
@@ -288,7 +290,7 @@ export async function buSeries(
 
   const todayLabel = `${String(today).padStart(2, "0")}/${String(month).padStart(2, "0")}`;
   const hojeBucket = daily.find((d) => d.day === todayLabel) || { valor: 0, qtd: 0 };
-  const realizadoHoje = isUni ? hojeBucket.qtd : hojeBucket.valor;
+  const realizadoHoje = isQtd ? hojeBucket.qtd : hojeBucket.valor;
 
   return {
     daily,
@@ -325,7 +327,7 @@ export type ProductBreakdownRow = {
 };
 
 export async function productBreakdown(
-  bu: "cppem" | "unicive",
+  bu: "cppem" | "unicive" | "colegio_cppem",
   opts?: { year?: number; month?: number }
 ): Promise<ProductBreakdownRow[]> {
   const { year, month } = { ...periodNow(), ...opts };
@@ -408,7 +410,7 @@ export async function productBreakdown(
 export type LigacaoRow = { status: string; count: number; valor: number };
 
 export async function ligacaoBreakdown(opts?: {
-  bu?: "cppem" | "unicive";
+  bu?: "cppem" | "unicive" | "colegio_cppem";
   year?: number;
   month?: number;
 }): Promise<LigacaoRow[]> {
@@ -453,7 +455,7 @@ export async function ligacaoBreakdown(opts?: {
 // Snapshot do dashboard
 // =====================================================
 export type DashboardSnapshot = {
-  bu: "cppem" | "unicive";
+  bu: "cppem" | "unicive" | "colegio_cppem";
   series: BUSeries;
   sellers: SellerStats[];
   taxaConversao: number;
@@ -463,7 +465,7 @@ export type DashboardSnapshot = {
 };
 
 export async function dashboardSnapshot(
-  bu: "cppem" | "unicive",
+  bu: "cppem" | "unicive" | "colegio_cppem",
   opts?: { year?: number; month?: number }
 ): Promise<DashboardSnapshot> {
   const [series, all, breakdown, ligacao] = await Promise.all([

@@ -7,13 +7,13 @@ import { BU_LABEL } from "@/lib/brand";
 type Seller = {
   id: string;
   name: string;
-  bu: "cppem" | "unicive";
-  bus?: ("cppem" | "unicive")[];
+  bu: "cppem" | "unicive" | "colegio_cppem";
+  bus?: ("cppem" | "unicive" | "colegio_cppem")[];
   avatar_color: string;
   avatar_url?: string | null;
 };
 
-function busOf(s: Seller): ("cppem" | "unicive")[] {
+function busOf(s: Seller): ("cppem" | "unicive" | "colegio_cppem")[] {
   const arr = Array.isArray(s.bus) ? s.bus.filter((x) => x === "cppem" || x === "unicive") : [];
   return arr.length > 0 ? Array.from(new Set(arr)) : [s.bu];
 }
@@ -64,7 +64,16 @@ export default function PickSellerClient({ sellers }: { sellers: Seller[] }) {
             <div className="font-medium">{s.name}</div>
             <div className="flex gap-1 mt-2">
               {sBus.map((b) => (
-                <span key={b} className={b === "cppem" ? "chip-cppem" : "chip-unicive"}>
+                <span
+                  key={b}
+                  className={
+                    b === "cppem"
+                      ? "chip-cppem"
+                      : b === "unicive"
+                      ? "chip-unicive"
+                      : "chip-colegio"
+                  }
+                >
                   {BU_LABEL[b]}
                 </span>
               ))}

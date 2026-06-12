@@ -1,9 +1,9 @@
 import { dashboardSnapshot, daysInMonth, daysRemainingIncludingToday, periodNow, todayDayOfMonth } from "@/lib/data";
-import { getDailyQuote } from "@/lib/quotes";
 import DashboardCarousel from "@/components/DashboardCarousel";
 import DashboardView from "@/components/DashboardView";
 import SellersGameView from "@/components/SellersGameView";
-import { Sparkles } from "lucide-react";
+import { ALL_BUS } from "@/lib/products";
+import { BU_LABEL } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 
@@ -17,41 +17,25 @@ export default async function DashboardPage() {
     year: "numeric",
   });
 
-  const [cppem, unicive, quote] = await Promise.all([
-    dashboardSnapshot("cppem", { year, month }),
-    dashboardSnapshot("unicive", { year, month }),
-    getDailyQuote(),
-  ]);
+  const snaps = await Promise.all(ALL_BUS.map((bu) => dashboardSnapshot(bu, { year, month })));
+  const [cppem, unicive, colegio] = snaps;
 
-  const allSellers = [...cppem.sellers, ...unicive.sellers];
+  const allSellers = snaps.flatMap((s) => s.sellers);
 
   const slides = [
-    {
-      key: "cppem",
-      label: "CPPEM",
+    ...snaps.map((snap) => ({
+      key: snap.bu,
+      label: BU_LABEL[snap.bu],
       node: (
         <DashboardView
-          snap={cppem}
+          snap={snap}
           day={day}
           totalDays={totalDays}
           daysLeft={daysLeft}
           monthName={monthName}
         />
       ),
-    },
-    {
-      key: "unicive",
-      label: "UNICIVE",
-      node: (
-        <DashboardView
-          snap={unicive}
-          day={day}
-          totalDays={totalDays}
-          daysLeft={daysLeft}
-          monthName={monthName}
-        />
-      ),
-    },
+    })),
     {
       key: "sellers",
       label: "Vendedores",
@@ -67,16 +51,5 @@ export default async function DashboardPage() {
     },
   ];
 
-  return (
-    <div className="space-y-4">
-      <div className="card flex items-center gap-2 text-sm text-white/70">
-        <Sparkles className="w-4 h-4 text-accent shrink-0" />
-        <span className="truncate">
-          <em>"{quote.text}"</em>
-          {quote.author && <span className="text-white/40"> - {quote.author}</span>}
-        </span>
-      </div>
-      <DashboardCarousel slides={slides} intervalSec={20} refreshMs={60000} />
-    </div>
-  );
+  return <DashboardCarousel slides={slides} intervalSec={25} refreshMs={60000} />;
 }

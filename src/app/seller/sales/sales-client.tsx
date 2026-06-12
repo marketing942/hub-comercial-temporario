@@ -1,7 +1,16 @@
 "use client";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { productLabel, productLinesFor, TURMAS, type BU, LIGACAO_STATUSES, ligacaoShort, ligacaoColor } from "@/lib/products";
+import {
+  productLabel,
+  productLinesFor,
+  TURMAS,
+  type BU,
+  LIGACAO_STATUSES,
+  ligacaoShort,
+  ligacaoColor,
+  PRODUCT_LINES_COLEGIO,
+} from "@/lib/products";
 import { BRL, fmtInt } from "@/lib/calc";
 import { Plus, Pencil, Trash2, Check, X, Phone } from "lucide-react";
 import NumberField from "@/components/NumberField";
@@ -16,7 +25,12 @@ type Sale = {
   ligacao_status?: string | null;
 };
 
-type Seller = { id: string; name: string; bu: BU };
+type Seller = { id: string; name: string; bu: BU; bus?: BU[] };
+
+function busOf(s: Seller): BU[] {
+  const arr = Array.isArray(s.bus) ? s.bus : [];
+  return arr.length > 0 ? arr : [s.bu];
+}
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -27,18 +41,31 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
   const [list, setList] = useState<Sale[]>(initial);
 
   const [date, setDate] = useState(todayISO());
-  const isCppem = seller.bu === "cppem";
-  const baseLines = productLinesFor(seller.bu);
-  const selectLines = isCppem
-    ? [
-        { id: "mentorias", label: "Mentorias" },
-        { id: "cursos_digitais", label: "Cursos e Materiais Digitais" },
-        { id: "fisicos", label: "Produtos Fisicos" },
-        { id: "turmas_eventos", label: "Turmas Presenciais e Eventos" },
-      ]
-    : baseLines;
+  const sellerBus = busOf(seller);
+  const hasCppem = sellerBus.includes("cppem");
+  const hasUnicive = sellerBus.includes("unicive");
+  const hasColegio = sellerBus.includes("colegio_cppem");
+  const selectLines: { id: string; label: string; group?: string }[] = [];
+  if (hasCppem) {
+    selectLines.push(
+      { id: "mentorias", label: "Mentorias", group: "CPPEM" },
+      { id: "cursos_digitais", label: "Cursos e Materiais Digitais", group: "CPPEM" },
+      { id: "fisicos", label: "Produtos Fisicos", group: "CPPEM" },
+      { id: "turmas_eventos", label: "Turmas Presenciais e Eventos", group: "CPPEM" },
+    );
+  }
+  if (hasUnicive) {
+    selectLines.push({ id: "matriculas", label: "Matriculas Unicive", group: "UNICIVE" });
+  }
+  if (hasColegio) {
+    PRODUCT_LINES_COLEGIO.forEach((l) =>
+      selectLines.push({ id: l.id, label: l.label, group: "Colegio CPPEM" })
+    );
+  }
+  // Para CPPEM com turmas/eventos, mostra um sub-select com a turma
+  const isCppemTurma = (id: string) => id === "turmas_eventos";
 
-  const [line, setLine] = useState<string>(selectLines[0].id);
+  const [line, setLine] = useState<string>(selectLines[0]?.id || "");
   const [turma, setTurma] = useState<string>(TURMAS[0].id);
   const [valor, setValor] = useState<number>(0);
   const [qtd, setQtd] = useState<number>(1);
@@ -54,7 +81,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
       return;
     }
     setSaving(true);
-    const product_line = isCppem && line === "turmas_eventos" ? turma : line;
+    const product_line = isCppemTurma(line) ? turma : line;
     const r = await fetch("/api/sales", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -88,17 +115,33 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
             <label className="label">Data</label>
             <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
-          <div className={isCppem && line === "turmas_eventos" ? "md:col-span-1" : "md:col-span-2"}>
+          <div className={isCppemTurma(line) ? "md:col-span-1" : "md:col-span-2"}>
             <label className="label">Linha de produto</label>
             <select className="input" value={line} onChange={(e) => setLine(e.target.value)}>
-              {selectLines.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.label}
-                </option>
-              ))}
+              {sellerBus.length > 1
+                ? sellerBus.map((b) => {
+                    const groupLabel =
+                      b === "cppem" ? "CPPEM" : b === "unicive" ? "UNICIVE" : "Colegio CPPEM";
+                    return (
+                      <optgroup key={b} label={groupLabel}>
+                        {selectLines
+                          .filter((l) => l.group === groupLabel)
+                          .map((l) => (
+                            <option key={l.id} value={l.id}>
+                              {l.label}
+                            </option>
+                          ))}
+                      </optgroup>
+                    );
+                  })
+                : selectLines.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.label}
+                    </option>
+                  ))}
             </select>
           </div>
-          {isCppem && line === "turmas_eventos" && (
+          {isCppemTurma(line) && (
             <div>
               <label className="label">Turma</label>
               <select className="input" value={turma} onChange={(e) => setTurma(e.target.value)}>
@@ -188,7 +231,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
               <Row
                 key={s.id}
                 sale={s}
-                isCppem={isCppem}
+                bus={sellerBus}
                 onChange={(p) => setList((l) => l.map((x) => (x.id === s.id ? { ...x, ...p } : x)))}
                 onDelete={() => setList((l) => l.filter((x) => x.id !== s.id))}
                 onAfter={() => router.refresh()}
@@ -203,13 +246,13 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
 
 function Row({
   sale,
-  isCppem,
+  bus,
   onChange,
   onDelete,
   onAfter,
 }: {
   sale: Sale;
-  isCppem: boolean;
+  bus: BU[];
   onChange: (p: Partial<Sale>) => void;
   onDelete: () => void;
   onAfter: () => void;
@@ -229,8 +272,12 @@ function Row({
     { id: "turma_pmpe", label: "Turma PMPE" },
     { id: "turma_carreiras", label: "Turma Carreiras Policiais" },
   ];
-  const uniLines = [{ id: "matriculas", label: "Matriculas" }];
-  const lines = isCppem ? cppemLines : uniLines;
+  const uniLines = [{ id: "matriculas", label: "Matriculas Unicive" }];
+  const colegioLines = PRODUCT_LINES_COLEGIO.map((p) => ({ id: p.id, label: p.label }));
+  const lines: { id: string; label: string }[] = [];
+  if (bus.includes("cppem")) lines.push(...cppemLines);
+  if (bus.includes("unicive")) lines.push(...uniLines);
+  if (bus.includes("colegio_cppem")) lines.push(...colegioLines);
 
   async function save() {
     const r = await fetch(`/api/sales/${sale.id}`, {

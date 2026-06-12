@@ -1,12 +1,14 @@
-import Image from "next/image";
 import type { DashboardSnapshot } from "@/lib/data";
 import { BRL, fmtInt, fmtPct } from "@/lib/calc";
-import { BU_COLOR, BU_LABEL, LOGO_CPPEM, LOGO_UNICIVE } from "@/lib/brand";
+import { BU_COLOR, BU_LABEL, COLOR, tonePctMeta } from "@/lib/brand";
+import { isQtdPrimary } from "@/lib/products";
+import BULogo from "@/components/BULogo";
 import BigStatCard from "@/components/BigStatCard";
 import ProgressBar from "@/components/ProgressBar";
 import DailySalesChart from "@/components/charts/DailySalesChart";
 import CumulativeGoalChart from "@/components/charts/CumulativeGoalChart";
 import ProductRevenueBreakdown from "@/components/ProductRevenueBreakdown";
+import ColegioTurmasBreakdown from "@/components/ColegioTurmasBreakdown";
 import TurmasBreakdown from "@/components/TurmasBreakdown";
 import {
   Flame,
@@ -32,19 +34,20 @@ export default function DashboardView({
   monthName: string;
 }) {
   const { bu, series, sellers, leadsTotal, taxaConversao, breakdown } = snap;
-  const isUni = bu === "unicive";
+  const isQtd = isQtdPrimary(bu);
   const color = BU_COLOR[bu];
-  const logo = bu === "cppem" ? LOGO_CPPEM : LOGO_UNICIVE;
   const t = series.totals;
 
   const realizado = t.realizado;
   const pct = t.meta > 0 ? (realizado / t.meta) * 100 : 0;
   const falta = Math.max(0, t.meta - realizado);
-  const fmtMeta = (n: number) => (isUni ? fmtInt.format(Math.round(n)) : BRL.format(n));
+  const fmtMeta = (n: number) => (isQtd ? fmtInt.format(Math.round(n)) : BRL.format(n));
+  const pctTone = tonePctMeta(pct, t.gap);
 
-  // Faturamento (Unicive cuida disso com importancia)
+  // Faturamento (Unicive e Colegio cuidam disso com importancia)
   const pctFat = t.metaValor > 0 ? (t.valor / t.metaValor) * 100 : 0;
   const faltaFat = Math.max(0, t.metaValor - t.valor);
+  const pctFatTone = tonePctMeta(pctFat, 0);
 
   const statusBar =
     pct >= 100
@@ -57,21 +60,20 @@ export default function DashboardView({
     pct >= 100
       ? "Meta batida — o que vier hoje e bonus."
       : t.gap > 0
-      ? `Atrasado em ${fmtMeta(t.gap)}. Pra voltar ao ritmo, feche esse valor hoje.`
+      ? `Pra voltar ao ritmo, feche esse valor hoje.`
       : t.gap < -0.0001
       ? `Adiantado em ${fmtMeta(-t.gap)}.`
-      : "No ritmo ideal — bote pra dentro!";
+      : "No ritmo ideal.";
+
+  // Categoria de turmas relevante por BU
+  const showTurmasCppem = bu === "cppem";
+  const showTurmasColegio = bu === "colegio_cppem";
 
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div
-          className="w-14 h-14 rounded-2xl bg-panel2 grid place-items-center p-1.5"
-          style={{ boxShadow: `0 0 0 2px ${color}33 inset` }}
-        >
-          <Image src={logo} alt={BU_LABEL[bu]} width={48} height={48} className="object-contain" />
-        </div>
+        <BULogo bu={bu} size={48} />
         <div>
           <div className="text-[11px] uppercase tracking-wider text-white/50">
             {monthName} - dia {day}/{totalDays} - faltam {daysLeft} dia{daysLeft > 1 ? "s" : ""}
@@ -80,41 +82,41 @@ export default function DashboardView({
         </div>
       </div>
 
-      {/* 4 KPIs grandes — Unicive mostra Matriculas + Faturamento com importancia igual */}
+      {/* 4 KPIs grandes (cores ESTRATEGICAS, nao da BU) */}
       <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        {isUni ? (
+        {isQtd ? (
           <>
             <BigStatCard
               label="Matriculas (Real / Meta)"
               value={`${fmtInt.format(t.qtd)} / ${fmtInt.format(t.meta)}`}
-              hint={pct >= 100 ? "Meta batida!" : `Faltam ${fmtInt.format(falta)} - ${fmtPct(pct)} da meta`}
+              hint={pct >= 100 ? "Meta batida" : `Faltam ${fmtInt.format(falta)}`}
               icon={<TrendingUp />}
-              accent={color}
-              valueColor={color}
+              accent={COLOR.ok}
+              valueColor={COLOR.neutral}
             />
             <BigStatCard
               label="Faturamento (Real / Meta)"
               value={`${BRL.format(t.valor)} / ${BRL.format(t.metaValor)}`}
-              hint={pctFat >= 100 ? "Meta de R$ batida!" : `Faltam ${BRL.format(faltaFat)} - ${fmtPct(pctFat)} da meta`}
+              hint={pctFat >= 100 ? "Meta de R$ batida" : `Faltam ${BRL.format(faltaFat)}`}
               icon={<Wallet />}
-              accent="#facc15"
-              valueColor="#facc15"
+              accent={COLOR.warning}
+              valueColor={COLOR.neutral}
             />
             <BigStatCard
-              label="Meta do Dia (matriculas)"
+              label="% da Meta (matriculas)"
+              value={fmtPct(pct)}
+              hint={`${fmtPct(pctFat)} no faturamento`}
+              icon={<TrendingUp />}
+              accent={pctTone}
+              valueColor={pctTone}
+            />
+            <BigStatCard
+              label="Meta do Dia"
               value={fmtInt.format(Math.round(t.metaDia))}
               hint={metaDiaSub}
               icon={<Flame />}
-              accent="#f97316"
-              valueColor="#fb923c"
-            />
-            <BigStatCard
-              label="Ticket Medio"
-              value={BRL.format(t.ticketReal)}
-              hint={t.ticketMeta > 0 ? `Meta ${BRL.format(t.ticketMeta)}` : "Sem meta de ticket"}
-              icon={<Wallet />}
-              accent="#06b6d4"
-              valueColor="#7dd3fc"
+              accent={COLOR.warning}
+              valueColor={COLOR.warning}
             />
           </>
         ) : (
@@ -122,109 +124,103 @@ export default function DashboardView({
             <BigStatCard
               label="Total Vendido"
               value={BRL.format(t.valor)}
-              hint="Resultado acumulado"
+              hint="Acumulado do mes"
               icon={<Wallet />}
-              accent={color}
-              valueColor={color}
+              accent={COLOR.ok}
+              valueColor={COLOR.neutral}
             />
             <BigStatCard
               label="Meta do Mes"
-              value={fmtMeta(t.meta)}
-              hint={pct >= 100 ? "Meta batida!" : `Faltam ${fmtMeta(falta)}`}
+              value={BRL.format(t.meta)}
+              hint={pct >= 100 ? "Meta batida" : `Faltam ${BRL.format(falta)}`}
               icon={<Target />}
-              accent="#facc15"
-              valueColor="#facc15"
+              accent={COLOR.warning}
+              valueColor={COLOR.neutral}
             />
             <BigStatCard
               label="% da Meta"
               value={fmtPct(pct)}
-              hint={`${fmtPct(t.gap > 0 ? -100 + pct : pct)} - Ritmo`}
+              hint={pct >= 100 ? "Meta batida!" : t.gap > 0 ? "Atrasado" : "No ritmo"}
               icon={<TrendingUp />}
-              accent={pct >= 100 ? "#22c55e" : color}
-              valueColor={pct >= 100 ? "#22c55e" : "#a3e635"}
+              accent={pctTone}
+              valueColor={pctTone}
             />
             <BigStatCard
               label="Meta do Dia"
-              value={fmtMeta(t.metaDia)}
+              value={BRL.format(t.metaDia)}
               hint={metaDiaSub}
               icon={<Flame />}
-              accent="#f97316"
-              valueColor="#fb923c"
+              accent={COLOR.warning}
+              valueColor={COLOR.warning}
             />
           </>
         )}
       </section>
 
-      {/* 4 mini stats (sem repetir o que ja esta nos KPIs grandes) */}
+      {/* Linha intermediaria de indicadores (sem repetir o de cima) */}
       <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        {isUni ? (
-          <MiniStat
-            label="% da Meta (matriculas)"
-            value={fmtPct(pct)}
-            hint={pct >= 100 ? "Batido!" : `Faltam ${fmtInt.format(falta)}`}
-            icon={<TrendingUp className="w-4 h-4" />}
-            accent={pct >= 100 ? "#22c55e" : "#a3e635"}
-          />
-        ) : (
-          <MiniStat
-            label="Ticket Medio"
-            value={BRL.format(t.ticketReal)}
-            hint={t.ticketMeta > 0 ? `Meta ${BRL.format(t.ticketMeta)}` : "Sem meta"}
-            icon={<Wallet className="w-4 h-4" />}
-            accent="#06b6d4"
-          />
-        )}
+        <MiniStat
+          label="Ticket Medio"
+          value={BRL.format(t.ticketReal)}
+          hint={t.ticketMeta > 0 ? `Meta ${BRL.format(t.ticketMeta)}` : "Sem meta"}
+          icon={<Wallet className="w-4 h-4" />}
+          accent={COLOR.info}
+        />
         <MiniStat
           label="Conversao"
           value={fmtPct(taxaConversao)}
           hint={`${sellers.reduce((a, b) => a + b.vendasCount, 0)} vendas`}
           icon={<Target className="w-4 h-4" />}
-          accent="#a3e635"
+          accent={COLOR.info}
         />
         <MiniStat
           label="Leads no Mes"
           value={fmtInt.format(leadsTotal)}
-          hint="Atualizados pelo admin"
+          hint="Admin atualiza diariamente"
           icon={<Users className="w-4 h-4" />}
-          accent="#facc15"
+          accent={COLOR.neutral}
         />
         <MiniStat
           label="Realizado Hoje"
           value={fmtMeta(t.realizadoHoje)}
           hint={`Dia ${day}/${totalDays}`}
           icon={<Trophy className="w-4 h-4" />}
-          accent={color}
+          accent={t.realizadoHoje > 0 ? COLOR.ok : COLOR.mute}
         />
       </section>
 
-      {/* Meta em Andamento — somente barra + status (numeros ja estao acima) */}
+      {/* Meta em Andamento — barra + status (numeros ja estao acima) */}
       <section className="card-lg">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2 text-sm font-semibold">
-            <Target className="w-4 h-4 text-accent" /> Meta em Andamento
+            <Target className="w-4 h-4" style={{ color: COLOR.ok }} /> Meta em Andamento
           </div>
-          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-accent/15 text-accent text-xs font-semibold">
+          <div
+            className="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold"
+            style={{ background: pctTone + "22", color: pctTone }}
+          >
             <Zap className="w-3.5 h-3.5" /> {fmtPct(pct)}
           </div>
         </div>
-        <ProgressBar value={pct} color={color} height={14} />
+        <ProgressBar value={pct} color={pctTone} height={14} />
         <div className="text-center text-white/60 text-xs mt-2">{statusBar}</div>
       </section>
 
       {/* Receita por categoria */}
-      <ProductRevenueBreakdown rows={breakdown} color={color} isUnicive={isUni} />
+      <ProductRevenueBreakdown rows={breakdown} color={color} />
 
-      {/* Alunos por turma presencial / eventos — CPPEM apenas */}
-      {!isUni && <TurmasBreakdown rows={breakdown} />}
+      {/* Card de turmas — varia por BU */}
+      {showTurmasCppem && <TurmasBreakdown rows={breakdown} />}
+      {showTurmasColegio && <ColegioTurmasBreakdown rows={breakdown} />}
 
       {/* Charts no fim */}
       <section className="grid grid-cols-1 xl:grid-cols-2 gap-3">
         <div className="card-lg">
           <div className="flex items-center justify-between mb-2">
             <div>
-              <div className="text-sm font-semibold">Evolucao Diaria de Vendas</div>
+              <div className="text-sm font-semibold">Evolucao Diaria</div>
               <div className="text-xs text-white/50">
-                {isUni ? "Matriculas por dia" : "Faturamento por dia"}
+                {isQtd ? "Matriculas por dia" : "Faturamento por dia"}
               </div>
             </div>
             <div className="text-xs px-3 py-1 rounded-full bg-panel2 text-white/70">{monthName}</div>
@@ -232,8 +228,8 @@ export default function DashboardView({
           <DailySalesChart
             data={series.daily}
             color={color}
-            field={isUni ? "qtd" : "valor"}
-            unit={isUni ? "int" : "currency"}
+            field={isQtd ? "qtd" : "valor"}
+            unit={isQtd ? "int" : "currency"}
           />
         </div>
         <div className="card-lg">
@@ -246,7 +242,7 @@ export default function DashboardView({
               dia {day}/{totalDays}
             </div>
           </div>
-          <CumulativeGoalChart data={series.cumulative} color={color} />
+          <CumulativeGoalChart data={series.cumulative} color={pctTone} />
         </div>
       </section>
     </div>

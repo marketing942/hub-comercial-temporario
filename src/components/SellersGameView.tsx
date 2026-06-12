@@ -1,6 +1,7 @@
 import type { SellerStats } from "@/lib/calc";
 import { BRL, fmtInt, fmtPct } from "@/lib/calc";
-import { BU_COLOR, BU_LABEL } from "@/lib/brand";
+import { BU_COLOR, BU_LABEL, BU_CHIP_CLASS, COLOR } from "@/lib/brand";
+import { isQtdPrimary, ALL_BUS, type BU } from "@/lib/products";
 import ProgressBar from "@/components/ProgressBar";
 import Avatar from "@/components/Avatar";
 import {
@@ -27,30 +28,10 @@ const STATUS_META: Record<
   Status,
   { label: string; color: string; bg: string; icon: React.ReactNode }
 > = {
-  batido: {
-    label: "BATEU A META",
-    color: "#22c55e",
-    bg: "rgba(34,197,94,0.18)",
-    icon: <Trophy className="w-3.5 h-3.5" />,
-  },
-  quase: {
-    label: "Quase la!",
-    color: "#facc15",
-    bg: "rgba(250,204,21,0.18)",
-    icon: <Flame className="w-3.5 h-3.5" />,
-  },
-  andamento: {
-    label: "Em andamento",
-    color: "#06b6d4",
-    bg: "rgba(6,182,212,0.18)",
-    icon: <Rocket className="w-3.5 h-3.5" />,
-  },
-  atrasado: {
-    label: "Recuperar ritmo",
-    color: "#ef4444",
-    bg: "rgba(239,68,68,0.18)",
-    icon: <Clock className="w-3.5 h-3.5" />,
-  },
+  batido: { label: "BATEU A META", color: COLOR.ok, bg: "rgba(34,197,94,0.18)", icon: <Trophy className="w-3.5 h-3.5" /> },
+  quase: { label: "Quase la!", color: COLOR.warning, bg: "rgba(250,204,21,0.18)", icon: <Flame className="w-3.5 h-3.5" /> },
+  andamento: { label: "Em andamento", color: COLOR.info, bg: "rgba(125,211,252,0.18)", icon: <Rocket className="w-3.5 h-3.5" /> },
+  atrasado: { label: "Recuperar ritmo", color: COLOR.danger, bg: "rgba(239,68,68,0.18)", icon: <Clock className="w-3.5 h-3.5" /> },
 };
 
 export default function SellersGameView({
@@ -66,22 +47,23 @@ export default function SellersGameView({
   totalDays: number;
   daysLeft: number;
 }) {
-  // Ranking pela METRICA PRIMARIA da BU:
-  // CPPEM = faturamento (valor); UNICIVE = quantidade de matriculas.
-  // Ja temos isso em `realizado`.
   const sortByReal = (a: SellerStats, b: SellerStats) => b.realizado - a.realizado;
-  const cppemRanking = stats.filter((s) => s.bu === "cppem").sort(sortByReal);
-  const uniRanking = stats.filter((s) => s.bu === "unicive").sort(sortByReal);
 
   const totalSellers = stats.length;
   const batidos = stats.filter((s) => s.pctSucesso >= 100);
   const pctBatidos = totalSellers > 0 ? (batidos.length / totalSellers) * 100 : 0;
 
+  const ranks: Record<BU, SellerStats[]> = {
+    cppem: stats.filter((s) => s.bu === "cppem").sort(sortByReal),
+    unicive: stats.filter((s) => s.bu === "unicive").sort(sortByReal),
+    colegio_cppem: stats.filter((s) => s.bu === "colegio_cppem").sort(sortByReal),
+  };
+
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="w-12 h-12 rounded-xl bg-accent/15 grid place-items-center text-accent">
+        <div className="w-12 h-12 rounded-xl grid place-items-center" style={{ background: COLOR.ok + "22", color: COLOR.ok }}>
           <Trophy className="w-6 h-6" />
         </div>
         <div>
@@ -92,71 +74,59 @@ export default function SellersGameView({
         </div>
       </div>
 
-      {/* Hall da fama */}
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="card-lg col-span-1 sm:col-span-2 relative overflow-hidden">
-          <div className="absolute inset-0 shimmer opacity-30 pointer-events-none" />
-          <div className="relative flex items-center justify-between gap-4">
-            <div>
-              <div className="text-[11px] uppercase tracking-wider text-accent">Hall da fama do mes</div>
-              <div className="text-xl xl:text-2xl font-bold mt-1">
-                {batidos.length} de {totalSellers} ja bateram a meta
-              </div>
-              <div className="text-xs text-white/60 mt-1">
-                {batidos.length === 0
-                  ? "Ninguem bateu ainda. Quem sera o primeiro?"
-                  : batidos.map((b) => b.sellerName.split(" ")[0]).join(", ") + " — parabens!"}
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="big-num" style={{ color: "#22c55e" }}>
-                {fmtPct(pctBatidos)}
-              </div>
-              <div className="text-[11px] text-white/50">do time bateu</div>
-            </div>
+      {/* Hall da fama enxuto */}
+      <section className="card-lg flex items-center justify-between gap-4">
+        <div>
+          <div className="text-[11px] uppercase tracking-wider" style={{ color: COLOR.ok }}>Hall da fama do mes</div>
+          <div className="text-xl xl:text-2xl font-bold mt-1">
+            {batidos.length} de {totalSellers} ja bateram a meta
           </div>
+          {batidos.length > 0 && (
+            <div className="text-xs text-white/60 mt-1">
+              {batidos.map((b) => b.sellerName.split(" ")[0]).join(", ")} — parabens!
+            </div>
+          )}
         </div>
-
-        <div className="card-lg">
-          <div className="text-[11px] uppercase tracking-wider text-white/50 flex items-center gap-2">
-            <Users className="w-3.5 h-3.5" /> Total no time
-          </div>
-          <div className="big-num" style={{ color: "#a3e635" }}>{totalSellers}</div>
-          <div className="text-[11px] text-white/50 mt-1">
-            CPPEM: {cppemRanking.length} - Unicive: {uniRanking.length}
-          </div>
+        <div className="text-right">
+          <div className="big-num" style={{ color: COLOR.ok }}>{fmtPct(pctBatidos)}</div>
+          <div className="text-[11px] text-white/50">do time bateu</div>
         </div>
       </section>
 
-      {/* Dois podios lado a lado (ordenados por realizado) */}
-      <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <BUPodium title="Top 3 CPPEM" ranking={cppemRanking} accent={BU_COLOR.cppem} />
-        <BUPodium title="Top 3 UNICIVE" ranking={uniRanking} accent={BU_COLOR.unicive} />
+      {/* Podios por BU lado a lado */}
+      <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        {ALL_BUS.map((bu) => (
+          <BUPodium
+            key={bu}
+            title={`Top 3 ${BU_LABEL[bu]}`}
+            ranking={ranks[bu]}
+            accent={BU_COLOR[bu]}
+          />
+        ))}
       </section>
 
-      <BUGroup title="CPPEM" sellers={cppemRanking} accent={BU_COLOR.cppem} />
-      <BUGroup title="UNICIVE" sellers={uniRanking} accent={BU_COLOR.unicive} />
+      {/* Cards por BU agrupados */}
+      {ALL_BUS.map((bu) => (
+        <BUGroup key={bu} bu={bu} sellers={ranks[bu]} accent={BU_COLOR[bu]} />
+      ))}
     </div>
   );
 }
 
 function BUGroup({
-  title,
+  bu,
   sellers,
   accent,
 }: {
-  title: string;
+  bu: BU;
   sellers: SellerStats[];
   accent: string;
 }) {
   return (
     <section>
       <div className="flex items-center gap-3 mb-3">
-        <div
-          className="px-3 py-1 rounded-full text-xs font-bold"
-          style={{ background: accent + "22", color: accent }}
-        >
-          {title}
+        <div className="px-3 py-1 rounded-full text-xs font-bold" style={{ background: accent + "22", color: accent }}>
+          {BU_LABEL[bu]}
         </div>
         <div className="flex-1 h-px" style={{ background: accent + "33" }} />
         <div className="text-[11px] text-white/40">
@@ -168,7 +138,7 @@ function BUGroup({
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {sellers.map((s, i) => (
-            <SellerCard key={s.sellerId} s={s} pos={i + 1} buColor={accent} />
+            <SellerCard key={`${s.sellerId}_${s.bu}`} s={s} pos={i + 1} buColor={accent} />
           ))}
         </div>
       )}
@@ -185,19 +155,18 @@ function SellerCard({
   pos: number;
   buColor: string;
 }) {
-  const isUni = s.bu === "unicive";
+  const isQtd = isQtdPrimary(s.bu);
   const fmtPrincipal = (n: number) =>
-    isUni ? fmtInt.format(Math.round(n)) : BRL.format(n);
+    isQtd ? fmtInt.format(Math.round(n)) : BRL.format(n);
   const st = statusFor(s.pctSucesso, s.gap);
   const meta = STATUS_META[st];
   return (
     <div
       className="card card-hover relative overflow-hidden"
       style={{
-        boxShadow:
-          st === "batido"
-            ? "0 0 0 1px rgba(34,197,94,0.4), 0 12px 40px -12px rgba(34,197,94,0.4)"
-            : undefined,
+        boxShadow: st === "batido"
+          ? "0 0 0 1px rgba(34,197,94,0.4), 0 12px 40px -12px rgba(34,197,94,0.4)"
+          : undefined,
       }}
     >
       {st === "batido" && (
@@ -229,7 +198,6 @@ function SellerCard({
           </div>
         </div>
 
-        {/* % grande + total realizado */}
         <div className="flex items-end justify-between gap-2 mt-3">
           <div>
             <div className="text-3xl xl:text-4xl font-bold leading-none" style={{ color: meta.color }}>
@@ -239,9 +207,9 @@ function SellerCard({
           </div>
           <div className="text-right">
             <div className="text-[10px] uppercase tracking-wider text-white/40">
-              {isUni ? "Matriculas" : "Faturamento"}
+              {isQtd ? "Matriculas" : "Faturamento"}
             </div>
-            <div className="text-base font-semibold" style={{ color: buColor }}>
+            <div className="text-base font-semibold text-white">
               {fmtPrincipal(s.realizado)}
             </div>
           </div>
@@ -251,13 +219,12 @@ function SellerCard({
           <ProgressBar value={s.pctSucesso} color={meta.color} height={7} />
         </div>
 
-        {/* 3 mini stats: Ticket, Conversao, Leads */}
         <div className="grid grid-cols-3 gap-2 mt-3">
           <MiniStat
             label="Ticket"
             icon={<Wallet className="w-3 h-3" />}
             value={BRL.format(s.ticketReal)}
-            sub={s.ticketMeta > 0 ? `meta ${BRL.format(s.ticketMeta)}` : "sem meta"}
+            sub={s.ticketMeta > 0 ? `meta ${BRL.format(s.ticketMeta)}` : "—"}
           />
           <MiniStat
             label="Conversao"
@@ -293,7 +260,7 @@ function MiniStat({
       <div className="text-[10px] uppercase tracking-wider text-white/50 flex items-center gap-1">
         {icon} {label}
       </div>
-      <div className="text-sm font-semibold mt-0.5">{value}</div>
+      <div className="text-sm font-semibold mt-0.5 text-white">{value}</div>
       {sub && <div className="text-[10px] text-white/40 leading-tight">{sub}</div>}
     </div>
   );
@@ -309,6 +276,7 @@ function BUPodium({
   accent: string;
 }) {
   const top3 = ranking.slice(0, 3);
+  // Layout classico: 2o lugar a esquerda, 1o no centro, 3o a direita
   const order = [top3[1], top3[0], top3[2]].filter(Boolean);
 
   return (
@@ -326,33 +294,55 @@ function BUPodium({
           {order.map((s) => {
             const pos = ranking.indexOf(s) + 1;
             const isFirst = pos === 1;
-            const isUni = s.bu === "unicive";
-            const label = isUni ? "matriculas" : "faturado";
-            const valueStr = isUni ? fmtInt.format(s.realizado) : BRL.format(s.realizado);
+            const isQtd = isQtdPrimary(s.bu);
+            const valueStr = isQtd ? fmtInt.format(s.realizado) : BRL.format(s.realizado);
+            const label = isQtd ? "matriculas" : "faturado";
+
+            const avatarSize = isFirst ? 84 : 64;
+
             return (
               <div
-                key={s.sellerId}
+                key={`${s.sellerId}_${s.bu}`}
                 className={`rounded-2xl text-center p-3 ${
-                  isFirst ? "bg-warning/15 border border-warning/30" : "bg-panel2/60"
+                  isFirst
+                    ? "bg-warning/15 border border-warning/40 shadow-glow"
+                    : "bg-panel2/60"
                 }`}
-                style={{ minHeight: isFirst ? 190 : 160 }}
+                style={{ minHeight: isFirst ? 280 : 220 }}
               >
                 <div className="flex items-center justify-center gap-1 text-[11px] font-bold mb-2">
                   <Crown
-                    className="w-3.5 h-3.5"
-                    style={{ color: isFirst ? "#facc15" : "#94a3b8" }}
+                    className={isFirst ? "w-4 h-4" : "w-3.5 h-3.5"}
+                    style={{ color: isFirst ? "#facc15" : pos === 2 ? "#cbd5e1" : "#fb923c" }}
                   />
                   {pos}o LUGAR
                 </div>
-                <div className="flex justify-center mb-2">
+                <div className="relative flex justify-center mb-2">
+                  {isFirst && (
+                    // Coroa "na cabeca" do primeiro lugar
+                    <Crown
+                      className="absolute -top-3 left-1/2 -translate-x-1/2 w-7 h-7"
+                      style={{
+                        color: "#facc15",
+                        filter: "drop-shadow(0 2px 6px rgba(250,204,21,0.55))",
+                        transform: "translateX(-50%) rotate(-8deg)",
+                      }}
+                    />
+                  )}
                   <Avatar
                     name={s.sellerName}
                     url={s.avatarUrl}
                     color={s.avatarColor || accent}
-                    size={isFirst ? 56 : 44}
+                    size={avatarSize}
                   />
                 </div>
-                <div className="text-sm font-semibold truncate">{s.sellerName}</div>
+                {/* Nomes do podio MAIORES */}
+                <div
+                  className={`font-bold truncate ${isFirst ? "text-xl xl:text-2xl" : "text-base xl:text-lg"}`}
+                  style={isFirst ? { color: "#facc15" } : undefined}
+                >
+                  {s.sellerName}
+                </div>
                 <div className="text-xl xl:text-2xl font-bold mt-1" style={{ color: accent }}>
                   {valueStr}
                 </div>

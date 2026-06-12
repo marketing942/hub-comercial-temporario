@@ -2,12 +2,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Save, RotateCw, SplitSquareHorizontal, Sparkles, Copy, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { BU_COLOR, BU_LABEL } from "@/lib/brand";
+import { ALL_BUS, PRODUCT_LINES_COLEGIO, type BU } from "@/lib/products";
 import NumberField from "@/components/NumberField";
 
 type Seller = {
   id: string;
   name: string;
-  bu: "cppem" | "unicive";
+  bu: BU;
+  bus?: BU[];
   active?: boolean;
 };
 
@@ -40,6 +42,7 @@ const CPPEM_LINES = [
   { id: "turma_carreiras", label: "Turma Carreiras Policiais" },
 ];
 const UNICIVE_LINES = [{ id: "matriculas", label: "Matriculas" }];
+const COLEGIO_LINES = PRODUCT_LINES_COLEGIO.map((p) => ({ id: p.id, label: p.label }));
 
 const BRL = (n: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 }).format(n);
@@ -54,7 +57,7 @@ export default function GoalsClient({
   defaultYear: number;
   defaultMonth: number;
 }) {
-  const [bu, setBu] = useState<"cppem" | "unicive">("cppem");
+  const [bu, setBu] = useState<BU>("cppem");
   const [year, setYear] = useState(defaultYear);
   const [month, setMonth] = useState(defaultMonth);
 
@@ -72,10 +75,18 @@ export default function GoalsClient({
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ kind: "ok" | "err"; msg: string } | null>(null);
 
-  const buSellers = useMemo(() => sellers.filter((s) => s.bu === bu), [sellers, bu]);
-  const isUni = bu === "unicive";
+  const buSellers = useMemo(
+    () =>
+      sellers.filter((s) => {
+        const arr = Array.isArray(s.bus) && s.bus.length > 0 ? s.bus : [s.bu];
+        return arr.includes(bu);
+      }),
+    [sellers, bu]
+  );
+  const isUni = bu === "unicive" || bu === "colegio_cppem";
   const color = BU_COLOR[bu];
-  const linesDef = isUni ? UNICIVE_LINES : CPPEM_LINES;
+  const linesDef =
+    bu === "cppem" ? CPPEM_LINES : bu === "unicive" ? UNICIVE_LINES : COLEGIO_LINES;
 
   useEffect(() => {
     load();
@@ -254,7 +265,7 @@ export default function GoalsClient({
         <div>
           <label className="label">1 - BU</label>
           <div className="inline-flex p-1 rounded-xl bg-panel2 w-full">
-            {(["cppem", "unicive"] as const).map((b) => (
+            {ALL_BUS.map((b) => (
               <button
                 key={b}
                 onClick={() => setBu(b)}

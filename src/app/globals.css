@@ -43,6 +43,7 @@ body {
   }
   .chip-cppem { @apply chip bg-cppem/15 text-cppem; }
   .chip-unicive { @apply chip bg-unicive/15 text-unicive; }
+  .chip-colegio { @apply chip bg-colegio/15 text-colegio; }
   .kpi-num { @apply text-2xl font-bold tracking-tight; }
   .kpi-label { @apply text-[11px] uppercase tracking-wider text-white/50; }
   .big-num { @apply text-4xl xl:text-[2.75rem] font-bold tracking-tight leading-tight; }

@@ -43,7 +43,7 @@ export type SaleRow = {
 export type SellerStats = {
   sellerId: string;
   sellerName: string;
-  bu: "cppem" | "unicive";
+  bu: "cppem" | "unicive" | "colegio_cppem";
   avatarUrl?: string | null;
   avatarColor?: string;
   metaTotal: number;
@@ -72,7 +72,7 @@ export function computeSellerStats(args: {
   seller: {
     id: string;
     name: string;
-    bu: "cppem" | "unicive";
+    bu: "cppem" | "unicive" | "colegio_cppem";
     avatar_url?: string | null;
     avatar_color?: string;
   };
@@ -89,7 +89,7 @@ export function computeSellerStats(args: {
   month: number;
 }): SellerStats {
   const { seller, productGoals, monthly, sales, leadsMonth, year, month } = args;
-  const isUni = seller.bu === "unicive";
+  const isUni = seller.bu === "unicive" || seller.bu === "colegio_cppem";
 
   // Fonte preferencial: monthly_goals.valor_meta/quantidade_meta (fluxo novo).
   // Fallback: soma de product_goals (compat com dados antigos).

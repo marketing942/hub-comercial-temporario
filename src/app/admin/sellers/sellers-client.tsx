@@ -3,20 +3,21 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Power, Trash2 } from "lucide-react";
 import { BU_LABEL } from "@/lib/brand";
+import { ALL_BUS, type BU } from "@/lib/products";
 
 type Seller = {
   id: string;
   name: string;
-  bu: "cppem" | "unicive";
-  bus?: ("cppem" | "unicive")[];
+  bu: BU;
+  bus?: BU[];
   active: boolean;
   avatar_color: string;
 };
 
-const COLORS = ["#22c55e", "#06b6d4", "#a3e635", "#facc15", "#ef4444", "#f472b6", "#7c5cff"];
-
-function busOf(s: Seller): ("cppem" | "unicive")[] {
-  const arr = Array.isArray(s.bus) ? s.bus.filter((x) => x === "cppem" || x === "unicive") : [];
+function busOf(s: Seller): BU[] {
+  const arr = Array.isArray(s.bus)
+    ? s.bus.filter((x) => x === "cppem" || x === "unicive" || x === "colegio_cppem")
+    : [];
   return arr.length > 0 ? Array.from(new Set(arr)) : [s.bu];
 }
 
@@ -24,14 +25,11 @@ export default function SellersClient({ initial }: { initial: Seller[] }) {
   const router = useRouter();
   const [list, setList] = useState(initial);
   const [name, setName] = useState("");
-  const [bus, setBus] = useState<("cppem" | "unicive")[]>(["cppem"]);
-  const [color, setColor] = useState(COLORS[0]);
+  const [bus, setBus] = useState<BU[]>(["cppem"]);
   const [busy, setBusy] = useState(false);
 
-  function toggleBu(b: "cppem" | "unicive") {
-    setBus((prev) =>
-      prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b]
-    );
+  function toggleBu(b: BU) {
+    setBus((prev) => (prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b]));
   }
 
   async function add() {
@@ -40,7 +38,7 @@ export default function SellersClient({ initial }: { initial: Seller[] }) {
     const r = await fetch("/api/sellers", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), bus, bu: bus[0], avatar_color: color }),
+      body: JSON.stringify({ name: name.trim(), bus, bu: bus[0] }),
     });
     setBusy(false);
     if (r.ok) {
@@ -71,16 +69,14 @@ export default function SellersClient({ initial }: { initial: Seller[] }) {
     router.refresh();
   }
 
-  async function changeBUs(s: Seller, newBus: ("cppem" | "unicive")[]) {
+  async function changeBUs(s: Seller, newBus: BU[]) {
     if (newBus.length === 0) return;
     await fetch(`/api/sellers/${s.id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ bus: newBus }),
     });
-    setList((l) =>
-      l.map((x) => (x.id === s.id ? { ...x, bus: newBus, bu: newBus[0] } : x))
-    );
+    setList((l) => l.map((x) => (x.id === s.id ? { ...x, bus: newBus, bu: newBus[0] } : x)));
     router.refresh();
   }
 
@@ -94,7 +90,7 @@ export default function SellersClient({ initial }: { initial: Seller[] }) {
   return (
     <div className="space-y-4">
       <div className="card">
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_220px_auto_auto] gap-3 items-end">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-3 items-end">
           <div>
             <label className="label">Nome do vendedor</label>
             <input
@@ -105,16 +101,16 @@ export default function SellersClient({ initial }: { initial: Seller[] }) {
             />
           </div>
           <div>
-            <label className="label">BU(s) — pode marcar as duas</label>
-            <div className="flex gap-2">
-              {(["cppem", "unicive"] as const).map((b) => {
+            <label className="label">BU(s) — pode marcar mais de uma</label>
+            <div className="flex gap-2 flex-wrap">
+              {ALL_BUS.map((b) => {
                 const active = bus.includes(b);
                 return (
                   <button
                     key={b}
                     type="button"
                     onClick={() => toggleBu(b)}
-                    className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
                       active
                         ? "bg-accent text-black border-accent"
                         : "bg-panel2 text-white/60 border-border hover:text-white"
@@ -124,19 +120,6 @@ export default function SellersClient({ initial }: { initial: Seller[] }) {
                   </button>
                 );
               })}
-            </div>
-          </div>
-          <div>
-            <label className="label">Cor</label>
-            <div className="flex gap-1">
-              {COLORS.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setColor(c)}
-                  className="w-7 h-7 rounded-lg border-2"
-                  style={{ background: c, borderColor: color === c ? "#fff" : "transparent" }}
-                />
-              ))}
             </div>
           </div>
           <button
@@ -173,10 +156,7 @@ export default function SellersClient({ initial }: { initial: Seller[] }) {
                 <tr key={s.id} className="border-t border-border">
                   <td className="p-3">
                     <div className="flex items-center gap-3">
-                      <div
-                        className="w-8 h-8 rounded-lg grid place-items-center text-xs font-semibold"
-                        style={{ background: s.avatar_color }}
-                      >
+                      <div className="w-8 h-8 rounded-lg bg-accent/20 text-accent grid place-items-center text-xs font-semibold">
                         {s.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
                       </div>
                       <input
@@ -189,8 +169,8 @@ export default function SellersClient({ initial }: { initial: Seller[] }) {
                     </div>
                   </td>
                   <td className="p-3">
-                    <div className="flex gap-1.5">
-                      {(["cppem", "unicive"] as const).map((b) => {
+                    <div className="flex gap-1.5 flex-wrap">
+                      {ALL_BUS.map((b) => {
                         const active = sellerBus.includes(b);
                         return (
                           <button
@@ -206,7 +186,9 @@ export default function SellersClient({ initial }: { initial: Seller[] }) {
                               active
                                 ? b === "cppem"
                                   ? "bg-cppem/20 text-cppem border-cppem/40"
-                                  : "bg-unicive/20 text-unicive border-unicive/40"
+                                  : b === "unicive"
+                                  ? "bg-unicive/20 text-unicive border-unicive/40"
+                                  : "bg-colegio/20 text-colegio border-colegio/40"
                                 : "bg-panel2 text-white/40 border-border"
                             }`}
                           >

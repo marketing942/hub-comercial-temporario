@@ -14,8 +14,9 @@ const config: Config = {
         success: "#22c55e",
         warning: "#facc15",
         danger: "#ef4444",
-        cppem: "#22c55e",
-        unicive: "#06b6d4",
+        cppem: "#00E63C",
+        unicive: "#F5C518",
+        colegio: "#5B8FE0",
       },
       fontFamily: {
         sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
