@@ -1,6 +1,6 @@
 import type { SellerStats } from "@/lib/calc";
 import { BRL, fmtInt, fmtPct } from "@/lib/calc";
-import { BU_COLOR, BU_LABEL, BU_CHIP_CLASS, COLOR } from "@/lib/brand";
+import { BU_COLOR, BU_LABEL, COLOR } from "@/lib/brand";
 import { isQtdPrimary, ALL_BUS, type BU } from "@/lib/products";
 import ProgressBar from "@/components/ProgressBar";
 import Avatar from "@/components/Avatar";
@@ -49,15 +49,14 @@ export default function SellersGameView({
 }) {
   const sortByReal = (a: SellerStats, b: SellerStats) => b.realizado - a.realizado;
 
-  const totalSellers = stats.length;
-  const batidos = stats.filter((s) => s.pctSucesso >= 100);
-  const pctBatidos = totalSellers > 0 ? (batidos.length / totalSellers) * 100 : 0;
-
   const ranks: Record<BU, SellerStats[]> = {
     cppem: stats.filter((s) => s.bu === "cppem").sort(sortByReal),
     unicive: stats.filter((s) => s.bu === "unicive").sort(sortByReal),
     colegio_cppem: stats.filter((s) => s.bu === "colegio_cppem").sort(sortByReal),
   };
+
+  // Podio so faz sentido se ha 2+ vendedores na BU
+  const busWithPodium = ALL_BUS.filter((bu) => ranks[bu].length >= 2);
 
   return (
     <div className="space-y-5">
@@ -74,36 +73,27 @@ export default function SellersGameView({
         </div>
       </div>
 
-      {/* Hall da fama enxuto */}
-      <section className="card-lg flex items-center justify-between gap-4">
-        <div>
-          <div className="text-[11px] uppercase tracking-wider" style={{ color: COLOR.ok }}>Hall da fama do mes</div>
-          <div className="text-xl xl:text-2xl font-bold mt-1">
-            {batidos.length} de {totalSellers} ja bateram a meta
-          </div>
-          {batidos.length > 0 && (
-            <div className="text-xs text-white/60 mt-1">
-              {batidos.map((b) => b.sellerName.split(" ")[0]).join(", ")} — parabens!
-            </div>
-          )}
-        </div>
-        <div className="text-right">
-          <div className="big-num" style={{ color: COLOR.ok }}>{fmtPct(pctBatidos)}</div>
-          <div className="text-[11px] text-white/50">do time bateu</div>
-        </div>
-      </section>
-
-      {/* Podios por BU lado a lado */}
-      <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        {ALL_BUS.map((bu) => (
-          <BUPodium
-            key={bu}
-            title={`Top 3 ${BU_LABEL[bu]}`}
-            ranking={ranks[bu]}
-            accent={BU_COLOR[bu]}
-          />
-        ))}
-      </section>
+      {/* Podios apenas pra BUs com >= 2 vendedores */}
+      {busWithPodium.length > 0 && (
+        <section
+          className={`grid grid-cols-1 gap-4 ${
+            busWithPodium.length === 1
+              ? ""
+              : busWithPodium.length === 2
+              ? "xl:grid-cols-2"
+              : "xl:grid-cols-3"
+          }`}
+        >
+          {busWithPodium.map((bu) => (
+            <BUPodium
+              key={bu}
+              title={`Top 3 ${BU_LABEL[bu]}`}
+              ranking={ranks[bu]}
+              accent={BU_COLOR[bu]}
+            />
+          ))}
+        </section>
+      )}
 
       {/* Cards por BU agrupados */}
       {ALL_BUS.map((bu) => (
@@ -160,6 +150,19 @@ function SellerCard({
     isQtd ? fmtInt.format(Math.round(n)) : BRL.format(n);
   const st = statusFor(s.pctSucesso, s.gap);
   const meta = STATUS_META[st];
+
+  // Pra cada mini stat: "real / meta"
+  const ticketTone =
+    s.ticketMeta > 0 && s.ticketReal >= s.ticketMeta ? COLOR.ok : COLOR.neutral;
+  const convTone =
+    s.conversaoMeta > 0 && s.conversaoReal >= s.conversaoMeta ? COLOR.ok : COLOR.neutral;
+  const leadsTone =
+    s.leadsMeta > 0 && s.leads >= s.leadsMeta
+      ? COLOR.ok
+      : s.leadsMeta > 0 && s.leads < s.leadsMeta
+      ? COLOR.warning
+      : COLOR.neutral;
+
   return (
     <div
       className="card card-hover relative overflow-hidden"
@@ -211,6 +214,9 @@ function SellerCard({
             </div>
             <div className="text-base font-semibold text-white">
               {fmtPrincipal(s.realizado)}
+              <span className="text-xs text-white/40 font-normal">
+                {" / "}{fmtPrincipal(s.metaTotal)}
+              </span>
             </div>
           </div>
         </div>
@@ -219,24 +225,28 @@ function SellerCard({
           <ProgressBar value={s.pctSucesso} color={meta.color} height={7} />
         </div>
 
+        {/* 3 mini stats com REAL / META lado a lado */}
         <div className="grid grid-cols-3 gap-2 mt-3">
-          <MiniStat
+          <CompareStat
             label="Ticket"
             icon={<Wallet className="w-3 h-3" />}
-            value={BRL.format(s.ticketReal)}
-            sub={s.ticketMeta > 0 ? `meta ${BRL.format(s.ticketMeta)}` : "—"}
+            real={BRL.format(s.ticketReal)}
+            meta={s.ticketMeta > 0 ? BRL.format(s.ticketMeta) : "—"}
+            tone={ticketTone}
           />
-          <MiniStat
+          <CompareStat
             label="Conversao"
             icon={<Target className="w-3 h-3" />}
-            value={fmtPct(s.conversaoReal)}
-            sub={s.conversaoMeta > 0 ? `meta ${fmtPct(s.conversaoMeta)}` : `${s.vendasCount} vendas`}
+            real={fmtPct(s.conversaoReal)}
+            meta={s.conversaoMeta > 0 ? fmtPct(s.conversaoMeta) : "—"}
+            tone={convTone}
           />
-          <MiniStat
+          <CompareStat
             label="Leads"
             icon={<Users className="w-3 h-3" />}
-            value={fmtInt.format(s.leads)}
-            sub="no mes"
+            real={fmtInt.format(s.leads)}
+            meta={s.leadsMeta > 0 ? fmtInt.format(s.leadsMeta) : "—"}
+            tone={leadsTone}
           />
         </div>
       </div>
@@ -244,24 +254,29 @@ function SellerCard({
   );
 }
 
-function MiniStat({
+function CompareStat({
   label,
   icon,
-  value,
-  sub,
+  real,
+  meta,
+  tone,
 }: {
   label: string;
   icon?: React.ReactNode;
-  value: React.ReactNode;
-  sub?: React.ReactNode;
+  real: string;
+  meta: string;
+  tone: string;
 }) {
   return (
-    <div className="rounded-lg bg-panel2 p-2">
+    <div className="rounded-lg bg-panel2 p-2 leading-tight">
       <div className="text-[10px] uppercase tracking-wider text-white/50 flex items-center gap-1">
         {icon} {label}
       </div>
-      <div className="text-sm font-semibold mt-0.5 text-white">{value}</div>
-      {sub && <div className="text-[10px] text-white/40 leading-tight">{sub}</div>}
+      <div className="text-sm font-semibold mt-0.5 whitespace-nowrap">
+        <span style={{ color: tone }}>{real}</span>
+        <span className="text-white/30 mx-1">/</span>
+        <span className="text-white/40 font-normal text-xs">{meta}</span>
+      </div>
     </div>
   );
 }
@@ -276,7 +291,6 @@ function BUPodium({
   accent: string;
 }) {
   const top3 = ranking.slice(0, 3);
-  // Layout classico: 2o lugar a esquerda, 1o no centro, 3o a direita
   const order = [top3[1], top3[0], top3[2]].filter(Boolean);
 
   return (
@@ -297,7 +311,6 @@ function BUPodium({
             const isQtd = isQtdPrimary(s.bu);
             const valueStr = isQtd ? fmtInt.format(s.realizado) : BRL.format(s.realizado);
             const label = isQtd ? "matriculas" : "faturado";
-
             const avatarSize = isFirst ? 84 : 64;
 
             return (
@@ -319,7 +332,6 @@ function BUPodium({
                 </div>
                 <div className="relative flex justify-center mb-2">
                   {isFirst && (
-                    // Coroa "na cabeca" do primeiro lugar
                     <Crown
                       className="absolute -top-3 left-1/2 -translate-x-1/2 w-7 h-7"
                       style={{
@@ -336,7 +348,6 @@ function BUPodium({
                     size={avatarSize}
                   />
                 </div>
-                {/* Nomes do podio MAIORES */}
                 <div
                   className={`font-bold truncate ${isFirst ? "text-xl xl:text-2xl" : "text-base xl:text-lg"}`}
                   style={isFirst ? { color: "#facc15" } : undefined}

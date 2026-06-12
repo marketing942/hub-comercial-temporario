@@ -58,6 +58,7 @@ create table if not exists public.monthly_goals (
 -- migracoes idempotentes
 alter table public.monthly_goals add column if not exists valor_meta numeric(14,2) not null default 0;
 alter table public.monthly_goals add column if not exists quantidade_meta int not null default 0;
+alter table public.monthly_goals add column if not exists leads_meta int not null default 0;
 
 -- multi-BU: meta por (seller, bu, year, month) — vendedor multi-BU tem
 -- entradas separadas por BU.

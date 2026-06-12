@@ -86,7 +86,7 @@ export async function statsForSellerInBu(
       .in("product_line", productIds),
     supabaseAdmin
       .from("monthly_goals")
-      .select("ticket_medio_meta, taxa_conversao_meta, valor_meta, quantidade_meta")
+      .select("ticket_medio_meta, taxa_conversao_meta, valor_meta, quantidade_meta, leads_meta")
       .eq("seller_id", seller.id)
       .eq("bu", bu)
       .eq("year", year)

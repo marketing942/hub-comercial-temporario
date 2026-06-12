@@ -55,6 +55,7 @@ export type SellerStats = {
   conversaoMeta: number;
   conversaoReal: number;
   leads: number;
+  leadsMeta: number;
   vendasCount: number;
   qtdRealizada: number;
   qtdMeta: number;
@@ -82,6 +83,7 @@ export function computeSellerStats(args: {
     taxa_conversao_meta: number;
     valor_meta?: number;
     quantidade_meta?: number;
+    leads_meta?: number;
   } | null;
   sales: SaleRow[];
   leadsMonth: number;
@@ -134,6 +136,7 @@ export function computeSellerStats(args: {
   const ticketMeta = Number(monthly?.ticket_medio_meta || 0);
   const conversaoReal = leadsMonth > 0 ? (vendasCount / leadsMonth) * 100 : 0;
   const conversaoMeta = Number(monthly?.taxa_conversao_meta || 0);
+  const leadsMetaV = Number(monthly?.leads_meta || 0);
 
   return {
     sellerId: seller.id,
@@ -150,6 +153,7 @@ export function computeSellerStats(args: {
     conversaoMeta,
     conversaoReal,
     leads: leadsMonth,
+    leadsMeta: leadsMetaV,
     vendasCount,
     qtdRealizada: realizadoQtd,
     qtdMeta: qtdMetaTotal,

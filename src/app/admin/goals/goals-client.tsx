@@ -1,6 +1,13 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Save, RotateCw, SplitSquareHorizontal, Sparkles, Copy, AlertTriangle, CheckCircle2 } from "lucide-react";
+import {
+  Save,
+  RotateCw,
+  Copy,
+  AlertTriangle,
+  CheckCircle2,
+  SplitSquareHorizontal,
+} from "lucide-react";
 import { BU_COLOR, BU_LABEL } from "@/lib/brand";
 import { ALL_BUS, PRODUCT_LINES_COLEGIO, type BU } from "@/lib/products";
 import NumberField from "@/components/NumberField";
@@ -19,6 +26,7 @@ type SellerGoal = {
   quantidade_meta: number;
   ticket_medio_meta: number;
   taxa_conversao_meta: number;
+  leads_meta: number;
 };
 
 type LineGoal = {
@@ -41,7 +49,10 @@ const CPPEM_LINES = [
   { id: "turma_pmpe", label: "Turma PMPE" },
   { id: "turma_carreiras", label: "Turma Carreiras Policiais" },
 ];
-const UNICIVE_LINES = [{ id: "matriculas", label: "Matriculas" }];
+const UNICIVE_LINES = [
+  { id: "matriculas", label: "Matriculas" },
+  { id: "bolsas_unicive", label: "Bolsas" },
+];
 const COLEGIO_LINES = PRODUCT_LINES_COLEGIO.map((p) => ({ id: p.id, label: p.label }));
 
 const BRL = (n: number) =>
@@ -61,14 +72,10 @@ export default function GoalsClient({
   const [year, setYear] = useState(defaultYear);
   const [month, setMonth] = useState(defaultMonth);
 
-  // Meta geral da BU (input direto)
   const [metaGeralFat, setMetaGeralFat] = useState(0);
   const [metaGeralQtd, setMetaGeralQtd] = useState(0);
 
-  // Meta por linha de produto (da BU como um todo)
   const [lines, setLines] = useState<LineGoal[]>([]);
-
-  // Meta por vendedor (livre)
   const [goals, setGoals] = useState<Record<string, SellerGoal>>({});
 
   const [loading, setLoading] = useState(false);
@@ -83,7 +90,7 @@ export default function GoalsClient({
       }),
     [sellers, bu]
   );
-  const isUni = bu === "unicive" || bu === "colegio_cppem";
+  const isQtd = bu === "unicive" || bu === "colegio_cppem";
   const color = BU_COLOR[bu];
   const linesDef =
     bu === "cppem" ? CPPEM_LINES : bu === "unicive" ? UNICIVE_LINES : COLEGIO_LINES;
@@ -97,7 +104,6 @@ export default function GoalsClient({
     setLoading(true);
     const j = await fetch(`/api/goals/period?bu=${bu}&year=${year}&month=${month}`).then((r) => r.json());
 
-    // Linhas
     const nextLines = linesDef.map((l) => {
       const f = (j.bu_product_goals || []).find((p: any) => p.product_line === l.id);
       return {
@@ -109,7 +115,6 @@ export default function GoalsClient({
     });
     setLines(nextLines);
 
-    // Vendedores
     const nextGoals: Record<string, SellerGoal> = {};
     buSellers.forEach((s) => {
       const m = (j.monthly || []).find((x: any) => x.seller_id === s.id);
@@ -119,15 +124,13 @@ export default function GoalsClient({
         quantidade_meta: Number(m?.quantidade_meta || 0),
         ticket_medio_meta: Number(m?.ticket_medio_meta || 0),
         taxa_conversao_meta: Number(m?.taxa_conversao_meta || 0),
+        leads_meta: Number(m?.leads_meta || 0),
       };
     });
     setGoals(nextGoals);
 
-    // Meta geral comeca = soma das linhas (se existir).
-    const totalLineFat = nextLines.reduce((a, b) => a + b.valor_meta, 0);
-    const totalLineQtd = nextLines.reduce((a, b) => a + b.quantidade_meta, 0);
-    setMetaGeralFat(totalLineFat);
-    setMetaGeralQtd(totalLineQtd);
+    setMetaGeralFat(nextLines.reduce((a, b) => a + b.valor_meta, 0));
+    setMetaGeralQtd(nextLines.reduce((a, b) => a + b.quantidade_meta, 0));
 
     setLoading(false);
   }
@@ -156,13 +159,14 @@ export default function GoalsClient({
         quantidade_meta: Number(m?.quantidade_meta || 0),
         ticket_medio_meta: Number(m?.ticket_medio_meta || 0),
         taxa_conversao_meta: Number(m?.taxa_conversao_meta || 0),
+        leads_meta: Number(m?.leads_meta || 0),
       };
     });
     setGoals(nextGoals);
     setMetaGeralFat(nextLines.reduce((a, b) => a + b.valor_meta, 0));
     setMetaGeralQtd(nextLines.reduce((a, b) => a + b.quantidade_meta, 0));
     setLoading(false);
-    setFeedback({ kind: "ok", msg: "Metas copiadas do mes anterior. Ajuste e salve." });
+    setFeedback({ kind: "ok", msg: "Metas copiadas do mes anterior." });
   }
 
   function distributeSellersEqually() {
@@ -179,6 +183,7 @@ export default function GoalsClient({
             taxa_conversao_meta: 0,
             valor_meta: 0,
             quantidade_meta: 0,
+            leads_meta: 0,
           }),
           valor_meta: Math.round(perFat * 100) / 100,
           quantidade_meta: Math.round(perQtd),
@@ -191,6 +196,7 @@ export default function GoalsClient({
   function updateLine(idx: number, patch: Partial<LineGoal>) {
     setLines((p) => p.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
   }
+
   function updateSeller(id: string, patch: Partial<SellerGoal>) {
     setGoals((p) => ({
       ...p,
@@ -201,12 +207,25 @@ export default function GoalsClient({
           quantidade_meta: 0,
           ticket_medio_meta: 0,
           taxa_conversao_meta: 0,
+          leads_meta: 0,
         }),
         ...patch,
       },
     }));
   }
 
+  const totalsSellers = useMemo(
+    () => ({
+      fat: Object.values(goals).reduce((a, b) => a + b.valor_meta, 0),
+      qtd: Object.values(goals).reduce((a, b) => a + b.quantidade_meta, 0),
+      leads: Object.values(goals).reduce((a, b) => a + b.leads_meta, 0),
+    }),
+    [goals]
+  );
+
+  const metaGeralPrincipal = isQtd ? metaGeralQtd : metaGeralFat;
+  const totalsSellersPrincipal = isQtd ? totalsSellers.qtd : totalsSellers.fat;
+  const diff = totalsSellersPrincipal - metaGeralPrincipal;
   const totalsLine = useMemo(
     () => ({
       fat: lines.reduce((a, b) => a + b.valor_meta, 0),
@@ -214,18 +233,7 @@ export default function GoalsClient({
     }),
     [lines]
   );
-  const totalsSellers = useMemo(
-    () => ({
-      fat: Object.values(goals).reduce((a, b) => a + b.valor_meta, 0),
-      qtd: Object.values(goals).reduce((a, b) => a + b.quantidade_meta, 0),
-    }),
-    [goals]
-  );
-
-  const metaGeralPrincipal = isUni ? metaGeralQtd : metaGeralFat;
-  const totalsSellersPrincipal = isUni ? totalsSellers.qtd : totalsSellers.fat;
-  const totalsLinesPrincipal = isUni ? totalsLine.qtd : totalsLine.fat;
-  const diffSellers = totalsSellersPrincipal - metaGeralPrincipal;
+  const totalsLinesPrincipal = isQtd ? totalsLine.qtd : totalsLine.fat;
   const diffLines = totalsLinesPrincipal - metaGeralPrincipal;
 
   async function saveAll() {
@@ -248,199 +256,203 @@ export default function GoalsClient({
     });
     setSaving(false);
     if (res.ok) {
-      setFeedback({
-        kind: "ok",
-        msg: "Metas salvas! Os vendedores e o dashboard ja veem os novos numeros.",
-      });
+      setFeedback({ kind: "ok", msg: "Metas salvas." });
     } else {
       const j = await res.json().catch(() => ({}));
-      setFeedback({ kind: "err", msg: "Erro ao salvar: " + (j.error || "tente novamente") });
+      setFeedback({ kind: "err", msg: "Erro: " + (j.error || "tente novamente") });
     }
   }
 
   return (
-    <div className="space-y-5">
-      {/* Step 1 - Seletor */}
-      <div className="card grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-        <div>
-          <label className="label">1 - BU</label>
-          <div className="inline-flex p-1 rounded-xl bg-panel2 w-full">
+    <div className="space-y-4 pb-20">
+      {/* Toolbar unica — BU + mes + atalhos + Salvar */}
+      <div className="sticky top-0 z-20 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 bg-bg/85 backdrop-blur border-b border-border">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex p-1 rounded-xl bg-panel border border-border">
             {ALL_BUS.map((b) => (
               <button
                 key={b}
                 onClick={() => setBu(b)}
-                className={`flex-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
-                  bu === b ? "bg-accent text-black" : "text-white/60 hover:text-white"
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                  bu === b
+                    ? "bg-accent text-black"
+                    : "text-white/60 hover:text-white"
                 }`}
               >
                 {BU_LABEL[b]}
               </button>
             ))}
           </div>
-        </div>
-        <div>
-          <label className="label">Mes</label>
-          <select className="input" value={month} onChange={(e) => setMonth(Number(e.target.value))}>
+
+          <select
+            className="input w-36 h-9 text-sm"
+            value={month}
+            onChange={(e) => setMonth(Number(e.target.value))}
+          >
             {MONTHS.map((m, i) => (
               <option key={m} value={i + 1}>{m}</option>
             ))}
           </select>
-        </div>
-        <div>
-          <label className="label">Ano</label>
-          <NumberField className="input" value={year} onChange={setYear} />
-        </div>
-        <button className="btn-ghost" onClick={copyFromPreviousMonth} disabled={loading}>
-          <Copy className="w-4 h-4" /> Copiar do mes anterior
-        </button>
-      </div>
+          <NumberField
+            className="input w-24 h-9 text-sm"
+            value={year}
+            onChange={setYear}
+          />
 
-      {/* Step 2 - Meta geral da BU */}
-      <div className="card-lg">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <div className="text-xs uppercase tracking-wider" style={{ color }}>
-              2 - Meta geral {BU_LABEL[bu]}
-            </div>
-            <div className="text-lg font-semibold">
-              {isUni
-                ? "Quantas matriculas a Unicive precisa fechar no mes?"
-                : "Quanto a CPPEM precisa faturar no mes?"}
-            </div>
-          </div>
           <button
-            className="btn-primary text-sm"
-            disabled={metaGeralPrincipal === 0 || buSellers.length === 0}
-            onClick={distributeSellersEqually}
-            title="Distribuir igualmente entre vendedores ativos"
+            className="btn-ghost h-9 px-3 text-xs"
+            onClick={copyFromPreviousMonth}
+            disabled={loading}
+            title="Copia metas do mes anterior"
           >
-            <SplitSquareHorizontal className="w-4 h-4" /> Distribuir igualmente nos vendedores
+            <Copy className="w-3.5 h-3.5" /> Copiar mes anterior
+          </button>
+
+          <div className="flex-1" />
+
+          {feedback && (
+            <div className={`text-xs ${feedback.kind === "ok" ? "text-success" : "text-danger"}`}>
+              {feedback.msg}
+            </div>
+          )}
+
+          <button
+            className="btn-primary h-9 px-4 text-sm"
+            onClick={saveAll}
+            disabled={saving || loading}
+          >
+            {saving ? <RotateCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {saving ? "Salvando..." : "Salvar"}
           </button>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-          <div className="rounded-xl bg-panel2 p-4">
-            <div className="kpi-label">Meta de Faturamento</div>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-white/40 text-sm">R$</span>
+      {/* Meta total da BU + linhas em duas colunas */}
+      <section className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-3">
+        <div className="card-lg">
+          <div className="text-xs uppercase tracking-wider mb-3" style={{ color }}>
+            Meta total {BU_LABEL[bu]}
+          </div>
+          <div className="space-y-3">
+            <div>
+              <div className="label">Faturamento (R$)</div>
               <NumberField
-                className="input text-2xl font-bold"
+                className="input text-xl font-bold"
                 step="0.01"
                 value={metaGeralFat}
                 onChange={setMetaGeralFat}
               />
             </div>
-          </div>
-          <div className="rounded-xl bg-panel2 p-4">
-            <div className="kpi-label">
-              {isUni ? "Meta de Matriculas (qtd)" : "Meta de Quantidade total"}
-            </div>
-            <div className="flex items-center gap-2 mt-1">
+            <div>
+              <div className="label">
+                {isQtd ? "Matriculas (qtd)" : "Quantidade total"}
+              </div>
               <NumberField
-                className="input text-2xl font-bold"
+                className="input text-xl font-bold"
                 value={metaGeralQtd}
                 onChange={setMetaGeralQtd}
               />
-              <span className="text-white/40 text-sm">un.</span>
             </div>
+            <button
+              className="btn-ghost w-full text-xs"
+              onClick={distributeSellersEqually}
+              disabled={metaGeralPrincipal === 0 || buSellers.length === 0}
+            >
+              <SplitSquareHorizontal className="w-3.5 h-3.5" />
+              Distribuir igualmente nos vendedores
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* Step 3 - Meta por linha de produto (da BU) */}
-      <div className="card-lg">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <div className="text-xs uppercase tracking-wider" style={{ color }}>
-              3 - Meta por linha de produto - {BU_LABEL[bu]}
+        <div className="card-lg">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <div className="text-xs uppercase tracking-wider" style={{ color }}>
+                Por linha de produto
+              </div>
+              <div className="text-xs text-white/50">
+                Soma:{" "}
+                <b className="text-white">{BRL(totalsLine.fat)}</b> /{" "}
+                <b className="text-white">{INT(totalsLine.qtd)} un.</b>
+              </div>
             </div>
-            <div className="text-sm font-semibold">
-              Metas totais por categoria (nao por vendedor)
-            </div>
+            {metaGeralPrincipal > 0 && (
+              <StatusBadge ok={Math.abs(diffLines) <= 0.5} diff={diffLines} isQtd={isQtd} />
+            )}
           </div>
-          <div className="text-xs text-white/40">
-            Soma das linhas: <b className="text-white">{BRL(totalsLine.fat)}</b> /{" "}
-            <b className="text-white">{INT(totalsLine.qtd)} un.</b>
-          </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-xs uppercase tracking-wider text-white/40">
-              <tr className="text-left">
-                <th className="py-2">Linha de produto</th>
-                <th className="text-right">Meta faturamento</th>
-                <th className="text-right">Meta quantidade</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lines.map((l, i) => (
-                <tr key={l.product_line} className="border-t border-border">
-                  <td className="py-2">{l.label}</td>
-                  <td className="text-right">
-                    <NumberField
-                      step="0.01"
-                      className="input h-9 text-right"
-                      value={l.valor_meta}
-                      onChange={(v) => updateLine(i, { valor_meta: v })}
-                    />
-                  </td>
-                  <td className="text-right">
-                    <NumberField
-                      className="input h-9 text-right"
-                      value={l.quantidade_meta}
-                      onChange={(v) => updateLine(i, { quantidade_meta: v })}
-                    />
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="text-[10px] uppercase tracking-wider text-white/40">
+                <tr className="text-left">
+                  <th className="py-2">Linha</th>
+                  <th className="text-right">Faturamento</th>
+                  <th className="text-right">Quantidade</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {lines.map((l, i) => (
+                  <tr key={l.product_line} className="border-t border-border">
+                    <td className="py-1.5">{l.label}</td>
+                    <td className="text-right">
+                      <NumberField
+                        step="0.01"
+                        className="input h-8 text-right text-xs"
+                        value={l.valor_meta}
+                        onChange={(v) => updateLine(i, { valor_meta: v })}
+                      />
+                    </td>
+                    <td className="text-right">
+                      <NumberField
+                        className="input h-8 text-right text-xs"
+                        value={l.quantidade_meta}
+                        onChange={(v) => updateLine(i, { quantidade_meta: v })}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-        {metaGeralPrincipal > 0 && Math.abs(diffLines) > (isUni ? 0.5 : 0.5) && (
-          <div className="mt-3 text-xs flex items-center gap-2 text-warning">
-            <AlertTriangle className="w-4 h-4" />
-            Soma das linhas {diffLines > 0 ? "esta acima" : "esta abaixo"} da meta geral em{" "}
-            {isUni ? INT(Math.abs(diffLines)) + " un." : BRL(Math.abs(diffLines))} (aviso, nao bloqueia).
-          </div>
-        )}
-        {metaGeralPrincipal > 0 && Math.abs(diffLines) <= (isUni ? 0.5 : 0.5) && totalsLinesPrincipal > 0 && (
-          <div className="mt-3 text-xs flex items-center gap-2 text-success">
-            <CheckCircle2 className="w-4 h-4" /> Soma das linhas bate com a meta geral.
-          </div>
-        )}
-      </div>
+      </section>
 
-      {/* Step 4 - Meta por vendedor */}
-      <div className="card-lg">
+      {/* Metas por vendedor */}
+      <section className="card-lg">
         <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
           <div>
             <div className="text-xs uppercase tracking-wider" style={{ color }}>
-              4 - Meta por vendedor
+              Por vendedor
             </div>
-            <div className="text-sm font-semibold">
-              Edite livremente — voce pode desafiar um vendedor sem alterar a meta geral
+            <div className="text-xs text-white/50">
+              Soma:{" "}
+              <b className="text-white">{BRL(totalsSellers.fat)}</b> /{" "}
+              <b className="text-white">{INT(totalsSellers.qtd)} un.</b>
+              {" · "}
+              <b className="text-white">{INT(totalsSellers.leads)}</b> leads
             </div>
           </div>
-          <div className="text-xs text-white/40">
-            Soma dos vendedores: <b className="text-white">{BRL(totalsSellers.fat)}</b> /{" "}
-            <b className="text-white">{INT(totalsSellers.qtd)} un.</b>
-          </div>
+          {metaGeralPrincipal > 0 && (
+            <StatusBadge ok={Math.abs(diff) <= 0.5} diff={diff} isQtd={isQtd} />
+          )}
         </div>
 
         {buSellers.length === 0 ? (
-          <div className="text-sm text-white/60">
-            Cadastre vendedores em <a href="/admin/sellers" className="text-accent">Vendedores</a>.
+          <div className="text-sm text-white/60 py-2">
+            Cadastre vendedores em{" "}
+            <a href="/admin/sellers" className="text-accent">Vendedores</a>{" "}
+            e marque a BU {BU_LABEL[bu]} pra eles aparecerem aqui.
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="text-xs uppercase tracking-wider text-white/40">
+              <thead className="text-[10px] uppercase tracking-wider text-white/40">
                 <tr className="text-left">
                   <th className="py-2">Vendedor</th>
                   <th className="text-right">Faturamento</th>
-                  {isUni && <th className="text-right">Matriculas (qtd)</th>}
+                  {isQtd && <th className="text-right">Matriculas (qtd)</th>}
                   <th className="text-right">Ticket meta (R$)</th>
                   <th className="text-right">Conversao meta (%)</th>
+                  <th className="text-right">Leads meta</th>
                   <th className="text-right">% da BU</th>
                 </tr>
               </thead>
@@ -452,25 +464,26 @@ export default function GoalsClient({
                     quantidade_meta: 0,
                     ticket_medio_meta: 0,
                     taxa_conversao_meta: 0,
+                    leads_meta: 0,
                   };
-                  const principal = isUni ? g.quantidade_meta : g.valor_meta;
+                  const principal = isQtd ? g.quantidade_meta : g.valor_meta;
                   const pctOfBu =
                     metaGeralPrincipal > 0 ? (principal / metaGeralPrincipal) * 100 : 0;
                   return (
                     <tr key={s.id} className="border-t border-border">
-                      <td className="py-2 font-medium">{s.name}</td>
+                      <td className="py-1.5 font-medium">{s.name}</td>
                       <td className="text-right">
                         <NumberField
                           step="0.01"
-                          className="input h-9 text-right"
+                          className="input h-8 text-right text-xs"
                           value={g.valor_meta}
                           onChange={(v) => updateSeller(s.id, { valor_meta: v })}
                         />
                       </td>
-                      {isUni && (
+                      {isQtd && (
                         <td className="text-right">
                           <NumberField
-                            className="input h-9 text-right"
+                            className="input h-8 text-right text-xs"
                             value={g.quantidade_meta}
                             onChange={(v) => updateSeller(s.id, { quantidade_meta: v })}
                           />
@@ -479,7 +492,7 @@ export default function GoalsClient({
                       <td className="text-right">
                         <NumberField
                           step="0.01"
-                          className="input h-9 text-right"
+                          className="input h-8 text-right text-xs"
                           value={g.ticket_medio_meta}
                           onChange={(v) => updateSeller(s.id, { ticket_medio_meta: v })}
                         />
@@ -487,65 +500,55 @@ export default function GoalsClient({
                       <td className="text-right">
                         <NumberField
                           step="0.1"
-                          className="input h-9 text-right"
+                          className="input h-8 text-right text-xs"
                           value={g.taxa_conversao_meta}
                           onChange={(v) => updateSeller(s.id, { taxa_conversao_meta: v })}
                         />
                       </td>
-                      <td className="text-right text-sm font-semibold" style={{ color }}>
+                      <td className="text-right">
+                        <NumberField
+                          className="input h-8 text-right text-xs"
+                          value={g.leads_meta}
+                          onChange={(v) => updateSeller(s.id, { leads_meta: v })}
+                        />
+                      </td>
+                      <td className="text-right text-xs font-semibold" style={{ color }}>
                         {pctOfBu.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
                       </td>
                     </tr>
                   );
                 })}
-                <tr className="border-t border-border">
-                  <td className="py-2 text-xs uppercase tracking-wider text-white/40">TOTAL</td>
-                  <td className="text-right font-semibold">{BRL(totalsSellers.fat)}</td>
-                  {isUni && (
-                    <td className="text-right font-semibold">{INT(totalsSellers.qtd)}</td>
-                  )}
-                  <td colSpan={2}></td>
-                  <td className="text-right text-xs text-white/40">
-                    {metaGeralPrincipal > 0
-                      ? ((totalsSellersPrincipal / metaGeralPrincipal) * 100).toFixed(1) + "%"
-                      : "-"}
-                  </td>
-                </tr>
               </tbody>
             </table>
           </div>
         )}
+      </section>
+    </div>
+  );
+}
 
-        {metaGeralPrincipal > 0 && Math.abs(diffSellers) > (isUni ? 0.5 : 0.5) && (
-          <div className="mt-3 text-xs flex items-center gap-2 text-warning">
-            <AlertTriangle className="w-4 h-4" />
-            Aviso: soma das metas dos vendedores{" "}
-            {diffSellers > 0 ? "esta " + (isUni ? INT(diffSellers) + " un." : BRL(diffSellers)) + " acima" : "esta " + (isUni ? INT(-diffSellers) + " un." : BRL(-diffSellers)) + " abaixo"}{" "}
-            da meta geral. Nao bloqueia o salvamento.
-          </div>
-        )}
+function StatusBadge({
+  ok,
+  diff,
+  isQtd,
+}: {
+  ok: boolean;
+  diff: number;
+  isQtd: boolean;
+}) {
+  if (ok) {
+    return (
+      <div className="text-[11px] flex items-center gap-1 text-success">
+        <CheckCircle2 className="w-3.5 h-3.5" /> bate com a meta da BU
       </div>
-
-      {/* Step 5 - Salvar */}
-      <div className="sticky bottom-3">
-        <div className="card flex items-center justify-between gap-3 flex-wrap">
-          <div className="text-xs text-white/60 flex items-center gap-2">
-            <Sparkles className="w-3.5 h-3.5 text-accent" />
-            {loading
-              ? "Carregando..."
-              : "Salva metas por linha (BU), metas individuais e ticket/conversao."}
-          </div>
-          {feedback && (
-            <div className={`text-xs ${feedback.kind === "ok" ? "text-success" : "text-danger"}`}>
-              {feedback.msg}
-            </div>
-          )}
-          <button className="btn-primary" onClick={saveAll} disabled={saving || loading}>
-            {saving ? <RotateCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {saving ? "Salvando..." : "5 - Salvar metas do mes"}
-          </button>
-        </div>
-      </div>
+    );
+  }
+  const acima = diff > 0;
+  return (
+    <div className="text-[11px] flex items-center gap-1 text-warning">
+      <AlertTriangle className="w-3.5 h-3.5" />
+      {acima ? "acima" : "abaixo"} da meta em{" "}
+      {isQtd ? INT(Math.abs(diff)) + " un." : BRL(Math.abs(diff))}
     </div>
   );
 }

@@ -12,7 +12,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Parametros invalidos." }, { status: 400 });
   }
 
-  // Sellers ativos que tem essa BU no array `bus` (fallback pra `bu` antigo)
   const { data: sellersRaw } = await supabaseAdmin
     .from("sellers")
     .select("id, name, bu, bus, active, avatar_url, avatar_color")
@@ -37,7 +36,7 @@ export async function GET(req: Request) {
       ? Promise.resolve({ data: [] })
       : supabaseAdmin
           .from("monthly_goals")
-          .select("seller_id, ticket_medio_meta, taxa_conversao_meta, valor_meta, quantidade_meta")
+          .select("seller_id, ticket_medio_meta, taxa_conversao_meta, valor_meta, quantidade_meta, leads_meta")
           .in("seller_id", ids)
           .eq("bu", bu)
           .eq("year", year)
@@ -92,6 +91,7 @@ export async function POST(req: Request) {
         taxa_conversao_meta: Number(s.taxa_conversao_meta || 0),
         valor_meta: Number(s.valor_meta || 0),
         quantidade_meta: Number(s.quantidade_meta || 0),
+        leads_meta: Number(s.leads_meta || 0),
         updated_at: new Date().toISOString(),
       }));
     const { error } = await supabaseAdmin
