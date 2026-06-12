@@ -7,55 +7,86 @@ import {
   todayDayOfMonth,
   type SellerStats,
 } from "./calc";
-import { productLabel } from "./products";
+import { productLabel, productIdsFor, buFromProductLine } from "./products";
 
 export type Seller = {
   id: string;
   name: string;
-  bu: "cppem" | "unicive";
+  bu: "cppem" | "unicive";          // BU principal (compat)
+  bus: ("cppem" | "unicive")[];      // todas as BUs em que o vendedor atua
   active: boolean;
   avatar_color: string;
   avatar_url?: string | null;
 };
 
+function sanitizeBus(raw: any, fallbackBu: "cppem" | "unicive"): ("cppem" | "unicive")[] {
+  const arr = Array.isArray(raw) ? raw : [];
+  const clean = arr.filter((x) => x === "cppem" || x === "unicive") as ("cppem" | "unicive")[];
+  return clean.length > 0 ? Array.from(new Set(clean)) : [fallbackBu];
+}
+
+function normalizeSeller(row: any): Seller {
+  return {
+    id: row.id,
+    name: row.name,
+    bu: row.bu,
+    bus: sanitizeBus(row.bus, row.bu),
+    active: row.active,
+    avatar_color: row.avatar_color,
+    avatar_url: row.avatar_url,
+  };
+}
+
+export function buListOf(s: Pick<Seller, "bu" | "bus">): ("cppem" | "unicive")[] {
+  return sanitizeBus(s.bus, s.bu);
+}
+
 export async function listSellers(opts?: { onlyActive?: boolean }): Promise<Seller[]> {
   let q = supabaseAdmin.from("sellers").select("*").order("name");
   if (opts?.onlyActive) q = q.eq("active", true);
   const { data } = await q;
-  return (data as Seller[]) || [];
+  return ((data as any[]) || []).map(normalizeSeller);
 }
 
 export async function getSeller(id: string): Promise<Seller | null> {
   const { data } = await supabaseAdmin.from("sellers").select("*").eq("id", id).maybeSingle();
-  return (data as Seller) || null;
+  return data ? normalizeSeller(data) : null;
 }
 
-export async function statsForSeller(sellerId: string, opts?: { year?: number; month?: number }) {
-  const seller = await getSeller(sellerId);
-  if (!seller) return null;
-  return statsForSellerWith(seller, opts);
+export async function listSellersOfBu(bu: "cppem" | "unicive", opts?: { onlyActive?: boolean }): Promise<Seller[]> {
+  const all = await listSellers(opts);
+  return all.filter((s) => buListOf(s).includes(bu));
 }
 
-export async function statsForSellerWith(
+// =====================================================
+// Stats por vendedor — agora SEMPRE atrelado a uma BU.
+// Pra vendedor multi-BU, statsForAll devolve 1 entrada por (seller, bu).
+// =====================================================
+export async function statsForSellerInBu(
   seller: Seller,
+  bu: "cppem" | "unicive",
   opts?: { year?: number; month?: number }
 ): Promise<SellerStats> {
   const { year, month } = { ...periodNow(), ...opts };
   const firstDay = `${year}-${String(month).padStart(2, "0")}-01`;
-  const nextMonth = month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
-  const lastDay = `${nextMonth.year}-${String(nextMonth.month).padStart(2, "0")}-01`;
+  const next = month === 12 ? { y: year + 1, m: 1 } : { y: year, m: month + 1 };
+  const lastDay = `${next.y}-${String(next.m).padStart(2, "0")}-01`;
+
+  const productIds = productIdsFor(bu) as unknown as string[];
 
   const [{ data: pg }, { data: mg }, { data: sl }, { data: lds }] = await Promise.all([
     supabaseAdmin
       .from("product_goals")
-      .select("*")
+      .select("product_line, valor_meta, quantidade_meta")
       .eq("seller_id", seller.id)
       .eq("year", year)
-      .eq("month", month),
+      .eq("month", month)
+      .in("product_line", productIds),
     supabaseAdmin
       .from("monthly_goals")
       .select("ticket_medio_meta, taxa_conversao_meta, valor_meta, quantidade_meta")
       .eq("seller_id", seller.id)
+      .eq("bu", bu)
       .eq("year", year)
       .eq("month", month)
       .maybeSingle(),
@@ -63,6 +94,7 @@ export async function statsForSellerWith(
       .from("sales")
       .select("*")
       .eq("seller_id", seller.id)
+      .in("product_line", productIds)
       .gte("sale_date", firstDay)
       .lt("sale_date", lastDay),
     supabaseAdmin
@@ -79,7 +111,7 @@ export async function statsForSellerWith(
     seller: {
       id: seller.id,
       name: seller.name,
-      bu: seller.bu,
+      bu,
       avatar_url: seller.avatar_url,
       avatar_color: seller.avatar_color,
     },
@@ -92,12 +124,31 @@ export async function statsForSellerWith(
   });
 }
 
-export async function statsForAll(opts?: { year?: number; month?: number }): Promise<SellerStats[]> {
-  const sellers = await listSellers({ onlyActive: true });
-  return Promise.all(sellers.map((s) => statsForSellerWith(s, opts)));
+// Compat: 1 stats por vendedor — agora retorna array (1+) pra suportar multi-BU.
+export async function statsForSeller(
+  sellerId: string,
+  opts?: { year?: number; month?: number }
+): Promise<SellerStats[]> {
+  const seller = await getSeller(sellerId);
+  if (!seller) return [];
+  const tasks = buListOf(seller).map((bu) => statsForSellerInBu(seller, bu, opts));
+  return Promise.all(tasks);
 }
 
-// ----------- Series para os gráficos -----------
+export async function statsForAll(opts?: { year?: number; month?: number }): Promise<SellerStats[]> {
+  const sellers = await listSellers({ onlyActive: true });
+  const tasks: Promise<SellerStats>[] = [];
+  for (const s of sellers) {
+    for (const bu of buListOf(s)) {
+      tasks.push(statsForSellerInBu(s, bu, opts));
+    }
+  }
+  return Promise.all(tasks);
+}
+
+// =====================================================
+// Series por BU para o dashboard
+// =====================================================
 
 export type DailySeriesRow = { day: string; valor: number; qtd: number };
 export type CumulativeRow = { day: string; pct: number; idealPct: number };
@@ -109,6 +160,7 @@ export type BUSeries = {
     valor: number;
     qtd: number;
     meta: number;
+    metaValor: number;     // meta de FATURAMENTO da BU (uteis pra Unicive tambem)
     ticketReal: number;
     ticketMeta: number;
     metaIdealAteHoje: number;
@@ -133,8 +185,9 @@ export async function buSeries(
   const total = daysInMonth(year, month);
 
   const sellers = await listSellers({ onlyActive: true });
-  const buSellers = sellers.filter((s) => s.bu === bu);
+  const buSellers = sellers.filter((s) => buListOf(s).includes(bu));
   const ids = buSellers.map((s) => s.id);
+  const productIds = productIdsFor(bu) as unknown as string[];
 
   if (ids.length === 0) {
     const empty: DailySeriesRow[] = Array.from({ length: total }, (_, i) => ({
@@ -144,25 +197,11 @@ export async function buSeries(
     }));
     return {
       daily: empty,
-      cumulative: empty.map((d, i) => ({
-        day: d.day,
-        pct: 0,
-        idealPct: ((i + 1) / total) * 100,
-      })),
+      cumulative: empty.map((d, i) => ({ day: d.day, pct: 0, idealPct: ((i + 1) / total) * 100 })),
       totals: {
-        valor: 0,
-        qtd: 0,
-        meta: 0,
-        ticketReal: 0,
-        ticketMeta: 0,
-        metaIdealAteHoje: 0,
-        metaRitmoInicial: 0,
-        gap: 0,
-        metaDia: 0,
-        realizado: 0,
-        valorHoje: 0,
-        qtdHoje: 0,
-        realizadoHoje: 0,
+        valor: 0, qtd: 0, meta: 0, metaValor: 0, ticketReal: 0, ticketMeta: 0,
+        metaIdealAteHoje: 0, metaRitmoInicial: 0, gap: 0, metaDia: 0,
+        realizado: 0, valorHoje: 0, qtdHoje: 0, realizadoHoje: 0,
       },
     };
   }
@@ -170,36 +209,39 @@ export async function buSeries(
   const [{ data: sales }, { data: pgoals }, { data: mgoals }] = await Promise.all([
     supabaseAdmin
       .from("sales")
-      .select("seller_id, sale_date, valor, quantidade")
+      .select("seller_id, sale_date, valor, quantidade, product_line")
       .in("seller_id", ids)
+      .in("product_line", productIds)
       .gte("sale_date", firstDay)
       .lt("sale_date", lastDay),
     supabaseAdmin
       .from("product_goals")
-      .select("seller_id, valor_meta, quantidade_meta")
+      .select("seller_id, valor_meta, quantidade_meta, product_line")
       .in("seller_id", ids)
+      .in("product_line", productIds)
       .eq("year", year)
       .eq("month", month),
     supabaseAdmin
       .from("monthly_goals")
-      .select("seller_id, ticket_medio_meta")
+      .select("seller_id, ticket_medio_meta, valor_meta, quantidade_meta")
       .in("seller_id", ids)
+      .eq("bu", bu)
       .eq("year", year)
       .eq("month", month),
   ]);
 
-  const valorMeta = (pgoals || []).reduce((a: number, b: any) => a + Number(b.valor_meta || 0), 0);
-  const qtdMeta = (pgoals || []).reduce(
-    (a: number, b: any) => a + Number(b.quantidade_meta || 0),
-    0
-  );
-  const ticketMetaAvg =
-    (mgoals || []).length > 0
-      ? (mgoals || []).reduce((a: number, b: any) => a + Number(b.ticket_medio_meta || 0), 0) /
-        (mgoals || []).length
-      : 0;
+  // Meta total: prioridade pra monthly_goals (fluxo novo); fallback pra soma de product_goals
+  const mgValor = (mgoals || []).reduce((a: number, b: any) => a + Number(b.valor_meta || 0), 0);
+  const mgQtd = (mgoals || []).reduce((a: number, b: any) => a + Number(b.quantidade_meta || 0), 0);
+  const pgValor = (pgoals || []).reduce((a: number, b: any) => a + Number(b.valor_meta || 0), 0);
+  const pgQtd = (pgoals || []).reduce((a: number, b: any) => a + Number(b.quantidade_meta || 0), 0);
+  const metaValor = mgValor > 0 ? mgValor : pgValor;
+  const qtdMeta = mgQtd > 0 ? mgQtd : pgQtd;
 
-  // bucket por dia
+  const ticketMetaAvg = (mgoals || []).length > 0
+    ? (mgoals || []).reduce((a: number, b: any) => a + Number(b.ticket_medio_meta || 0), 0) / (mgoals || []).length
+    : 0;
+
   const buckets: Record<string, { valor: number; qtd: number }> = {};
   for (let d = 1; d <= total; d++) {
     const k = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
@@ -213,7 +255,7 @@ export async function buSeries(
   }
 
   const isUni = bu === "unicive";
-  const meta = isUni ? qtdMeta : valorMeta;
+  const meta = isUni ? qtdMeta : metaValor;
 
   const daily: DailySeriesRow[] = [];
   const cumulative: CumulativeRow[] = [];
@@ -228,11 +270,7 @@ export async function buSeries(
     daily.push({ day: label, valor: b.valor, qtd: b.qtd });
     const real = isUni ? runQtd : runValor;
     const pct = meta > 0 ? (real / meta) * 100 : 0;
-    cumulative.push({
-      day: label,
-      pct,
-      idealPct: (d / total) * 100,
-    });
+    cumulative.push({ day: label, pct, idealPct: (d / total) * 100 });
   }
 
   const totalValor = Object.values(buckets).reduce((a, b) => a + b.valor, 0);
@@ -259,6 +297,7 @@ export async function buSeries(
       valor: totalValor,
       qtd: totalQtd,
       meta,
+      metaValor,
       ticketReal,
       ticketMeta: ticketMetaAvg,
       metaIdealAteHoje,
@@ -273,6 +312,9 @@ export async function buSeries(
   };
 }
 
+// =====================================================
+// Breakdown por linha de produto (mantem fluxo de bu_product_goals)
+// =====================================================
 export type ProductBreakdownRow = {
   product_line: string;
   label: string;
@@ -292,16 +334,12 @@ export async function productBreakdown(
   const lastDay = `${next.y}-${String(next.m).padStart(2, "0")}-01`;
 
   const sellers = await listSellers({ onlyActive: true });
-  const buSellers = sellers.filter((s) => s.bu === bu);
+  const buSellers = sellers.filter((s) => buListOf(s).includes(bu));
   const ids = buSellers.map((s) => s.id);
-
-  const lines =
-    bu === "cppem"
-      ? ["mentorias", "cursos_digitais", "fisicos", "turma_pmal", "turma_pmpe", "turma_carreiras"]
-      : ["matriculas"];
+  const productIds = productIdsFor(bu) as unknown as string[];
 
   const map: Record<string, ProductBreakdownRow> = {};
-  lines.forEach((id) => {
+  productIds.forEach((id) => {
     map[id] = {
       product_line: id,
       label: productLabel(id),
@@ -312,10 +350,6 @@ export async function productBreakdown(
     };
   });
 
-  // Vendas vem dos vendedores; metas POR LINHA vem agora de bu_product_goals
-  // (meta total da BU, nao mais somada dos vendedores). Fallback: se nao houver
-  // bu_product_goals do periodo, cai pra soma de product_goals dos vendedores
-  // (compat com dados antigos).
   const [{ data: sales }, { data: buGoals }, { data: legacyGoals }] = await Promise.all([
     ids.length === 0
       ? Promise.resolve({ data: [] })
@@ -323,6 +357,7 @@ export async function productBreakdown(
           .from("sales")
           .select("product_line, valor, quantidade")
           .in("seller_id", ids)
+          .in("product_line", productIds)
           .gte("sale_date", firstDay)
           .lt("sale_date", lastDay),
     supabaseAdmin
@@ -337,6 +372,7 @@ export async function productBreakdown(
           .from("product_goals")
           .select("product_line, valor_meta, quantidade_meta")
           .in("seller_id", ids)
+          .in("product_line", productIds)
           .eq("year", year)
           .eq("month", month),
   ]);
@@ -366,6 +402,9 @@ export async function productBreakdown(
   return Object.values(map);
 }
 
+// =====================================================
+// Ligacoes Onvox
+// =====================================================
 export type LigacaoRow = { status: string; count: number; valor: number };
 
 export async function ligacaoBreakdown(opts?: {
@@ -378,21 +417,24 @@ export async function ligacaoBreakdown(opts?: {
   const next = month === 12 ? { y: year + 1, m: 1 } : { y: year, m: month + 1 };
   const lastDay = `${next.y}-${String(next.m).padStart(2, "0")}-01`;
 
-  let sellerIds: string[] | null = null;
-  if (opts?.bu) {
-    const sellers = await listSellers({ onlyActive: true });
-    sellerIds = sellers.filter((s) => s.bu === opts.bu).map((s) => s.id);
-    if (sellerIds.length === 0) return seedLigacao();
-  }
+  const seed = (): LigacaoRow[] => [
+    { status: "consegui_direto", count: 0, valor: 0 },
+    { status: "consegui_indireto", count: 0, valor: 0 },
+    { status: "sem_ligacao", count: 0, valor: 0 },
+  ];
 
   let q = supabaseAdmin
     .from("sales")
-    .select("ligacao_status, valor")
+    .select("ligacao_status, valor, product_line")
     .gte("sale_date", firstDay)
     .lt("sale_date", lastDay);
-  if (sellerIds) q = q.in("seller_id", sellerIds);
-  const { data } = await q;
 
+  if (opts?.bu) {
+    const productIds = productIdsFor(opts.bu) as unknown as string[];
+    q = q.in("product_line", productIds);
+  }
+
+  const { data } = await q;
   const acc: Record<string, LigacaoRow> = {
     consegui_direto: { status: "consegui_direto", count: 0, valor: 0 },
     consegui_indireto: { status: "consegui_indireto", count: 0, valor: 0 },
@@ -407,14 +449,9 @@ export async function ligacaoBreakdown(opts?: {
   return Object.values(acc);
 }
 
-function seedLigacao(): LigacaoRow[] {
-  return [
-    { status: "consegui_direto", count: 0, valor: 0 },
-    { status: "consegui_indireto", count: 0, valor: 0 },
-    { status: "sem_ligacao", count: 0, valor: 0 },
-  ];
-}
-
+// =====================================================
+// Snapshot do dashboard
+// =====================================================
 export type DashboardSnapshot = {
   bu: "cppem" | "unicive";
   series: BUSeries;

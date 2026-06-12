@@ -13,6 +13,8 @@ import {
   Trophy,
   User,
   ShoppingCart,
+  PanelLeftClose,
+  PanelLeft,
 } from "lucide-react";
 
 export type SidebarItem = {
@@ -31,6 +33,8 @@ const ICONS = {
   cart: ShoppingCart,
 };
 
+const STORAGE_KEY = "hub_sidebar_collapsed";
+
 export default function Sidebar({
   role,
   sellerName,
@@ -42,9 +46,21 @@ export default function Sidebar({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [openMobile, setOpenMobile] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
-  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved === "1") setCollapsed(true);
+  }, []);
+
+  useEffect(() => setOpenMobile(false), [pathname]);
+
+  function toggleCollapse() {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem(STORAGE_KEY, next ? "1" : "0");
+  }
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -57,7 +73,7 @@ export default function Sidebar({
       <header className="lg:hidden sticky top-0 z-40 bg-bg/85 backdrop-blur border-b border-border">
         <div className="h-14 flex items-center px-4 gap-3">
           <button
-            onClick={() => setOpen(true)}
+            onClick={() => setOpenMobile(true)}
             className="w-10 h-10 grid place-items-center rounded-xl bg-panel2 hover:bg-border"
             aria-label="Abrir menu"
           >
@@ -72,41 +88,64 @@ export default function Sidebar({
         </div>
       </header>
 
+      {/* Botao flutuante pra reabrir no desktop quando colapsada */}
+      {collapsed && (
+        <button
+          onClick={toggleCollapse}
+          className="hidden lg:flex fixed top-3 left-3 z-40 w-10 h-10 items-center justify-center rounded-xl bg-panel border border-border hover:border-accent/40 shadow-glowSoft"
+          title="Mostrar menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+      )}
+
       {/* Overlay mobile */}
-      {open && (
+      {openMobile && (
         <div
           className="lg:hidden fixed inset-0 bg-black/60 z-40"
-          onClick={() => setOpen(false)}
+          onClick={() => setOpenMobile(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside
+        data-collapsed={collapsed}
         className={`
           fixed top-0 left-0 z-50 h-screen w-64 bg-panel border-r border-border
           flex flex-col transition-transform duration-200
-          ${open ? "translate-x-0" : "-translate-x-full"}
+          ${openMobile ? "translate-x-0" : "-translate-x-full"}
           lg:translate-x-0 lg:sticky
+          ${collapsed ? "lg:hidden" : "lg:flex"}
         `}
       >
-        <div className="p-5 border-b border-border flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-accent/20 grid place-items-center">
+        <div className="p-4 border-b border-border flex items-center justify-between gap-2">
+          <Link
+            href={role === "admin" ? "/admin" : "/dashboard"}
+            className="flex items-center gap-3 min-w-0"
+          >
+            <div className="w-10 h-10 rounded-xl bg-accent/20 grid place-items-center shrink-0">
               <Trophy className="w-5 h-5 text-accent" />
             </div>
-            <div>
-              <div className="font-semibold text-sm">Hub Comercial</div>
+            <div className="min-w-0">
+              <div className="font-semibold text-sm truncate">Hub Comercial</div>
               <div className="text-[10px] uppercase tracking-wider text-white/40">
                 CPPEM x Unicive
               </div>
             </div>
-          </div>
+          </Link>
           <button
             className="lg:hidden w-8 h-8 grid place-items-center rounded-lg hover:bg-panel2"
-            onClick={() => setOpen(false)}
+            onClick={() => setOpenMobile(false)}
             aria-label="Fechar menu"
           >
             <X className="w-4 h-4" />
+          </button>
+          <button
+            className="hidden lg:grid w-8 h-8 place-items-center rounded-lg hover:bg-panel2 text-white/60 hover:text-white"
+            onClick={toggleCollapse}
+            title="Recolher menu"
+          >
+            <PanelLeftClose className="w-4 h-4" />
           </button>
         </div>
 

@@ -12,14 +12,19 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Parametros invalidos." }, { status: 400 });
   }
 
-  const { data: sellers } = await supabaseAdmin
+  // Sellers ativos que tem essa BU no array `bus` (fallback pra `bu` antigo)
+  const { data: sellersRaw } = await supabaseAdmin
     .from("sellers")
-    .select("id, name, bu, active, avatar_url, avatar_color")
-    .eq("bu", bu)
+    .select("id, name, bu, bus, active, avatar_url, avatar_color")
     .eq("active", true)
     .order("name");
 
-  const ids = (sellers || []).map((s: any) => s.id);
+  const sellers = (sellersRaw || []).filter((s: any) => {
+    const arr: string[] = Array.isArray(s.bus) && s.bus.length > 0 ? s.bus : [s.bu];
+    return arr.includes(bu);
+  });
+
+  const ids = sellers.map((s: any) => s.id);
 
   const [{ data: buGoals }, { data: monthly }] = await Promise.all([
     supabaseAdmin
@@ -34,12 +39,13 @@ export async function GET(req: Request) {
           .from("monthly_goals")
           .select("seller_id, ticket_medio_meta, taxa_conversao_meta, valor_meta, quantidade_meta")
           .in("seller_id", ids)
+          .eq("bu", bu)
           .eq("year", year)
           .eq("month", month),
   ]);
 
   return NextResponse.json({
-    sellers: sellers || [],
+    sellers,
     bu_product_goals: buGoals || [],
     monthly: monthly || [],
   });
@@ -55,7 +61,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Faltam bu/year/month." }, { status: 400 });
   }
 
-  // Meta por linha de produto da BU
   if (Array.isArray(bu_product_goals) && bu_product_goals.length > 0) {
     const rows = bu_product_goals
       .filter((p: any) => p && p.product_line)
@@ -75,12 +80,12 @@ export async function POST(req: Request) {
     }
   }
 
-  // Meta de cada vendedor
   if (Array.isArray(sellers) && sellers.length > 0) {
     const rows = sellers
       .filter((s: any) => s && s.seller_id)
       .map((s: any) => ({
         seller_id: s.seller_id,
+        bu,
         year,
         month,
         ticket_medio_meta: Number(s.ticket_medio_meta || 0),
@@ -91,7 +96,7 @@ export async function POST(req: Request) {
       }));
     const { error } = await supabaseAdmin
       .from("monthly_goals")
-      .upsert(rows, { onConflict: "seller_id,month,year" });
+      .upsert(rows, { onConflict: "seller_id,bu,month,year" });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

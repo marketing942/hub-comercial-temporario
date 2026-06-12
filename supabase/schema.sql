@@ -10,6 +10,7 @@ create table if not exists public.sellers (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   bu text not null check (bu in ('cppem', 'unicive')),
+  bus text[] not null default '{}',
   active boolean not null default true,
   avatar_color text not null default '#22c55e',
   avatar_url text,
@@ -18,8 +19,13 @@ create table if not exists public.sellers (
 
 -- migracao se ja existia sem avatar_url
 alter table public.sellers add column if not exists avatar_url text;
+-- multi-BU: array de BUs em que o vendedor atua
+alter table public.sellers add column if not exists bus text[] not null default '{}';
+update public.sellers set bus = array[bu]
+  where coalesce(array_length(bus, 1), 0) = 0;
 
 create index if not exists sellers_bu_idx on public.sellers(bu);
+create index if not exists sellers_bus_idx on public.sellers using gin (bus);
 
 -- ---------- Storage: bucket de avatares ----------
 -- Criar o bucket 'avatars' como PUBLICO. Rodar uma vez.
@@ -47,6 +53,24 @@ create table if not exists public.monthly_goals (
 -- migracoes idempotentes
 alter table public.monthly_goals add column if not exists valor_meta numeric(14,2) not null default 0;
 alter table public.monthly_goals add column if not exists quantidade_meta int not null default 0;
+
+-- multi-BU: meta por (seller, bu, year, month) — vendedor multi-BU tem
+-- entradas separadas por BU.
+alter table public.monthly_goals add column if not exists bu text;
+update public.monthly_goals mg set bu = s.bu
+  from public.sellers s where s.id = mg.seller_id and (mg.bu is null or mg.bu = '');
+alter table public.monthly_goals alter column bu set not null;
+alter table public.monthly_goals drop constraint if exists monthly_goals_seller_id_month_year_key;
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'monthly_goals_seller_bu_year_month_key'
+  ) then
+    alter table public.monthly_goals
+      add constraint monthly_goals_seller_bu_year_month_key
+      unique (seller_id, bu, year, month);
+  end if;
+end$$;
 
 -- ---------- Metas por linha de produto ----------
 -- product_line para CPPEM: 'mentorias','cursos_digitais','fisicos',

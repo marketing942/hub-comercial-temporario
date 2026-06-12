@@ -42,25 +42,29 @@ export default function DashboardView({
   const falta = Math.max(0, t.meta - realizado);
   const fmtMeta = (n: number) => (isUni ? fmtInt.format(Math.round(n)) : BRL.format(n));
 
+  // Faturamento (Unicive cuida disso com importancia)
+  const pctFat = t.metaValor > 0 ? (t.valor / t.metaValor) * 100 : 0;
+  const faltaFat = Math.max(0, t.metaValor - t.valor);
+
   const statusBar =
     pct >= 100
       ? "Meta atingida! Missao cumprida."
       : t.gap > 0
-      ? `Atraso de ${fmtMeta(t.gap)} no ritmo ideal.`
+      ? `Atrasado em ${fmtMeta(t.gap)} no ritmo ideal.`
       : "No ritmo ou adiantado, segue forte!";
 
   const metaDiaSub =
     pct >= 100
       ? "Meta batida — o que vier hoje e bonus."
       : t.gap > 0
-      ? `Atrasado em ${fmtMeta(t.gap)}. Pra voltar ao ritmo, feche pelo menos esse valor hoje.`
+      ? `Atrasado em ${fmtMeta(t.gap)}. Pra voltar ao ritmo, feche esse valor hoje.`
       : t.gap < -0.0001
-      ? `Adiantado em ${fmtMeta(-t.gap)}. Mantenha o ritmo.`
+      ? `Adiantado em ${fmtMeta(-t.gap)}.`
       : "No ritmo ideal — bote pra dentro!";
 
   return (
     <div className="space-y-4">
-      {/* Header da BU */}
+      {/* Header */}
       <div className="flex items-center gap-3">
         <div
           className="w-14 h-14 rounded-2xl bg-panel2 grid place-items-center p-1.5"
@@ -76,51 +80,100 @@ export default function DashboardView({
         </div>
       </div>
 
-      {/* 4 KPIs grandes */}
+      {/* 4 KPIs grandes — Unicive mostra Matriculas + Faturamento com importancia igual */}
       <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <BigStatCard
-          label={isUni ? "Matriculas (Real)" : "Total Vendido"}
-          value={isUni ? fmtInt.format(t.qtd) : BRL.format(t.valor)}
-          hint="Resultado acumulado"
-          icon={isUni ? <TrendingUp /> : <Wallet />}
-          accent={color}
-          valueColor={color}
-        />
-        <BigStatCard
-          label={isUni ? "Meta de Matriculas" : "Meta do Mes"}
-          value={fmtMeta(t.meta)}
-          hint={`Missao de ${monthName}`}
-          icon={<Target />}
-          accent="#facc15"
-          valueColor="#facc15"
-        />
-        <BigStatCard
-          label="% da Meta"
-          value={fmtPct(pct)}
-          hint={pct >= 100 ? "Meta batida!" : `Faltam ${fmtMeta(falta)}`}
-          icon={<TrendingUp />}
-          accent={pct >= 100 ? "#22c55e" : color}
-          valueColor={pct >= 100 ? "#22c55e" : "#a3e635"}
-        />
-        <BigStatCard
-          label="Meta do Dia"
-          value={fmtMeta(t.metaDia)}
-          hint={metaDiaSub}
-          icon={<Flame />}
-          accent="#f97316"
-          valueColor="#fb923c"
-        />
+        {isUni ? (
+          <>
+            <BigStatCard
+              label="Matriculas (Real / Meta)"
+              value={`${fmtInt.format(t.qtd)} / ${fmtInt.format(t.meta)}`}
+              hint={pct >= 100 ? "Meta batida!" : `Faltam ${fmtInt.format(falta)} - ${fmtPct(pct)} da meta`}
+              icon={<TrendingUp />}
+              accent={color}
+              valueColor={color}
+            />
+            <BigStatCard
+              label="Faturamento (Real / Meta)"
+              value={`${BRL.format(t.valor)} / ${BRL.format(t.metaValor)}`}
+              hint={pctFat >= 100 ? "Meta de R$ batida!" : `Faltam ${BRL.format(faltaFat)} - ${fmtPct(pctFat)} da meta`}
+              icon={<Wallet />}
+              accent="#facc15"
+              valueColor="#facc15"
+            />
+            <BigStatCard
+              label="Meta do Dia (matriculas)"
+              value={fmtInt.format(Math.round(t.metaDia))}
+              hint={metaDiaSub}
+              icon={<Flame />}
+              accent="#f97316"
+              valueColor="#fb923c"
+            />
+            <BigStatCard
+              label="Ticket Medio"
+              value={BRL.format(t.ticketReal)}
+              hint={t.ticketMeta > 0 ? `Meta ${BRL.format(t.ticketMeta)}` : "Sem meta de ticket"}
+              icon={<Wallet />}
+              accent="#06b6d4"
+              valueColor="#7dd3fc"
+            />
+          </>
+        ) : (
+          <>
+            <BigStatCard
+              label="Total Vendido"
+              value={BRL.format(t.valor)}
+              hint="Resultado acumulado"
+              icon={<Wallet />}
+              accent={color}
+              valueColor={color}
+            />
+            <BigStatCard
+              label="Meta do Mes"
+              value={fmtMeta(t.meta)}
+              hint={pct >= 100 ? "Meta batida!" : `Faltam ${fmtMeta(falta)}`}
+              icon={<Target />}
+              accent="#facc15"
+              valueColor="#facc15"
+            />
+            <BigStatCard
+              label="% da Meta"
+              value={fmtPct(pct)}
+              hint={`${fmtPct(t.gap > 0 ? -100 + pct : pct)} - Ritmo`}
+              icon={<TrendingUp />}
+              accent={pct >= 100 ? "#22c55e" : color}
+              valueColor={pct >= 100 ? "#22c55e" : "#a3e635"}
+            />
+            <BigStatCard
+              label="Meta do Dia"
+              value={fmtMeta(t.metaDia)}
+              hint={metaDiaSub}
+              icon={<Flame />}
+              accent="#f97316"
+              valueColor="#fb923c"
+            />
+          </>
+        )}
       </section>
 
-      {/* 4 mini stats — agora ACIMA da meta em andamento */}
+      {/* 4 mini stats (sem repetir o que ja esta nos KPIs grandes) */}
       <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <MiniStat
-          label="Ticket Medio"
-          value={BRL.format(t.ticketReal)}
-          hint={`Meta ${BRL.format(t.ticketMeta)}`}
-          icon={<Wallet className="w-4 h-4" />}
-          accent="#06b6d4"
-        />
+        {isUni ? (
+          <MiniStat
+            label="% da Meta (matriculas)"
+            value={fmtPct(pct)}
+            hint={pct >= 100 ? "Batido!" : `Faltam ${fmtInt.format(falta)}`}
+            icon={<TrendingUp className="w-4 h-4" />}
+            accent={pct >= 100 ? "#22c55e" : "#a3e635"}
+          />
+        ) : (
+          <MiniStat
+            label="Ticket Medio"
+            value={BRL.format(t.ticketReal)}
+            hint={t.ticketMeta > 0 ? `Meta ${BRL.format(t.ticketMeta)}` : "Sem meta"}
+            icon={<Wallet className="w-4 h-4" />}
+            accent="#06b6d4"
+          />
+        )}
         <MiniStat
           label="Conversao"
           value={fmtPct(taxaConversao)}
@@ -144,7 +197,7 @@ export default function DashboardView({
         />
       </section>
 
-      {/* Meta em Andamento */}
+      {/* Meta em Andamento — somente barra + status (numeros ja estao acima) */}
       <section className="card-lg">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2 text-sm font-semibold">
@@ -155,26 +208,16 @@ export default function DashboardView({
           </div>
         </div>
         <ProgressBar value={pct} color={color} height={14} />
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-2 gap-2 text-sm">
-          <div>
-            <div className="kpi-label">Realizado</div>
-            <div className="text-xl font-bold">{fmtMeta(realizado)}</div>
-          </div>
-          <div className="text-center text-white/60 text-xs flex-1 px-2">{statusBar}</div>
-          <div className="text-right">
-            <div className="kpi-label">Meta</div>
-            <div className="text-xl font-bold text-warning">{fmtMeta(t.meta)}</div>
-          </div>
-        </div>
+        <div className="text-center text-white/60 text-xs mt-2">{statusBar}</div>
       </section>
 
       {/* Receita por categoria */}
       <ProductRevenueBreakdown rows={breakdown} color={color} isUnicive={isUni} />
 
-      {/* Alunos por turma presencial — apenas CPPEM */}
+      {/* Alunos por turma presencial / eventos — CPPEM apenas */}
       {!isUni && <TurmasBreakdown rows={breakdown} />}
 
-      {/* Charts (por ultimo) */}
+      {/* Charts no fim */}
       <section className="grid grid-cols-1 xl:grid-cols-2 gap-3">
         <div className="card-lg">
           <div className="flex items-center justify-between mb-2">

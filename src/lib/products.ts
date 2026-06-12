@@ -4,14 +4,24 @@ export const PRODUCT_LINES_CPPEM = [
   { id: "mentorias", label: "Mentorias" },
   { id: "cursos_digitais", label: "Cursos e Materiais Digitais" },
   { id: "fisicos", label: "Produtos Fisicos" },
-  { id: "turma_pmal", label: "Turma Presencial - PMAL" },
-  { id: "turma_pmpe", label: "Turma Presencial - PMPE" },
-  { id: "turma_carreiras", label: "Turma Presencial - Carreiras Policiais" },
+  { id: "turma_pmal", label: "Turma PMAL" },
+  { id: "turma_pmpe", label: "Turma PMPE" },
+  { id: "turma_carreiras", label: "Turma Carreiras Policiais" },
 ] as const;
 
 export const PRODUCT_LINES_UNICIVE = [
   { id: "matriculas", label: "Matriculas" },
 ] as const;
+
+export const CPPEM_PRODUCT_IDS = [
+  "mentorias",
+  "cursos_digitais",
+  "fisicos",
+  "turma_pmal",
+  "turma_pmpe",
+  "turma_carreiras",
+] as const;
+export const UNICIVE_PRODUCT_IDS = ["matriculas"] as const;
 
 export type ProductLineId =
   | (typeof PRODUCT_LINES_CPPEM)[number]["id"]
@@ -21,10 +31,21 @@ export function productLinesFor(bu: BU) {
   return bu === "cppem" ? PRODUCT_LINES_CPPEM : PRODUCT_LINES_UNICIVE;
 }
 
+export function productIdsFor(bu: BU): readonly string[] {
+  return bu === "cppem" ? CPPEM_PRODUCT_IDS : UNICIVE_PRODUCT_IDS;
+}
+
+export function buFromProductLine(pl: string): BU {
+  return (UNICIVE_PRODUCT_IDS as readonly string[]).includes(pl) ? "unicive" : "cppem";
+}
+
 export function productLabel(id: string): string {
   const all = [...PRODUCT_LINES_CPPEM, ...PRODUCT_LINES_UNICIVE];
   return all.find((p) => p.id === id)?.label ?? id;
 }
+
+// Grupo apresentado no select de "Turma Presencial / Eventos" da venda CPPEM
+export const TURMAS_GROUP_LABEL = "Turmas Presenciais e Eventos";
 
 export const TURMAS = [
   { id: "turma_pmal", label: "PMAL" },

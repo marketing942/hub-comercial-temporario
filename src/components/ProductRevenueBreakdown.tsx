@@ -18,10 +18,6 @@ export default function ProductRevenueBreakdown({
   );
   const data = visible.length > 0 ? visible : rows;
 
-  const totalReal = data.reduce((a, b) => a + b.valor, 0);
-  const totalMeta = data.reduce((a, b) => a + b.valor_meta, 0);
-  const totalPct = totalMeta > 0 ? (totalReal / totalMeta) * 100 : 0;
-
   return (
     <div className="card-lg h-full">
       <div className="flex items-center justify-between mb-3 gap-2">
@@ -30,16 +26,7 @@ export default function ProductRevenueBreakdown({
             <Layers className="w-4 h-4" style={{ color }} /> Receita por categoria
           </div>
           <div className="text-xs text-white/50">
-            Faturado / Meta da categoria
-          </div>
-        </div>
-        <div className="text-right text-xs text-white/60">
-          <div>
-            <span className="text-white font-semibold">{BRL.format(totalReal)}</span>
-            <span className="text-white/40"> / {BRL.format(totalMeta)}</span>
-          </div>
-          <div className="text-[11px]" style={{ color }}>
-            {fmtPct(totalPct)} da meta de receita
+            Faturado x Meta de cada categoria de produto
           </div>
         </div>
       </div>

@@ -20,7 +20,7 @@ export default function TurmasBreakdown({ rows }: { rows: ProductBreakdownRow[] 
       <div className="flex items-center justify-between mb-4">
         <div>
           <div className="text-sm font-semibold flex items-center gap-2">
-            <GraduationCap className="w-4 h-4 text-accent" /> Alunos por turma presencial
+            <GraduationCap className="w-4 h-4 text-accent" /> Alunos por turmas presenciais e eventos
           </div>
           <div className="text-xs text-white/50">Meta x Realizado em quantidade de alunos</div>
         </div>

@@ -34,7 +34,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
         { id: "mentorias", label: "Mentorias" },
         { id: "cursos_digitais", label: "Cursos e Materiais Digitais" },
         { id: "fisicos", label: "Produtos Fisicos" },
-        { id: "turma_presencial", label: "Turma Presencial" },
+        { id: "turmas_eventos", label: "Turmas Presenciais e Eventos" },
       ]
     : baseLines;
 
@@ -54,7 +54,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
       return;
     }
     setSaving(true);
-    const product_line = isCppem && line === "turma_presencial" ? turma : line;
+    const product_line = isCppem && line === "turmas_eventos" ? turma : line;
     const r = await fetch("/api/sales", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -88,7 +88,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
             <label className="label">Data</label>
             <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
-          <div className={isCppem && line === "turma_presencial" ? "md:col-span-1" : "md:col-span-2"}>
+          <div className={isCppem && line === "turmas_eventos" ? "md:col-span-1" : "md:col-span-2"}>
             <label className="label">Linha de produto</label>
             <select className="input" value={line} onChange={(e) => setLine(e.target.value)}>
               {selectLines.map((l) => (
@@ -98,7 +98,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
               ))}
             </select>
           </div>
-          {isCppem && line === "turma_presencial" && (
+          {isCppem && line === "turmas_eventos" && (
             <div>
               <label className="label">Turma</label>
               <select className="input" value={turma} onChange={(e) => setTurma(e.target.value)}>
