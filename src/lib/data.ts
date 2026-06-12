@@ -152,7 +152,7 @@ export async function statsForAll(opts?: { year?: number; month?: number }): Pro
 // Series por BU para o dashboard
 // =====================================================
 
-export type DailySeriesRow = { day: string; valor: number; qtd: number };
+export type DailySeriesRow = { day: string; valor: number; qtd: number; leads: number };
 export type CumulativeRow = { day: string; pct: number; idealPct: number };
 
 export type BUSeries = {
@@ -197,6 +197,7 @@ export async function buSeries(
       day: String(i + 1).padStart(2, "0") + "/" + String(month).padStart(2, "0"),
       valor: 0,
       qtd: 0,
+      leads: 0,
     }));
     return {
       daily: empty,
@@ -210,7 +211,7 @@ export async function buSeries(
     };
   }
 
-  const [{ data: sales }, { data: pgoals }, { data: mgoals }, { data: bm }] = await Promise.all([
+  const [{ data: sales }, { data: pgoals }, { data: mgoals }, { data: bm }, { data: leadsRows }] = await Promise.all([
     supabaseAdmin
       .from("sales")
       .select("seller_id, sale_date, valor, quantidade, product_line")
@@ -239,6 +240,12 @@ export async function buSeries(
       .eq("year", year)
       .eq("month", month)
       .maybeSingle(),
+    supabaseAdmin
+      .from("daily_leads")
+      .select("date, qty")
+      .in("seller_id", ids)
+      .gte("date", firstDay)
+      .lt("date", lastDay),
   ]);
   const leadsMeta = Number((bm as any)?.leads_meta || 0);
 
@@ -254,16 +261,21 @@ export async function buSeries(
     ? (mgoals || []).reduce((a: number, b: any) => a + Number(b.ticket_medio_meta || 0), 0) / (mgoals || []).length
     : 0;
 
-  const buckets: Record<string, { valor: number; qtd: number }> = {};
+  const buckets: Record<string, { valor: number; qtd: number; leads: number }> = {};
   for (let d = 1; d <= total; d++) {
     const k = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-    buckets[k] = { valor: 0, qtd: 0 };
+    buckets[k] = { valor: 0, qtd: 0, leads: 0 };
   }
   for (const r of (sales as any[]) || []) {
     const k = String(r.sale_date).slice(0, 10);
-    if (!buckets[k]) buckets[k] = { valor: 0, qtd: 0 };
+    if (!buckets[k]) buckets[k] = { valor: 0, qtd: 0, leads: 0 };
     buckets[k].valor += Number(r.valor || 0);
     buckets[k].qtd += Number(r.quantidade || 0);
+  }
+  for (const r of (leadsRows as any[]) || []) {
+    const k = String(r.date).slice(0, 10);
+    if (!buckets[k]) buckets[k] = { valor: 0, qtd: 0, leads: 0 };
+    buckets[k].leads += Number(r.qty || 0);
   }
 
   const isQtd = bu === "unicive" || bu === "colegio_cppem";
@@ -279,7 +291,7 @@ export async function buSeries(
     runValor += b.valor;
     runQtd += b.qtd;
     const label = `${String(d).padStart(2, "0")}/${String(month).padStart(2, "0")}`;
-    daily.push({ day: label, valor: b.valor, qtd: b.qtd });
+    daily.push({ day: label, valor: b.valor, qtd: b.qtd, leads: b.leads });
     const real = isQtd ? runQtd : runValor;
     const pct = meta > 0 ? (real / meta) * 100 : 0;
     cumulative.push({ day: label, pct, idealPct: (d / total) * 100 });

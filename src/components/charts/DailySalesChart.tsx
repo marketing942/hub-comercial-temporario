@@ -9,7 +9,7 @@ import {
   YAxis,
 } from "recharts";
 
-type Row = { day: string; valor: number; qtd: number };
+type Row = { day: string; valor: number; qtd: number; leads?: number };
 
 export default function DailySalesChart({
   data,
@@ -19,27 +19,22 @@ export default function DailySalesChart({
 }: {
   data: Row[];
   color?: string;
-  field?: "valor" | "qtd";
+  field?: "valor" | "qtd" | "leads";
   unit?: "currency" | "int";
 }) {
+  const gradId = `barGrad_${field}_${color.replace("#", "")}`;
   return (
     <div className="h-60 sm:h-64">
       <ResponsiveContainer>
         <BarChart data={data} margin={{ top: 16, left: -8, right: 8, bottom: 0 }}>
           <defs>
-            <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={color} stopOpacity={0.95} />
               <stop offset="100%" stopColor={color} stopOpacity={0.45} />
             </linearGradient>
           </defs>
           <CartesianGrid stroke="#1f3a2a" strokeDasharray="3 4" vertical={false} />
-          <XAxis
-            dataKey="day"
-            stroke="#7d8a83"
-            fontSize={12}
-            tickLine={false}
-            axisLine={false}
-          />
+          <XAxis dataKey="day" stroke="#7d8a83" fontSize={12} tickLine={false} axisLine={false} />
           <YAxis
             stroke="#7d8a83"
             fontSize={12}
@@ -69,7 +64,7 @@ export default function DailySalesChart({
             }
             labelFormatter={(l) => `Dia ${l}`}
           />
-          <Bar dataKey={field} fill="url(#barGrad)" radius={[6, 6, 0, 0]} />
+          <Bar dataKey={field} fill={`url(#${gradId})`} radius={[6, 6, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

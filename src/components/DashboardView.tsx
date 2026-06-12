@@ -4,7 +4,6 @@ import { BU_COLOR, BU_LABEL, BU_THEME, COLOR, tonePctMeta } from "@/lib/brand";
 import { isQtdPrimary } from "@/lib/products";
 import BULogo from "@/components/BULogo";
 import BigStatCard from "@/components/BigStatCard";
-import ProgressBar from "@/components/ProgressBar";
 import DailySalesChart from "@/components/charts/DailySalesChart";
 import CumulativeGoalChart from "@/components/charts/CumulativeGoalChart";
 import ProductRevenueBreakdown from "@/components/ProductRevenueBreakdown";
@@ -16,9 +15,7 @@ import {
   Target,
   TrendingUp,
   Wallet,
-  Zap,
   Users,
-  Trophy,
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react";
@@ -50,14 +47,16 @@ export default function DashboardView({
   const falta = Math.max(0, t.meta - realizado);
   const fmtMeta = (n: number) => (isQtd ? fmtInt.format(Math.round(n)) : BRL.format(n));
   const pctTone = tonePctMeta(pct, t.gap);
+
+  // Faturamento (Unicive / Colegio importam tambem)
   const pctFat = t.metaValor > 0 ? (t.valor / t.metaValor) * 100 : 0;
   const faltaFat = Math.max(0, t.metaValor - t.valor);
+  const pctFatTone = tonePctMeta(pctFat, 0);
 
-  // Meta do dia (pace dinamico): quanto precisa fazer HOJE pra fechar
-  // a meta nos dias restantes incluindo hoje. Ja embute o atraso.
-  // Vencendo se realizado_hoje >= meta_dia; perdendo caso contrario.
+  // Meta do dia
   const metaDia = t.metaDia;
   const realHoje = t.realizadoHoje;
+  const faltaHoje = Math.max(0, metaDia - realHoje);
   const diff = realHoje - metaDia;
   const vencendo = realHoje >= metaDia && metaDia > 0;
   const empate = Math.abs(diff) < (isQtd ? 0.5 : 0.01);
@@ -79,19 +78,25 @@ export default function DashboardView({
     ? "Vencendo o dia"
     : "Atras no dia";
 
-  const statusBar =
-    pct >= 100
-      ? "Meta atingida! Missao cumprida."
-      : t.gap > 0
-      ? `Atrasado em ${fmtMeta(t.gap)} no ritmo ideal.`
-      : "No ritmo ou adiantado, segue forte!";
+  const totalVendas = sellers.reduce((a, b) => a + b.vendasCount, 0);
+  const leadsMeta = t.leadsMeta;
+  const leadsPct = leadsMeta > 0 ? (leadsTotal / leadsMeta) * 100 : 0;
+  const leadsTone = leadsMeta > 0 ? (leadsTotal >= leadsMeta ? COLOR.ok : COLOR.danger) : COLOR.neutral;
+
+  // Cores semanticas para Ticket e Conversao (X real / Y meta)
+  const ticketTone =
+    t.ticketMeta > 0
+      ? t.ticketReal >= t.ticketMeta
+        ? COLOR.ok
+        : COLOR.danger
+      : COLOR.neutral;
 
   return (
     <div
       className="space-y-4 rounded-2xl p-4 -m-1 relative overflow-hidden"
       style={{ backgroundImage: theme.bg }}
     >
-      {/* Header personalizado da BU */}
+      {/* Header da BU */}
       <div
         className="rounded-2xl p-4 flex items-center justify-between gap-4 border border-white/5"
         style={{ backgroundImage: theme.headerBg }}
@@ -115,37 +120,53 @@ export default function DashboardView({
         </div>
       </div>
 
-      {/* 4 KPIs grandes — numeros base brancos, comparativos coloridos */}
+      {/* 4 KPIs grandes (sem legenda em baixo). Total Vendido / Matriculas
+          / Faturamento (Unicive) tem BARRA de progresso embutida. */}
       <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         {isQtd ? (
           <>
             <BigStatCard
-              label="Matriculas (Real / Meta)"
+              label="Matriculas"
               value={`${fmtInt.format(t.qtd)} / ${fmtInt.format(t.meta)}`}
-              hint={pct >= 100 ? "Meta batida" : `Faltam ${fmtInt.format(falta)}`}
               icon={<TrendingUp />}
               accent={COLOR.info}
               valueColor={COLOR.neutral}
+              progressPct={pct}
+              progressColor={pctTone}
+              progressFooter={
+                <span>
+                  <span style={{ color: pctTone }}>{fmtPct(pct)}</span>
+                  <span className="text-white/40"> · {pct >= 100 ? "Meta batida" : `Faltam ${fmtInt.format(falta)}`}</span>
+                </span>
+              }
             />
             <BigStatCard
-              label="Faturamento (Real / Meta)"
+              label="Faturamento"
               value={`${BRL.format(t.valor)} / ${BRL.format(t.metaValor)}`}
-              hint={pctFat >= 100 ? "Meta de R$ batida" : `Faltam ${BRL.format(faltaFat)}`}
               icon={<Wallet />}
               accent={COLOR.info}
               valueColor={COLOR.neutral}
+              progressPct={pctFat}
+              progressColor={pctFatTone}
+              progressFooter={
+                <span>
+                  <span style={{ color: pctFatTone }}>{fmtPct(pctFat)}</span>
+                  <span className="text-white/40"> · {pctFat >= 100 ? "Meta de R$ batida" : `Faltam ${BRL.format(faltaFat)}`}</span>
+                </span>
+              }
             />
             <BigStatCard
-              label="% da Meta (matriculas)"
+              label="% da Meta"
               value={fmtPct(pct)}
-              hint={`${fmtPct(pctFat)} no faturamento`}
               icon={<TrendingUp />}
               accent={pctTone}
               valueColor={pctTone}
             />
             <MetaDoDiaCard
+              isQtd={isQtd}
               metaDia={fmtMeta(metaDia)}
               realHoje={fmtMeta(realHoje)}
+              falta={fmtMeta(faltaHoje)}
               diff={fmtMeta(Math.abs(diff))}
               placarLabel={placarLabel}
               placarColor={placarColor}
@@ -158,16 +179,22 @@ export default function DashboardView({
           <>
             <BigStatCard
               label="Total Vendido"
-              value={BRL.format(t.valor)}
-              hint="Acumulado do mes"
+              value={`${BRL.format(t.valor)} / ${BRL.format(t.meta)}`}
               icon={<Wallet />}
               accent={COLOR.info}
               valueColor={COLOR.neutral}
+              progressPct={pct}
+              progressColor={pctTone}
+              progressFooter={
+                <span>
+                  <span style={{ color: pctTone }}>{fmtPct(pct)}</span>
+                  <span className="text-white/40"> · {pct >= 100 ? "Meta batida" : `Faltam ${BRL.format(falta)}`}</span>
+                </span>
+              }
             />
             <BigStatCard
               label="Meta do Mes"
               value={BRL.format(t.meta)}
-              hint={pct >= 100 ? "Meta batida" : `Faltam ${BRL.format(falta)}`}
               icon={<Target />}
               accent={COLOR.info}
               valueColor={COLOR.neutral}
@@ -175,14 +202,15 @@ export default function DashboardView({
             <BigStatCard
               label="% da Meta"
               value={fmtPct(pct)}
-              hint={pct >= 100 ? "Meta batida" : t.gap > 0 ? "Atrasado" : "No ritmo"}
               icon={<TrendingUp />}
               accent={pctTone}
               valueColor={pctTone}
             />
             <MetaDoDiaCard
+              isQtd={isQtd}
               metaDia={fmtMeta(metaDia)}
               realHoje={fmtMeta(realHoje)}
+              falta={fmtMeta(faltaHoje)}
               diff={fmtMeta(Math.abs(diff))}
               placarLabel={placarLabel}
               placarColor={placarColor}
@@ -194,78 +222,34 @@ export default function DashboardView({
         )}
       </section>
 
-      {/* Mini stats - cores semanticas */}
-      <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <MiniStat
+      {/* Linha de comparativos: Ticket, Conversao, Leads (todos REAL / META) */}
+      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <CompareStatCard
           label="Ticket Medio"
-          value={BRL.format(t.ticketReal)}
-          hint={t.ticketMeta > 0 ? `Meta ${BRL.format(t.ticketMeta)}` : "Sem meta"}
           icon={<Wallet className="w-4 h-4" />}
-          accent={
-            t.ticketMeta > 0
-              ? t.ticketReal >= t.ticketMeta
-                ? COLOR.ok
-                : COLOR.danger
-              : COLOR.neutral
-          }
+          real={BRL.format(t.ticketReal)}
+          meta={t.ticketMeta > 0 ? BRL.format(t.ticketMeta) : "—"}
+          tone={ticketTone}
         />
-        <MiniStat
+        <CompareStatCard
           label="Conversao"
-          value={fmtPct(taxaConversao)}
-          hint={`${sellers.reduce((a, b) => a + b.vendasCount, 0)} vendas`}
           icon={<Target className="w-4 h-4" />}
-          accent={COLOR.info}
+          real={fmtPct(taxaConversao)}
+          meta={"—"}
+          subtitle={`${totalVendas} vendas / ${fmtInt.format(leadsTotal)} leads`}
+          tone={COLOR.info}
         />
-        <MiniStat
+        <CompareStatCard
           label="Leads no Mes"
-          value={
-            t.leadsMeta > 0
-              ? `${fmtInt.format(leadsTotal)} / ${fmtInt.format(t.leadsMeta)}`
-              : fmtInt.format(leadsTotal)
-          }
-          hint={
-            t.leadsMeta > 0
-              ? leadsTotal >= t.leadsMeta
-                ? "Meta de leads batida"
-                : `Faltam ${fmtInt.format(t.leadsMeta - leadsTotal)} leads`
-              : "Sem meta de leads"
-          }
           icon={<Users className="w-4 h-4" />}
-          accent={
-            t.leadsMeta > 0
-              ? leadsTotal >= t.leadsMeta
-                ? COLOR.ok
-                : COLOR.danger
-              : COLOR.neutral
-          }
-        />
-        <MiniStat
-          label="Realizado Hoje"
-          value={fmtMeta(t.realizadoHoje)}
-          hint={`Dia ${day}/${totalDays}`}
-          icon={<Trophy className="w-4 h-4" />}
-          accent={t.realizadoHoje > 0 ? COLOR.ok : COLOR.neutral}
+          real={fmtInt.format(leadsTotal)}
+          meta={leadsMeta > 0 ? fmtInt.format(leadsMeta) : "—"}
+          tone={leadsTone}
+          subtitle={leadsMeta > 0 ? fmtPct(leadsPct) + " da meta" : undefined}
         />
       </section>
 
-      {/* Meta em Andamento — barra + status */}
-      <section className="card-lg">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <Target className="w-4 h-4" style={{ color: COLOR.ok }} /> Meta em Andamento
-          </div>
-          <div
-            className="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold"
-            style={{ background: pctTone + "22", color: pctTone }}
-          >
-            <Zap className="w-3.5 h-3.5" /> {fmtPct(pct)}
-          </div>
-        </div>
-        <ProgressBar value={pct} color={pctTone} height={14} />
-        <div className="text-center text-white/60 text-xs mt-2">{statusBar}</div>
-      </section>
-
-      {/* Grid customizado por BU: receita + card lateral */}
+      {/* Receita por categoria + card lateral por BU */}
       {bu === "cppem" && (
         <section className="grid grid-cols-1 xl:grid-cols-5 gap-3">
           <div className="xl:col-span-3">
@@ -295,17 +279,16 @@ export default function DashboardView({
         </>
       )}
 
-      {/* Charts no fim */}
-      <section className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+      {/* Charts no fim: 3 charts em grid */}
+      <section className="grid grid-cols-1 xl:grid-cols-3 gap-3">
         <div className="card-lg">
           <div className="flex items-center justify-between mb-2">
             <div>
-              <div className="text-sm font-semibold">Evolucao Diaria</div>
+              <div className="text-sm font-semibold">Evolucao Diaria - Vendas</div>
               <div className="text-xs text-white/50">
                 {isQtd ? "Matriculas por dia" : "Faturamento por dia"}
               </div>
             </div>
-            <div className="text-xs px-3 py-1 rounded-full bg-panel2 text-white/70">{monthName}</div>
           </div>
           <DailySalesChart
             data={series.daily}
@@ -317,11 +300,17 @@ export default function DashboardView({
         <div className="card-lg">
           <div className="flex items-center justify-between mb-2">
             <div>
+              <div className="text-sm font-semibold">Evolucao Diaria - Leads</div>
+              <div className="text-xs text-white/50">Leads recebidos por dia</div>
+            </div>
+          </div>
+          <DailySalesChart data={series.daily} color={COLOR.info} field="leads" unit="int" />
+        </div>
+        <div className="card-lg">
+          <div className="flex items-center justify-between mb-2">
+            <div>
               <div className="text-sm font-semibold">% da Meta Acumulada</div>
               <div className="text-xs text-white/50">Linha tracejada = ritmo ideal</div>
-            </div>
-            <div className="text-xs px-3 py-1 rounded-full bg-panel2 text-white/70">
-              dia {day}/{totalDays}
             </div>
           </div>
           <CumulativeGoalChart data={series.cumulative} color={pctTone} />
@@ -331,9 +320,51 @@ export default function DashboardView({
   );
 }
 
+function CompareStatCard({
+  label,
+  icon,
+  real,
+  meta,
+  tone,
+  subtitle,
+}: {
+  label: string;
+  icon?: React.ReactNode;
+  real: string;
+  meta: string;
+  tone: string;
+  subtitle?: string;
+}) {
+  return (
+    <div className="card-lg">
+      <div className="flex items-center justify-between">
+        <div className="kpi-label">{label}</div>
+        <div
+          className="w-9 h-9 rounded-lg grid place-items-center"
+          style={{ background: tone + "22", color: tone }}
+        >
+          {icon}
+        </div>
+      </div>
+      <div className="mt-2 flex items-baseline gap-2 flex-wrap">
+        <span className="big-num" style={{ color: tone }}>
+          {real}
+        </span>
+        <span className="text-white/30 text-2xl xl:text-3xl font-bold">/</span>
+        <span className="text-2xl xl:text-3xl font-bold text-white/40">{meta}</span>
+      </div>
+      <div className="text-[11px] text-white/40 mt-1 uppercase tracking-wider">
+        real / meta{subtitle ? ` · ${subtitle}` : ""}
+      </div>
+    </div>
+  );
+}
+
 function MetaDoDiaCard({
+  isQtd,
   metaDia,
   realHoje,
+  falta,
   diff,
   placarLabel,
   placarColor,
@@ -341,8 +372,10 @@ function MetaDoDiaCard({
   empate,
   semMeta,
 }: {
+  isQtd: boolean;
   metaDia: string;
   realHoje: string;
+  falta: string;
   diff: string;
   placarLabel: string;
   placarColor: string;
@@ -357,75 +390,55 @@ function MetaDoDiaCard({
         className="absolute -top-10 -right-10 w-32 h-32 rounded-full opacity-25 blur-3xl pointer-events-none"
         style={{ background: placarColor }}
       />
-      <div className="relative flex flex-col gap-1">
+      <div className="relative flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <div className="kpi-label">Meta do Dia</div>
           <div
-            className="w-9 h-9 rounded-lg grid place-items-center text-base"
+            className="w-9 h-9 rounded-lg grid place-items-center"
             style={{ background: placarColor + "22", color: placarColor }}
           >
             <Flame className="w-4 h-4" />
           </div>
         </div>
-        <div className="big-num text-warning">{metaDia}</div>
-        <div className="text-[11px] text-white/60 leading-snug">
-          Quanto precisa fechar hoje pra entrar no pace
+        <div className="big-num" style={{ color: COLOR.warning }}>
+          {metaDia}
         </div>
-        {/* Placar Hoje vs Meta do dia */}
-        <div className="mt-2 rounded-lg bg-panel2 p-2 flex items-center justify-between gap-2">
-          <div className="text-[11px] text-white/60">
-            Hoje: <span className="font-semibold text-white">{realHoje}</span>
-          </div>
+        {/* 3 quadrinhos internos: Meta, Hoje, Falta */}
+        <div className="grid grid-cols-3 gap-1.5 mt-1">
+          <Mini label="Meta" value={metaDia} tone={COLOR.warning} />
+          <Mini label="Hoje" value={realHoje} tone={vencendo ? COLOR.ok : COLOR.neutral} />
+          <Mini
+            label="Falta"
+            value={vencendo || empate || semMeta ? (isQtd ? "0" : "R$ 0,00") : falta}
+            tone={vencendo || empate || semMeta ? COLOR.ok : COLOR.danger}
+          />
+        </div>
+        <div className="flex items-center justify-between mt-1">
+          <span className="text-[11px] font-semibold" style={{ color: placarColor }}>
+            {placarLabel}
+          </span>
           {!semMeta && !empate && (
-            <div
+            <span
               className="chip"
               style={{ background: placarColor + "22", color: placarColor }}
             >
-              <Arrow className="w-3 h-3" /> {vencendo ? `+${diff}` : `-${diff}`}
-            </div>
+              <Arrow className="w-3 h-3" />
+              {vencendo ? `+${diff}` : `-${diff}`}
+            </span>
           )}
-          {empate && !semMeta && (
-            <div className="chip" style={{ background: placarColor + "22", color: placarColor }}>
-              No pace
-            </div>
-          )}
-        </div>
-        <div className="text-[11px] mt-1 font-semibold" style={{ color: placarColor }}>
-          {placarLabel}
         </div>
       </div>
     </div>
   );
 }
 
-function MiniStat({
-  label,
-  value,
-  hint,
-  icon,
-  accent,
-}: {
-  label: string;
-  value: React.ReactNode;
-  hint?: React.ReactNode;
-  icon?: React.ReactNode;
-  accent: string;
-}) {
+function Mini({ label, value, tone }: { label: string; value: string; tone: string }) {
   return (
-    <div className="card card-hover">
-      <div className="flex items-center justify-between">
-        <div className="kpi-label">{label}</div>
-        <div
-          className="w-7 h-7 rounded-lg grid place-items-center"
-          style={{ background: accent + "22", color: accent }}
-        >
-          {icon}
-        </div>
-      </div>
-      <div className="text-xl font-bold mt-0.5" style={{ color: accent }}>
+    <div className="rounded-lg bg-panel2 p-2 text-center">
+      <div className="text-[9px] uppercase tracking-wider text-white/40">{label}</div>
+      <div className="text-base font-bold leading-tight mt-0.5" style={{ color: tone }}>
         {value}
       </div>
-      {hint && <div className="text-[11px] text-white/50 mt-0.5">{hint}</div>}
     </div>
   );
 }

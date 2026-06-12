@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import ProgressBar from "@/components/ProgressBar";
 
 export default function BigStatCard({
   label,
@@ -7,6 +8,9 @@ export default function BigStatCard({
   icon,
   accent = "#22c55e",
   valueColor,
+  progressPct,
+  progressColor,
+  progressFooter,
 }: {
   label: string;
   value: ReactNode;
@@ -14,6 +18,10 @@ export default function BigStatCard({
   icon?: ReactNode;
   accent?: string;
   valueColor?: string;
+  // Quando passados, desenha barra de progresso dentro do card
+  progressPct?: number;
+  progressColor?: string;
+  progressFooter?: ReactNode;
 }) {
   return (
     <div className="card-lg card-hover relative overflow-hidden">
@@ -37,6 +45,14 @@ export default function BigStatCard({
           {value}
         </div>
         {hint && <div className="text-[11px] text-white/50 leading-snug">{hint}</div>}
+        {typeof progressPct === "number" && (
+          <div className="mt-1">
+            <ProgressBar value={progressPct} color={progressColor || accent} height={8} />
+            {progressFooter && (
+              <div className="text-[11px] text-white/55 mt-1.5 leading-snug">{progressFooter}</div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
