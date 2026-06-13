@@ -90,6 +90,13 @@ export default function DashboardView({
         ? COLOR.ok
         : COLOR.danger
       : COLOR.neutral;
+  const convMetaBU = t.taxaConversaoMeta;
+  const convTone =
+    convMetaBU > 0
+      ? taxaConversao >= convMetaBU
+        ? COLOR.ok
+        : COLOR.danger
+      : COLOR.neutral;
 
   return (
     <div
@@ -179,7 +186,7 @@ export default function DashboardView({
           <>
             <BigStatCard
               label="Total Vendido"
-              value={`${BRL.format(t.valor)} / ${BRL.format(t.meta)}`}
+              value={BRL.format(t.valor)}
               icon={<Wallet />}
               accent={COLOR.info}
               valueColor={COLOR.neutral}
@@ -235,9 +242,9 @@ export default function DashboardView({
           label="Conversao"
           icon={<Target className="w-4 h-4" />}
           real={fmtPct(taxaConversao)}
-          meta={"—"}
+          meta={convMetaBU > 0 ? fmtPct(convMetaBU) : "—"}
           subtitle={`${totalVendas} vendas / ${fmtInt.format(leadsTotal)} leads`}
-          tone={COLOR.info}
+          tone={convTone}
         />
         <CompareStatCard
           label="Leads no Mes"

@@ -74,6 +74,7 @@ export default function GoalsClient({
   const [metaGeralFat, setMetaGeralFat] = useState(0);
   const [metaGeralQtd, setMetaGeralQtd] = useState(0);
   const [metaLeads, setMetaLeads] = useState(0);
+  const [metaConv, setMetaConv] = useState(0);
 
   const [lines, setLines] = useState<LineGoal[]>([]);
   const [goals, setGoals] = useState<Record<string, SellerGoal>>({});
@@ -131,6 +132,7 @@ export default function GoalsClient({
     setMetaGeralFat(nextLines.reduce((a, b) => a + b.valor_meta, 0));
     setMetaGeralQtd(nextLines.reduce((a, b) => a + b.quantidade_meta, 0));
     setMetaLeads(Number(j?.bu_leads_meta || 0));
+    setMetaConv(Number(j?.bu_taxa_conversao_meta || 0));
 
     setLoading(false);
   }
@@ -165,6 +167,7 @@ export default function GoalsClient({
     setMetaGeralFat(nextLines.reduce((a, b) => a + b.valor_meta, 0));
     setMetaGeralQtd(nextLines.reduce((a, b) => a + b.quantidade_meta, 0));
     setMetaLeads(Number(j?.bu_leads_meta || 0));
+    setMetaConv(Number(j?.bu_taxa_conversao_meta || 0));
     setLoading(false);
     setFeedback({ kind: "ok", msg: "Metas copiadas do mes anterior." });
   }
@@ -250,6 +253,7 @@ export default function GoalsClient({
         })),
         sellers: Object.values(goals),
         bu_leads_meta: metaLeads,
+        bu_taxa_conversao_meta: metaConv,
       }),
     });
     setSaving(false);
@@ -360,6 +364,18 @@ export default function GoalsClient({
               />
               <div className="text-[10px] text-white/40 mt-1">
                 Acompanhada no dashboard como Leads no Mes (real / meta).
+              </div>
+            </div>
+            <div>
+              <div className="label">Meta de Conversao (%)</div>
+              <NumberField
+                className="input text-xl font-bold"
+                step="0.1"
+                value={metaConv}
+                onChange={setMetaConv}
+              />
+              <div className="text-[10px] text-white/40 mt-1">
+                Vendas efetivadas / leads. Usada no card de Conversao do dashboard.
               </div>
             </div>
             <button

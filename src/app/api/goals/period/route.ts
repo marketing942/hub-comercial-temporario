@@ -42,7 +42,7 @@ export async function GET(req: Request) {
           .eq("month", month),
     supabaseAdmin
       .from("bu_meta")
-      .select("leads_meta")
+      .select("leads_meta, taxa_conversao_meta")
       .eq("bu", bu)
       .eq("year", year)
       .eq("month", month)
@@ -54,6 +54,7 @@ export async function GET(req: Request) {
     bu_product_goals: buGoals || [],
     monthly: monthly || [],
     bu_leads_meta: Number((buMetaRow as any)?.leads_meta || 0),
+    bu_taxa_conversao_meta: Number((buMetaRow as any)?.taxa_conversao_meta || 0),
   });
 }
 
@@ -61,7 +62,15 @@ export async function POST(req: Request) {
   const s = await getSession();
   if (s?.role !== "admin") return NextResponse.json({ error: "Nao autorizado." }, { status: 401 });
   const body = await req.json();
-  const { bu, year, month, bu_product_goals = [], sellers = [], bu_leads_meta } = body || {};
+  const {
+    bu,
+    year,
+    month,
+    bu_product_goals = [],
+    sellers = [],
+    bu_leads_meta,
+    bu_taxa_conversao_meta,
+  } = body || {};
   if (!bu || !year || !month) {
     return NextResponse.json({ error: "Faltam bu/year/month." }, { status: 400 });
   }
@@ -105,19 +114,20 @@ export async function POST(req: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  if (typeof bu_leads_meta === "number" || (typeof bu_leads_meta === "string" && bu_leads_meta !== "")) {
+  const hasLeads = typeof bu_leads_meta === "number" || (typeof bu_leads_meta === "string" && bu_leads_meta !== "");
+  const hasConv = typeof bu_taxa_conversao_meta === "number" || (typeof bu_taxa_conversao_meta === "string" && bu_taxa_conversao_meta !== "");
+  if (hasLeads || hasConv) {
+    const payload: Record<string, any> = {
+      bu,
+      year,
+      month,
+      updated_at: new Date().toISOString(),
+    };
+    if (hasLeads) payload.leads_meta = Math.max(0, Number(bu_leads_meta || 0));
+    if (hasConv) payload.taxa_conversao_meta = Math.max(0, Number(bu_taxa_conversao_meta || 0));
     const { error } = await supabaseAdmin
       .from("bu_meta")
-      .upsert(
-        {
-          bu,
-          year,
-          month,
-          leads_meta: Math.max(0, Number(bu_leads_meta || 0)),
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "bu,year,month" }
-      );
+      .upsert(payload, { onConflict: "bu,year,month" });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
