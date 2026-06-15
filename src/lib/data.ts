@@ -310,7 +310,10 @@ export async function buSeries(
   const metaRitmoInicial = meta / total;
   const metaIdealAteHoje = metaRitmoInicial * today;
   const gap = metaIdealAteHoje - realizado;
-  const metaDia = falta > 0 ? falta / daysLeft : 0;
+  // Meta do dia = GAP acumulado (quanto precisa fechar hoje pra alinhar
+  // ao ideal acumulado do mes). Zero se ja esta no pace ou adiantado.
+  const metaDia = Math.max(0, gap);
+  void daysLeft;
 
   const todayLabel = `${String(today).padStart(2, "0")}/${String(month).padStart(2, "0")}`;
   const hojeBucket = daily.find((d) => d.day === todayLabel) || { valor: 0, qtd: 0 };
