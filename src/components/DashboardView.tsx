@@ -53,42 +53,30 @@ export default function DashboardView({
   const faltaFat = Math.max(0, t.metaValor - t.valor);
   const pctFatTone = tonePctMeta(pctFat, 0);
 
-  // Meta do dia (GAP acumulado: o quanto precisa hoje pra alinhar ao ideal)
+  // Meta do dia
   const metaDia = t.metaDia;
   const realHoje = t.realizadoHoje;
   const faltaHoje = Math.max(0, metaDia - realHoje);
-  const adiantado = t.gap < -0.5 && pct < 100;
-  const noPace = metaDia === 0 && !adiantado;
-  const semMeta = t.meta === 0;
-  const vencendo = !semMeta && metaDia > 0 && realHoje >= metaDia;
-  const empate = !semMeta && metaDia > 0 && Math.abs(realHoje - metaDia) < (isQtd ? 0.5 : 0.01);
+  const diff = realHoje - metaDia;
+  const vencendo = realHoje >= metaDia && metaDia > 0;
+  const empate = Math.abs(diff) < (isQtd ? 0.5 : 0.01);
+  const semMeta = metaDia <= 0 || t.meta === 0;
   const placarColor = semMeta
     ? COLOR.mute
-    : pct >= 100
-    ? COLOR.ok
-    : adiantado
-    ? COLOR.ok
-    : noPace
-    ? COLOR.ok
     : empate
     ? COLOR.warning
     : vencendo
     ? COLOR.ok
     : COLOR.danger;
-  const diff = realHoje - metaDia;
   const placarLabel = semMeta
     ? "Sem meta definida"
     : pct >= 100
     ? "Meta do mes batida"
-    : adiantado
-    ? `Adiantado em ${fmtMeta(-t.gap)}`
-    : noPace
-    ? "No pace do mes"
     : empate
-    ? "Alinhou hoje"
+    ? "No ritmo do dia"
     : vencendo
-    ? `Recuperou ${fmtMeta(realHoje - metaDia)} a mais`
-    : `Faltam ${fmtMeta(faltaHoje)} hoje`;
+    ? "Vencendo o dia"
+    : "Atras no dia";
 
   const totalVendas = sellers.reduce((a, b) => a + b.vendasCount, 0);
   const leadsMeta = t.leadsMeta;
@@ -192,8 +180,6 @@ export default function DashboardView({
               vencendo={vencendo}
               empate={empate}
               semMeta={semMeta}
-              noPace={noPace}
-              adiantado={adiantado}
             />
           </>
         ) : (
@@ -238,8 +224,6 @@ export default function DashboardView({
               vencendo={vencendo}
               empate={empate}
               semMeta={semMeta}
-              noPace={noPace}
-              adiantado={adiantado}
             />
           </>
         )}
@@ -394,8 +378,6 @@ function MetaDoDiaCard({
   vencendo,
   empate,
   semMeta,
-  noPace,
-  adiantado,
 }: {
   isQtd: boolean;
   metaDia: string;
@@ -407,8 +389,6 @@ function MetaDoDiaCard({
   vencendo: boolean;
   empate: boolean;
   semMeta: boolean;
-  noPace: boolean;
-  adiantado: boolean;
 }) {
   const Arrow = vencendo ? ArrowUpRight : ArrowDownRight;
   return (
@@ -427,15 +407,12 @@ function MetaDoDiaCard({
             <Flame className="w-4 h-4" />
           </div>
         </div>
-        <div className="big-num" style={{ color: placarColor }}>
+        <div className="big-num" style={{ color: COLOR.warning }}>
           {metaDia}
         </div>
-        <div className="text-[10px] text-white/40 -mt-1">
-          Gap acumulado pra entrar no pace
-        </div>
-        {/* 3 quadrinhos internos: Meta dia, Hoje, Falta hoje */}
+        {/* 3 quadrinhos internos: Meta, Hoje, Falta */}
         <div className="grid grid-cols-3 gap-1.5 mt-1">
-          <Mini label="Meta dia" value={metaDia} tone={COLOR.warning} />
+          <Mini label="Meta" value={metaDia} tone={COLOR.warning} />
           <Mini label="Hoje" value={realHoje} tone={vencendo ? COLOR.ok : COLOR.neutral} />
           <Mini
             label="Falta"
@@ -447,22 +424,13 @@ function MetaDoDiaCard({
           <span className="text-[11px] font-semibold" style={{ color: placarColor }}>
             {placarLabel}
           </span>
-          {vencendo && !empate && (
+          {!semMeta && !empate && (
             <span
               className="chip"
               style={{ background: placarColor + "22", color: placarColor }}
             >
               <Arrow className="w-3 h-3" />
-              +{diff}
-            </span>
-          )}
-          {!vencendo && !empate && !semMeta && !noPace && !adiantado && (
-            <span
-              className="chip"
-              style={{ background: placarColor + "22", color: placarColor }}
-            >
-              <Arrow className="w-3 h-3" />
-              -{diff}
+              {vencendo ? `+${diff}` : `-${diff}`}
             </span>
           )}
         </div>

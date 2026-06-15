@@ -127,10 +127,10 @@ export function computeSellerStats(args: {
   const metaIdealAteHoje = metaRitmoInicial * today;
   const gap = metaIdealAteHoje - realizado;
 
-  // Meta do dia = GAP acumulado: quanto precisa fechar HOJE pra alinhar
-  // o realizado ao ideal acumulado do mes ate aqui. Se ja esta no pace
-  // ou adiantado, e zero (qualquer venda do dia ja e bonus).
-  const metaDia = Math.max(0, gap);
+  // Meta do dia: quanto precisa fazer HOJE pra voltar ao ritmo necessario.
+  // Se ja bateu meta, metaDia = 0. Caso contrario, divide o que falta
+  // pelos dias restantes incluindo hoje — ja embute o gap automaticamente.
+  const metaDia = falta > 0 ? falta / daysLeft : 0;
 
   const ticketReal = realizadoQtd > 0 ? realizadoValor / realizadoQtd : 0;
   const ticketMeta = Number(monthly?.ticket_medio_meta || 0);
