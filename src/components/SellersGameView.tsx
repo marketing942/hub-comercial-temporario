@@ -193,8 +193,8 @@ function SellerCard({
                 src={PANICO_BADGE}
                 alt="Bata a meta ou sera abatido"
                 title="Bata a meta ou sera abatido"
-                className="absolute -top-3 -right-3 w-7 h-7 object-contain rotate-[14deg] pointer-events-none select-none"
-                style={{ filter: "drop-shadow(0 2px 4px rgba(239,68,68,0.55))" }}
+                className="absolute -top-5 -right-6 w-12 h-12 object-contain rotate-[14deg] pointer-events-none select-none"
+                style={{ filter: "drop-shadow(0 2px 6px rgba(239,68,68,0.6))" }}
               />
             )}
           </div>
