@@ -9,6 +9,11 @@ export const LOGO_UNICIVE =
 export const LOGO_COLEGIO: string | null =
   "https://raw.githubusercontent.com/marketing942/fotos-dos-bots/main/LOGO%20COLE%CC%81GIO.png";
 
+// Meme interno: imagem do panico com a frase "bata a meta ou sera abatido".
+// Mostrada no ombro do vendedor quando esta no status "Recuperar ritmo".
+export const PANICO_BADGE =
+  "https://raw.githubusercontent.com/marketing942/fotos-dos-bots/main/Inserir%20um%20ti%CC%81tulo.png";
+
 export const BU_LOGO: Record<BU, string | null> = {
   cppem: LOGO_CPPEM,
   unicive: LOGO_UNICIVE,

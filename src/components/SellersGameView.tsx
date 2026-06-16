@@ -1,6 +1,6 @@
 import type { SellerStats } from "@/lib/calc";
 import { BRL, fmtInt, fmtPct } from "@/lib/calc";
-import { BU_COLOR, BU_LABEL, COLOR } from "@/lib/brand";
+import { BU_COLOR, BU_LABEL, COLOR, PANICO_BADGE } from "@/lib/brand";
 import { isQtdPrimary, ALL_BUS, type BU } from "@/lib/products";
 import ProgressBar from "@/components/ProgressBar";
 import Avatar from "@/components/Avatar";
@@ -180,12 +180,24 @@ function SellerCard({
       )}
       <div className="relative">
         <div className="flex items-center gap-3">
-          <Avatar
-            name={s.sellerName}
-            url={s.avatarUrl}
-            color={s.avatarColor || buColor}
-            size={44}
-          />
+          <div className="relative shrink-0">
+            <Avatar
+              name={s.sellerName}
+              url={s.avatarUrl}
+              color={s.avatarColor || buColor}
+              size={44}
+            />
+            {st === "atrasado" && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={PANICO_BADGE}
+                alt="Bata a meta ou sera abatido"
+                title="Bata a meta ou sera abatido"
+                className="absolute -top-3 -right-3 w-7 h-7 object-contain rotate-[14deg] pointer-events-none select-none"
+                style={{ filter: "drop-shadow(0 2px 4px rgba(239,68,68,0.55))" }}
+              />
+            )}
+          </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
               <span
