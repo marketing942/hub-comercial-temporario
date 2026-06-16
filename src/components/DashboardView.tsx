@@ -229,8 +229,8 @@ export default function DashboardView({
         )}
       </section>
 
-      {/* Linha de comparativos: Ticket, Conversao, Leads (todos REAL / META) */}
-      <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {/* Linha 2: Ticket, Conversao, Leads, Meta da Semana */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
         <CompareStatCard
           label="Ticket Medio"
           icon={<Wallet className="w-4 h-4" />}
@@ -253,6 +253,16 @@ export default function DashboardView({
           meta={leadsMeta > 0 ? fmtInt.format(leadsMeta) : "—"}
           tone={leadsTone}
           subtitle={leadsMeta > 0 ? fmtPct(leadsPct) + " da meta" : undefined}
+        />
+        <MetaDaSemanaCard
+          isQtd={isQtd}
+          fmtMeta={fmtMeta}
+          weekActive={t.weekActive}
+          weekStartDay={t.weekStartDay}
+          weekEndDay={t.weekEndDay}
+          weekTarget={t.weekTarget}
+          weekReal={t.weekReal}
+          weekRemaining={t.weekRemaining}
         />
       </section>
 
@@ -445,6 +455,92 @@ function Mini({ label, value, tone }: { label: string; value: string; tone: stri
       <div className="text-[9px] uppercase tracking-wider text-white/40">{label}</div>
       <div className="text-base font-bold leading-tight mt-0.5" style={{ color: tone }}>
         {value}
+      </div>
+    </div>
+  );
+}
+
+function MetaDaSemanaCard({
+  isQtd,
+  fmtMeta,
+  weekActive,
+  weekStartDay,
+  weekEndDay,
+  weekTarget,
+  weekReal,
+  weekRemaining,
+}: {
+  isQtd: boolean;
+  fmtMeta: (n: number) => string;
+  weekActive: boolean;
+  weekStartDay: number;
+  weekEndDay: number;
+  weekTarget: number;
+  weekReal: number;
+  weekRemaining: number;
+}) {
+  if (!weekActive || weekTarget <= 0) {
+    return (
+      <div className="card-lg">
+        <div className="flex items-center justify-between">
+          <div className="kpi-label">Meta da Semana</div>
+          <div
+            className="w-9 h-9 rounded-lg grid place-items-center"
+            style={{ background: COLOR.mute + "22", color: COLOR.mute }}
+          >
+            <Flame className="w-4 h-4" />
+          </div>
+        </div>
+        <div className="big-num text-white/40">—</div>
+        <div className="text-[11px] text-white/40 mt-1 uppercase tracking-wider">
+          {!weekActive ? "Disponivel no mes atual" : "Sem meta definida"}
+        </div>
+      </div>
+    );
+  }
+
+  const pct = weekTarget > 0 ? (weekReal / weekTarget) * 100 : 0;
+  const batida = weekReal >= weekTarget;
+  const tone = batida ? COLOR.ok : COLOR.warning;
+  const label = batida
+    ? "Semana fechada"
+    : `Fechar ate domingo (${String(weekEndDay).padStart(2, "0")})`;
+
+  return (
+    <div className="card-lg relative overflow-hidden">
+      <div
+        className="absolute -top-10 -right-10 w-32 h-32 rounded-full opacity-25 blur-3xl pointer-events-none"
+        style={{ background: tone }}
+      />
+      <div className="relative flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div className="kpi-label">Meta da Semana</div>
+          <div
+            className="w-9 h-9 rounded-lg grid place-items-center"
+            style={{ background: tone + "22", color: tone }}
+          >
+            <Flame className="w-4 h-4" />
+          </div>
+        </div>
+        <div className="big-num" style={{ color: tone }}>
+          {fmtMeta(weekRemaining)}
+        </div>
+        <div className="text-[10px] text-white/40 -mt-1 uppercase tracking-wider">
+          Falta na semana ({String(weekStartDay).padStart(2, "0")} a{" "}
+          {String(weekEndDay).padStart(2, "0")})
+        </div>
+        <div className="grid grid-cols-3 gap-1.5 mt-1">
+          <Mini label="Semana" value={fmtMeta(weekTarget)} tone={COLOR.warning} />
+          <Mini label="Feito" value={fmtMeta(weekReal)} tone={batida ? COLOR.ok : COLOR.neutral} />
+          <Mini
+            label="Falta"
+            value={batida ? (isQtd ? "0" : "R$ 0,00") : fmtMeta(weekRemaining)}
+            tone={batida ? COLOR.ok : COLOR.danger}
+          />
+        </div>
+        <div className="text-[11px] font-semibold mt-1" style={{ color: tone }}>
+          {label}
+        </div>
       </div>
     </div>
   );

@@ -175,6 +175,14 @@ export type BUSeries = {
     realizadoHoje: number;
     leadsMeta: number;
     taxaConversaoMeta: number;
+    // ===== Semana corrente (segunda a domingo) =====
+    weekStartDay: number;   // dia do mes em que a semana comeca (dentro do mes)
+    weekEndDay: number;     // dia do mes em que a semana termina (dentro do mes)
+    weekDaysInMonth: number; // qtd de dias da semana que caem dentro do mes
+    weekTarget: number;     // meta ideal de toda a semana (pace * weekDaysInMonth)
+    weekReal: number;       // realizado de segunda ate hoje
+    weekRemaining: number;  // max(0, weekTarget - weekReal)
+    weekActive: boolean;    // se o mes visualizado e o mes atual
   };
 };
 
@@ -208,6 +216,8 @@ export async function buSeries(
         metaIdealAteHoje: 0, metaRitmoInicial: 0, gap: 0, metaDia: 0,
         realizado: 0, valorHoje: 0, qtdHoje: 0, realizadoHoje: 0,
         leadsMeta: 0, taxaConversaoMeta: 0,
+        weekStartDay: 0, weekEndDay: 0, weekDaysInMonth: 0,
+        weekTarget: 0, weekReal: 0, weekRemaining: 0, weekActive: false,
       },
     };
   }
@@ -316,6 +326,46 @@ export async function buSeries(
   const hojeBucket = daily.find((d) => d.day === todayLabel) || { valor: 0, qtd: 0 };
   const realizadoHoje = isQtd ? hojeBucket.qtd : hojeBucket.valor;
 
+  // ===== Semana corrente (segunda a domingo, padrao BR) =====
+  // Calcula com base na data REAL (Date.now()) — quando o usuario navega
+  // pra um mes diferente do atual, marca como inativo.
+  const realToday = new Date();
+  const sameMonth =
+    realToday.getFullYear() === year && realToday.getMonth() + 1 === month;
+  let weekStartDay = 0;
+  let weekEndDay = 0;
+  let weekDaysInMonth = 0;
+  let weekTarget = 0;
+  let weekReal = 0;
+  let weekRemaining = 0;
+  const weekActive = sameMonth;
+  if (sameMonth) {
+    const dow = realToday.getDay(); // 0=dom, 1=seg ... 6=sab
+    const offsetToMonday = dow === 0 ? -6 : 1 - dow;
+    const monday = new Date(realToday);
+    monday.setDate(realToday.getDate() + offsetToMonday);
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+
+    const firstOfMonth = new Date(year, month - 1, 1);
+    const lastOfMonth = new Date(year, month, 0);
+    const startD = monday > firstOfMonth ? monday : firstOfMonth;
+    const endD = sunday < lastOfMonth ? sunday : lastOfMonth;
+    weekStartDay = startD.getDate();
+    weekEndDay = endD.getDate();
+    weekDaysInMonth = weekEndDay - weekStartDay + 1;
+
+    const todayDayNum = realToday.getDate();
+    for (let d = weekStartDay; d <= weekEndDay && d <= todayDayNum; d++) {
+      const k = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const b = buckets[k] || { valor: 0, qtd: 0, leads: 0 };
+      weekReal += isQtd ? b.qtd : b.valor;
+    }
+    weekTarget = metaRitmoInicial * weekDaysInMonth;
+    weekRemaining = Math.max(0, weekTarget - weekReal);
+  }
+
   return {
     daily,
     cumulative,
@@ -336,6 +386,13 @@ export async function buSeries(
       realizadoHoje,
       leadsMeta,
       taxaConversaoMeta,
+      weekStartDay,
+      weekEndDay,
+      weekDaysInMonth,
+      weekTarget,
+      weekReal,
+      weekRemaining,
+      weekActive,
     },
   };
 }
