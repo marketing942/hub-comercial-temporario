@@ -76,36 +76,46 @@ export async function statsForSellerInBu(
 
   const productIds = productIdsFor(bu) as unknown as string[];
 
-  const [{ data: pg }, { data: mg }, { data: sl }, { data: lds }] = await Promise.all([
-    supabaseAdmin
-      .from("product_goals")
-      .select("product_line, valor_meta, quantidade_meta")
-      .eq("seller_id", seller.id)
-      .eq("year", year)
-      .eq("month", month)
-      .in("product_line", productIds),
-    supabaseAdmin
-      .from("monthly_goals")
-      .select("ticket_medio_meta, taxa_conversao_meta, valor_meta, quantidade_meta, leads_meta")
-      .eq("seller_id", seller.id)
-      .eq("bu", bu)
-      .eq("year", year)
-      .eq("month", month)
-      .maybeSingle(),
-    supabaseAdmin
-      .from("sales")
-      .select("*")
-      .eq("seller_id", seller.id)
-      .in("product_line", productIds)
-      .gte("sale_date", firstDay)
-      .lt("sale_date", lastDay),
-    supabaseAdmin
-      .from("daily_leads")
-      .select("qty")
-      .eq("seller_id", seller.id)
-      .gte("date", firstDay)
-      .lt("date", lastDay),
-  ]);
+  const [{ data: pg }, { data: mg }, { data: sl }, { data: lds }, { count: vendasTotalCount }] =
+    await Promise.all([
+      supabaseAdmin
+        .from("product_goals")
+        .select("product_line, valor_meta, quantidade_meta")
+        .eq("seller_id", seller.id)
+        .eq("year", year)
+        .eq("month", month)
+        .in("product_line", productIds),
+      supabaseAdmin
+        .from("monthly_goals")
+        .select("ticket_medio_meta, taxa_conversao_meta, valor_meta, quantidade_meta, leads_meta")
+        .eq("seller_id", seller.id)
+        .eq("bu", bu)
+        .eq("year", year)
+        .eq("month", month)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("sales")
+        .select("*")
+        .eq("seller_id", seller.id)
+        .in("product_line", productIds)
+        .gte("sale_date", firstDay)
+        .lt("sale_date", lastDay),
+      supabaseAdmin
+        .from("daily_leads")
+        .select("qty")
+        .eq("seller_id", seller.id)
+        .gte("date", firstDay)
+        .lt("date", lastDay),
+      // Total de vendas do vendedor em TODAS as BUs no mes (sem filtro de
+      // product_line) — usado pro calculo de conversao real, ja que leads
+      // nao distinguem por BU.
+      supabaseAdmin
+        .from("sales")
+        .select("*", { count: "exact", head: true })
+        .eq("seller_id", seller.id)
+        .gte("sale_date", firstDay)
+        .lt("sale_date", lastDay),
+    ]);
 
   const leadsMonth = (lds || []).reduce((s: number, r: any) => s + Number(r.qty || 0), 0);
 
@@ -120,6 +130,7 @@ export async function statsForSellerInBu(
     productGoals: (pg as any) || [],
     monthly: (mg as any) || null,
     sales: (sl as any) || [],
+    vendasCountTotal: Number(vendasTotalCount || 0),
     leadsMonth,
     year,
     month,
@@ -596,7 +607,13 @@ export async function dashboardSnapshot(
     indicacaoBreakdown({ bu, ...opts }),
   ]);
   const sellers = all.filter((s) => s.bu === bu);
-  const leadsTotal = sellers.reduce((a, b) => a + b.leads, 0);
+  // Leads sao por vendedor (sem distincao de BU). Pra evitar dupla contagem
+  // em vendedor multi-BU, dedup por sellerId.
+  const leadsBySeller = new Map<string, number>();
+  for (const s of sellers) {
+    if (!leadsBySeller.has(s.sellerId)) leadsBySeller.set(s.sellerId, s.leads);
+  }
+  const leadsTotal = Array.from(leadsBySeller.values()).reduce((a, b) => a + b, 0);
   const vendas = sellers.reduce((a, b) => a + b.vendasCount, 0);
   const taxaConversao = leadsTotal > 0 ? (vendas / leadsTotal) * 100 : 0;
   return { bu, series, sellers, leadsTotal, taxaConversao, breakdown, ligacao, indicacao };

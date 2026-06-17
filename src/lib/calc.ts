@@ -59,6 +59,9 @@ export type SellerStats = {
   vendasCount: number;
   qtdRealizada: number;
   qtdMeta: number;
+  // Total de vendas do vendedor no mes em TODAS as BUs (nao so a do contexto).
+  // Usado no calculo de conversao real pois leads nao distinguem por BU.
+  vendasCountTotal: number;
   // Ritmo
   metaRitmoInicial: number;   // meta / total_dias_mes (o quanto era pra fazer/dia desde o inicio)
   metaIdealAteHoje: number;   // ritmo_inicial * dia_atual (era pra ter ate agora)
@@ -86,6 +89,9 @@ export function computeSellerStats(args: {
     leads_meta?: number;
   } | null;
   sales: SaleRow[];
+  // Total de vendas do vendedor no mes em TODAS as BUs (sem filtro por
+  // product_line). Quando nao passado, fallback para sales.length.
+  vendasCountTotal?: number;
   leadsMonth: number;
   year: number;
   month: number;
@@ -134,7 +140,11 @@ export function computeSellerStats(args: {
 
   const ticketReal = realizadoQtd > 0 ? realizadoValor / realizadoQtd : 0;
   const ticketMeta = Number(monthly?.ticket_medio_meta || 0);
-  const conversaoReal = leadsMonth > 0 ? (vendasCount / leadsMonth) * 100 : 0;
+  // Conversao usa o TOTAL de vendas do vendedor no mes (todas as BUs),
+  // porque leads nao distinguem BU. Se o caller nao passou,
+  // fallback pro vendasCount filtrado por BU.
+  const vendasCountTotalV = Number(args.vendasCountTotal ?? vendasCount);
+  const conversaoReal = leadsMonth > 0 ? (vendasCountTotalV / leadsMonth) * 100 : 0;
   const conversaoMeta = Number(monthly?.taxa_conversao_meta || 0);
   const leadsMetaV = Number(monthly?.leads_meta || 0);
 
@@ -157,6 +167,7 @@ export function computeSellerStats(args: {
     vendasCount,
     qtdRealizada: realizadoQtd,
     qtdMeta: qtdMetaTotal,
+    vendasCountTotal: vendasCountTotalV,
     metaRitmoInicial,
     metaIdealAteHoje,
     gap,

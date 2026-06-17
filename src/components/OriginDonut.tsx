@@ -1,9 +1,11 @@
 "use client";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { PieChart, Pie, Cell, Tooltip } from "recharts";
 import { BRL, fmtInt, fmtPct } from "@/lib/calc";
 
 export type OriginRow = { status: string; count: number; valor: number };
 export type OriginStatus = { id: string; label: string; short: string; color: string };
+
+const SIZE = 128;
 
 export default function OriginDonut({
   rows,
@@ -24,7 +26,7 @@ export default function OriginDonut({
   const totalValor = ordered.reduce((a, b) => a + b.valor, 0);
 
   return (
-    <div className="card h-full">
+    <div className="card">
       <div className="text-xs uppercase tracking-wider text-white/50">{title}</div>
       {subtitle && (
         <div className="text-[11px] text-white/40 mt-0.5 mb-2">{subtitle}</div>
@@ -36,37 +38,41 @@ export default function OriginDonut({
         </div>
       ) : (
         <div className="flex items-center gap-4 mt-2">
-          <div className="w-32 h-32 relative shrink-0">
-            <ResponsiveContainer>
-              <PieChart>
-                <Pie
-                  data={ordered}
-                  dataKey="count"
-                  innerRadius={36}
-                  outerRadius={56}
-                  strokeWidth={0}
-                  paddingAngle={2}
-                >
-                  {ordered.map((o) => (
-                    <Cell key={o.id} fill={o.color} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  cursor={false}
-                  contentStyle={{
-                    background: "#0c1b13",
-                    border: "1px solid #1f3a2a",
-                    borderRadius: 10,
-                    color: "#e8efe9",
-                    fontSize: 12,
-                  }}
-                  formatter={(val: any, _name: any, props: any) => [
-                    `${fmtInt.format(Number(val))} venda${Number(val) === 1 ? "" : "s"}`,
-                    props?.payload?.short,
-                  ]}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+          <div
+            className="relative shrink-0"
+            style={{ width: SIZE, height: SIZE }}
+          >
+            <PieChart width={SIZE} height={SIZE}>
+              <Pie
+                data={ordered}
+                dataKey="count"
+                cx={SIZE / 2}
+                cy={SIZE / 2}
+                innerRadius={36}
+                outerRadius={56}
+                strokeWidth={0}
+                paddingAngle={2}
+                isAnimationActive={false}
+              >
+                {ordered.map((o) => (
+                  <Cell key={o.id} fill={o.color} />
+                ))}
+              </Pie>
+              <Tooltip
+                cursor={false}
+                contentStyle={{
+                  background: "#0c1b13",
+                  border: "1px solid #1f3a2a",
+                  borderRadius: 10,
+                  color: "#e8efe9",
+                  fontSize: 12,
+                }}
+                formatter={(val: any, _name: any, props: any) => [
+                  `${fmtInt.format(Number(val))} venda${Number(val) === 1 ? "" : "s"}`,
+                  props?.payload?.short,
+                ]}
+              />
+            </PieChart>
             <div className="absolute inset-0 grid place-items-center pointer-events-none">
               <div className="text-center leading-tight">
                 <div className="text-lg font-bold">{fmtInt.format(total)}</div>

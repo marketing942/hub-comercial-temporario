@@ -74,12 +74,20 @@ function aggregate(rows: SellerStats[]) {
   // Para ticket meta, calcula media simples entre quem tem meta
   const ticketMetas = rows.filter((r) => r.ticketMeta > 0).map((r) => r.ticketMeta);
   const convMetas = rows.filter((r) => r.conversaoMeta > 0).map((r) => r.conversaoMeta);
+  // Leads por vendedor UNICO (multi-BU nao duplica leads)
+  const leadsBySeller = new Map<string, number>();
+  for (const r of rows) {
+    if (!leadsBySeller.has(r.sellerId)) {
+      leadsBySeller.set(r.sellerId, Number(r.leads || 0));
+    }
+  }
+  const leads = Array.from(leadsBySeller.values()).reduce((a, b) => a + b, 0);
   return {
     meta: rows.reduce((a, r) => a + Number(r.metaTotal || 0), 0),
     real: rows.reduce((a, r) => a + Number(r.realizado || 0), 0),
-    leads: rows.reduce((a, r) => a + Number(r.leads || 0), 0),
+    leads,
     vendas: rows.reduce((a, r) => a + Number(r.vendasCount || 0), 0),
-    valorTotal: rows.reduce((a, r) => a + Number(r.realizado || 0) * 0, 0), // placeholder
+    valorTotal: rows.reduce((a, r) => a + Number(r.realizado || 0) * 0, 0),
     ticketMetaAvg: ticketMetas.length > 0 ? ticketMetas.reduce((a, b) => a + b, 0) / ticketMetas.length : 0,
     convMetaAvg: convMetas.length > 0 ? convMetas.reduce((a, b) => a + b, 0) / convMetas.length : 0,
   };
