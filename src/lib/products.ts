@@ -99,3 +99,15 @@ export type LigacaoStatusId = (typeof LIGACAO_STATUSES)[number]["id"];
 export function ligacaoLabel(id: string) { return LIGACAO_STATUSES.find((s) => s.id === id)?.label || id; }
 export function ligacaoShort(id: string) { return LIGACAO_STATUSES.find((s) => s.id === id)?.short || id; }
 export function ligacaoColor(id: string) { return LIGACAO_STATUSES.find((s) => s.id === id)?.color || "#94a3b8"; }
+
+// ===== Indicacao (foi por indicacao ou nao) =====
+export const INDICACAO_STATUSES = [
+  { id: "feita_por_indicacao", label: "Feita por indicacao", short: "Por indicacao", color: "#22c55e" },
+  { id: "sem_indicacao", label: "Nao foi por indicacao", short: "Sem indicacao", color: "#94a3b8" },
+] as const;
+
+export type IndicacaoStatusId = (typeof INDICACAO_STATUSES)[number]["id"];
+
+export function indicacaoLabel(id: string) { return INDICACAO_STATUSES.find((s) => s.id === id)?.label || id; }
+export function indicacaoShort(id: string) { return INDICACAO_STATUSES.find((s) => s.id === id)?.short || id; }
+export function indicacaoColor(id: string) { return INDICACAO_STATUSES.find((s) => s.id === id)?.color || "#94a3b8"; }

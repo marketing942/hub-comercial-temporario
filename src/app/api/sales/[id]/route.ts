@@ -16,6 +16,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const valid = ["consegui_direto", "consegui_indireto", "sem_ligacao"];
     if (valid.includes(b.ligacao_status)) patch.ligacao_status = b.ligacao_status;
   }
+  if (typeof b.indicacao_status === "string") {
+    const valid = ["feita_por_indicacao", "sem_indicacao"];
+    if (valid.includes(b.indicacao_status)) patch.indicacao_status = b.indicacao_status;
+  }
 
   let q = supabaseAdmin.from("sales").update(patch).eq("id", params.id);
   if (s.role === "seller") q = q.eq("seller_id", s.sellerId!);

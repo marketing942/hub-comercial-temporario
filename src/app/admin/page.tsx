@@ -1,22 +1,29 @@
 import type { SellerStats } from "@/lib/calc";
-import { statsForAll, ligacaoBreakdown, type LigacaoRow } from "@/lib/data";
+import { statsForAll, ligacaoBreakdown, indicacaoBreakdown, type LigacaoRow, type IndicacaoRow } from "@/lib/data";
 import { BRL, fmtInt, fmtPct, periodNow, daysRemainingIncludingToday } from "@/lib/calc";
 import { BU_COLOR, BU_LABEL, COLOR, tonePctMeta } from "@/lib/brand";
 import { ALL_BUS, isQtdPrimary, type BU } from "@/lib/products";
 import ProgressBar from "@/components/ProgressBar";
-import LigacaoDonut from "@/components/LigacaoDonut";
+import OriginDonut from "@/components/OriginDonut";
+import { LIGACAO_STATUSES, INDICACAO_STATUSES } from "@/lib/products";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminHome() {
-  const [stats, ...ligs] = await Promise.all<any>([
+  const [stats, ligC, ligU, ligCol, indC, indU, indCol] = await Promise.all<any>([
     statsForAll(),
-    ...ALL_BUS.map((bu) => ligacaoBreakdown({ bu })),
+    ligacaoBreakdown({ bu: "cppem" }),
+    ligacaoBreakdown({ bu: "unicive" }),
+    ligacaoBreakdown({ bu: "colegio_cppem" }),
+    indicacaoBreakdown({ bu: "cppem" }),
+    indicacaoBreakdown({ bu: "unicive" }),
+    indicacaoBreakdown({ bu: "colegio_cppem" }),
   ]);
   const ligacaoMap: Record<BU, LigacaoRow[]> = {
-    cppem: ligs[0],
-    unicive: ligs[1],
-    colegio_cppem: ligs[2],
+    cppem: ligC, unicive: ligU, colegio_cppem: ligCol,
+  };
+  const indicacaoMap: Record<BU, IndicacaoRow[]> = {
+    cppem: indC, unicive: indU, colegio_cppem: indCol,
   };
 
   const { year, month } = periodNow();
@@ -49,13 +56,14 @@ export default async function AdminHome() {
         ))}
       </section>
 
-      {/* Secoes por BU: tabela comparativa + donut do Onvox */}
+      {/* Secoes por BU: tabela comparativa + donuts de origem */}
       {ALL_BUS.map((bu) => (
         <BUSection
           key={bu}
           bu={bu}
           sellers={buSellers[bu]}
           ligacao={ligacaoMap[bu]}
+          indicacao={indicacaoMap[bu]}
         />
       ))}
     </div>
@@ -183,10 +191,12 @@ function BUSection({
   bu,
   sellers,
   ligacao,
+  indicacao,
 }: {
   bu: BU;
   sellers: SellerStats[];
   ligacao: LigacaoRow[];
+  indicacao: IndicacaoRow[];
 }) {
   const color = BU_COLOR[bu];
   const isQtd = isQtdPrimary(bu);
@@ -304,7 +314,20 @@ function BUSection({
         </div>
 
         {/* Donut do Onvox */}
-        <LigacaoDonut rows={ligacao} title={`Origem ${BU_LABEL[bu]} (Onvox)`} />
+        <div className="space-y-3">
+          <OriginDonut
+            rows={ligacao}
+            statuses={LIGACAO_STATUSES}
+            title={`Origem por Onvox - ${BU_LABEL[bu]}`}
+            subtitle="A ligacao Onvox influenciou a venda?"
+          />
+          <OriginDonut
+            rows={indicacao}
+            statuses={INDICACAO_STATUSES}
+            title={`Origem por Indicacao - ${BU_LABEL[bu]}`}
+            subtitle="A venda veio de indicacao?"
+          />
+        </div>
       </div>
     </section>
   );

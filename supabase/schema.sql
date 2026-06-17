@@ -166,6 +166,13 @@ alter table public.sales alter column ligacao_status set default 'sem_ligacao';
 alter table public.sales alter column ligacao_status set not null;
 create index if not exists sales_ligacao_idx on public.sales(ligacao_status);
 
+-- indicacao_status: 'feita_por_indicacao' ou 'sem_indicacao'
+alter table public.sales add column if not exists indicacao_status text;
+update public.sales set indicacao_status = 'sem_indicacao' where indicacao_status is null;
+alter table public.sales alter column indicacao_status set default 'sem_indicacao';
+alter table public.sales alter column indicacao_status set not null;
+create index if not exists sales_indicacao_idx on public.sales(indicacao_status);
+
 -- ---------- Frases motivacionais ----------
 create table if not exists public.motivational_quotes (
   id uuid primary key default gen_random_uuid(),

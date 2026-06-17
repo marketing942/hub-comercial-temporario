@@ -491,6 +491,42 @@ export async function productBreakdown(
 // Ligacoes Onvox
 // =====================================================
 export type LigacaoRow = { status: string; count: number; valor: number };
+export type IndicacaoRow = { status: string; count: number; valor: number };
+
+export async function indicacaoBreakdown(opts?: {
+  bu?: "cppem" | "unicive" | "colegio_cppem";
+  year?: number;
+  month?: number;
+}): Promise<IndicacaoRow[]> {
+  const { year, month } = { ...periodNow(), ...opts };
+  const firstDay = `${year}-${String(month).padStart(2, "0")}-01`;
+  const next = month === 12 ? { y: year + 1, m: 1 } : { y: year, m: month + 1 };
+  const lastDay = `${next.y}-${String(next.m).padStart(2, "0")}-01`;
+
+  let q = supabaseAdmin
+    .from("sales")
+    .select("indicacao_status, valor, product_line")
+    .gte("sale_date", firstDay)
+    .lt("sale_date", lastDay);
+
+  if (opts?.bu) {
+    const productIds = productIdsFor(opts.bu) as unknown as string[];
+    q = q.in("product_line", productIds);
+  }
+
+  const { data } = await q;
+  const acc: Record<string, IndicacaoRow> = {
+    feita_por_indicacao: { status: "feita_por_indicacao", count: 0, valor: 0 },
+    sem_indicacao: { status: "sem_indicacao", count: 0, valor: 0 },
+  };
+  for (const r of (data as any[]) || []) {
+    const k = r.indicacao_status || "sem_indicacao";
+    if (!acc[k]) acc[k] = { status: k, count: 0, valor: 0 };
+    acc[k].count += 1;
+    acc[k].valor += Number(r.valor || 0);
+  }
+  return Object.values(acc);
+}
 
 export async function ligacaoBreakdown(opts?: {
   bu?: "cppem" | "unicive" | "colegio_cppem";
@@ -545,23 +581,25 @@ export type DashboardSnapshot = {
   leadsTotal: number;
   breakdown: ProductBreakdownRow[];
   ligacao: LigacaoRow[];
+  indicacao: IndicacaoRow[];
 };
 
 export async function dashboardSnapshot(
   bu: "cppem" | "unicive" | "colegio_cppem",
   opts?: { year?: number; month?: number }
 ): Promise<DashboardSnapshot> {
-  const [series, all, breakdown, ligacao] = await Promise.all([
+  const [series, all, breakdown, ligacao, indicacao] = await Promise.all([
     buSeries(bu, opts),
     statsForAll(opts),
     productBreakdown(bu, opts),
     ligacaoBreakdown({ bu, ...opts }),
+    indicacaoBreakdown({ bu, ...opts }),
   ]);
   const sellers = all.filter((s) => s.bu === bu);
   const leadsTotal = sellers.reduce((a, b) => a + b.leads, 0);
   const vendas = sellers.reduce((a, b) => a + b.vendasCount, 0);
   const taxaConversao = leadsTotal > 0 ? (vendas / leadsTotal) * 100 : 0;
-  return { bu, series, sellers, leadsTotal, taxaConversao, breakdown, ligacao };
+  return { bu, series, sellers, leadsTotal, taxaConversao, breakdown, ligacao, indicacao };
 }
 
 export { daysInMonth, daysRemainingIncludingToday, todayDayOfMonth, periodNow };

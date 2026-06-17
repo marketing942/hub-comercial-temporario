@@ -9,10 +9,13 @@ import {
   LIGACAO_STATUSES,
   ligacaoShort,
   ligacaoColor,
+  INDICACAO_STATUSES,
+  indicacaoShort,
+  indicacaoColor,
   PRODUCT_LINES_COLEGIO,
 } from "@/lib/products";
 import { BRL, fmtInt } from "@/lib/calc";
-import { Plus, Pencil, Trash2, Check, X, Phone } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, X, Phone, UserPlus } from "lucide-react";
 import NumberField from "@/components/NumberField";
 
 type Sale = {
@@ -23,6 +26,7 @@ type Sale = {
   quantidade: number;
   observacao?: string | null;
   ligacao_status?: string | null;
+  indicacao_status?: string | null;
 };
 
 type Seller = { id: string; name: string; bu: BU; bus?: BU[] };
@@ -70,6 +74,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
   const [valor, setValor] = useState<number>(0);
   const [qtd, setQtd] = useState<number>(1);
   const [ligacao, setLigacao] = useState<string>("");
+  const [indicacao, setIndicacao] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   const totalValor = useMemo(() => list.reduce((a, b) => a + Number(b.valor || 0), 0), [list]);
@@ -77,7 +82,11 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
 
   async function add() {
     if (!ligacao) {
-      alert("Escolha o status da ligacao antes de lancar.");
+      alert("Escolha a origem da ligacao antes de lancar.");
+      return;
+    }
+    if (!indicacao) {
+      alert("Informe se a venda foi por indicacao antes de lancar.");
       return;
     }
     setSaving(true);
@@ -91,6 +100,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
         valor,
         quantidade: qtd,
         ligacao_status: ligacao,
+        indicacao_status: indicacao,
       }),
     });
     setSaving(false);
@@ -100,6 +110,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
       setValor(0);
       setQtd(1);
       setLigacao("");
+      setIndicacao("");
       router.refresh();
     } else {
       alert("Erro ao salvar venda.");
@@ -161,7 +172,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
             <label className="label">Quantidade</label>
             <NumberField min={1} className="input" value={qtd} onChange={setQtd} />
           </div>
-          <button className="btn-primary" disabled={saving || !valor || !ligacao} onClick={add}>
+          <button className="btn-primary" disabled={saving || !valor || !ligacao || !indicacao} onClick={add}>
             <Plus className="w-4 h-4" /> Lancar
           </button>
         </div>
@@ -169,7 +180,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
         {/* Seletor obrigatorio de Ligacao */}
         <div className="mt-4">
           <label className="label flex items-center gap-1">
-            <Phone className="w-3 h-3" /> Origem da venda (obrigatorio)
+            <Phone className="w-3 h-3" /> Origem por ligacao (obrigatorio)
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {LIGACAO_STATUSES.map((opt) => {
@@ -198,6 +209,39 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
             </div>
           )}
         </div>
+
+        {/* Seletor obrigatorio de Indicacao */}
+        <div className="mt-4">
+          <label className="label flex items-center gap-1">
+            <UserPlus className="w-3 h-3" /> Foi por indicacao? (obrigatorio)
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {INDICACAO_STATUSES.map((opt) => {
+              const active = indicacao === opt.id;
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => setIndicacao(opt.id)}
+                  className={`text-left rounded-xl border p-3 transition ${
+                    active ? "border-accent bg-accent/10" : "border-border bg-panel2 hover:border-accent/40"
+                  }`}
+                  style={active ? { boxShadow: `0 0 0 1px ${opt.color}55` } : undefined}
+                >
+                  <div className="text-sm font-semibold" style={{ color: opt.color }}>
+                    {opt.short}
+                  </div>
+                  <div className="text-[11px] text-white/60 mt-0.5 leading-snug">{opt.label}</div>
+                </button>
+              );
+            })}
+          </div>
+          {!indicacao && (
+            <div className="text-[11px] text-warning mt-2">
+              Informe se a venda foi por indicacao antes de lancar.
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="card p-0 overflow-hidden">
@@ -216,13 +260,14 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
               <th className="p-3">Valor</th>
               <th className="p-3">Qtd</th>
               <th className="p-3">Origem</th>
+              <th className="p-3">Indicacao</th>
               <th className="p-3 w-32"></th>
             </tr>
           </thead>
           <tbody>
             {list.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-6 text-center text-white/50">
+                <td colSpan={7} className="p-6 text-center text-white/50">
                   Nenhuma venda este mes. Lance a primeira acima.
                 </td>
               </tr>
@@ -263,6 +308,7 @@ function Row({
   const [valor, setValor] = useState(Number(sale.valor));
   const [qtd, setQtd] = useState(Number(sale.quantidade));
   const [ligacao, setLigacao] = useState(sale.ligacao_status || "sem_ligacao");
+  const [indicacao, setIndicacao] = useState(sale.indicacao_status || "sem_indicacao");
 
   const cppemLines = [
     { id: "mentorias", label: "Mentorias" },
@@ -289,6 +335,7 @@ function Row({
         valor,
         quantidade: qtd,
         ligacao_status: ligacao,
+        indicacao_status: indicacao,
       }),
     });
     if (r.ok) {
@@ -298,6 +345,7 @@ function Row({
         valor,
         quantidade: qtd,
         ligacao_status: ligacao,
+        indicacao_status: indicacao,
       });
       setEdit(false);
       onAfter();
@@ -315,6 +363,7 @@ function Row({
 
   if (!edit) {
     const lig = sale.ligacao_status || "sem_ligacao";
+    const ind = sale.indicacao_status || "sem_indicacao";
     return (
       <tr className="border-t border-border">
         <td className="p-3">{new Date(sale.sale_date + "T00:00").toLocaleDateString("pt-BR")}</td>
@@ -330,6 +379,17 @@ function Row({
             }}
           >
             <Phone className="w-3 h-3" /> {ligacaoShort(lig)}
+          </span>
+        </td>
+        <td className="p-3">
+          <span
+            className="chip"
+            style={{
+              background: indicacaoColor(ind) + "22",
+              color: indicacaoColor(ind),
+            }}
+          >
+            <UserPlus className="w-3 h-3" /> {indicacaoShort(ind)}
           </span>
         </td>
         <td className="p-3 text-right">
@@ -367,6 +427,15 @@ function Row({
       <td className="p-2">
         <select className="input h-9" value={ligacao} onChange={(e) => setLigacao(e.target.value)}>
           {LIGACAO_STATUSES.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.short}
+            </option>
+          ))}
+        </select>
+      </td>
+      <td className="p-2">
+        <select className="input h-9" value={indicacao} onChange={(e) => setIndicacao(e.target.value)}>
+          {INDICACAO_STATUSES.map((l) => (
             <option key={l.id} value={l.id}>
               {l.short}
             </option>
