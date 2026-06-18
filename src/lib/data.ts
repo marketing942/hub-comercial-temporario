@@ -77,7 +77,7 @@ export async function statsForSellerInBu(
 
   const productIds = productIdsFor(bu) as unknown as string[];
 
-  const [{ data: pg }, { data: mg }, { data: sl }, { data: lds }, { count: vendasTotalCount }] =
+  const [{ data: pg }, { data: mg }, { data: sl }, { data: lds }, { data: slAll }] =
     await Promise.all([
       supabaseAdmin
         .from("product_goals")
@@ -109,16 +109,17 @@ export async function statsForSellerInBu(
         .lt("date", lastDay),
       // Total de vendas do vendedor em TODAS as BUs no mes (sem filtro de
       // product_line) — usado pro calculo de conversao real, ja que leads
-      // nao distinguem por BU.
+      // nao distinguem por BU. Pega so o id pra contar via length.
       supabaseAdmin
         .from("sales")
-        .select("*", { count: "exact", head: true })
+        .select("id")
         .eq("seller_id", seller.id)
         .gte("sale_date", firstDay)
         .lt("sale_date", lastDay),
     ]);
 
   const leadsMonth = (lds || []).reduce((s: number, r: any) => s + Number(r.qty || 0), 0);
+  const vendasTotalNoMes = ((slAll as any[]) || []).length;
 
   return computeSellerStats({
     seller: {
@@ -131,7 +132,7 @@ export async function statsForSellerInBu(
     productGoals: (pg as any) || [],
     monthly: (mg as any) || null,
     sales: (sl as any) || [],
-    vendasCountTotal: Number(vendasTotalCount || 0),
+    vendasCountTotal: vendasTotalNoMes,
     leadsMonth,
     year,
     month,
