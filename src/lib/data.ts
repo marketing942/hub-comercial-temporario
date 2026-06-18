@@ -3,6 +3,7 @@ import {
   computeSellerStats,
   daysInMonth,
   daysRemainingIncludingToday,
+  nowRecife,
   periodNow,
   todayDayOfMonth,
   type SellerStats,
@@ -340,7 +341,7 @@ export async function buSeries(
   // ===== Semana corrente (segunda a domingo, padrao BR) =====
   // Calcula com base na data REAL (Date.now()) — quando o usuario navega
   // pra um mes diferente do atual, marca como inativo.
-  const realToday = new Date();
+  const realToday = nowRecife();
   const sameMonth =
     realToday.getFullYear() === year && realToday.getMonth() + 1 === month;
   let weekStartDay = 0;

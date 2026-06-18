@@ -8,8 +8,45 @@ export const fmtInt = new Intl.NumberFormat("pt-BR");
 export const fmtPct = (v: number) =>
   `${(Number.isFinite(v) ? v : 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
 
-export function periodNow() {
+// =====================================================
+// Fuso horario: tudo no horario de Recife (BRT, UTC-3).
+// O servidor roda em UTC, entao precisamos converter
+// pra calcular "agora", "hoje", "este mes" etc.
+// =====================================================
+export const TIME_ZONE = "America/Recife";
+
+export function nowRecife(): Date {
   const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(now);
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value || 0);
+  const hour = get("hour");
+  return new Date(
+    get("year"),
+    get("month") - 1,
+    get("day"),
+    hour === 24 ? 0 : hour,
+    get("minute"),
+    get("second")
+  );
+}
+
+// Data ISO (YYYY-MM-DD) considerando o fuso de Recife
+export function todayISORecife(): string {
+  const n = nowRecife();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+}
+
+export function periodNow() {
+  const now = nowRecife();
   return { year: now.getFullYear(), month: now.getMonth() + 1 };
 }
 
@@ -18,7 +55,7 @@ export function daysInMonth(year: number, month: number) {
 }
 
 export function todayDayOfMonth(year: number, month: number) {
-  const now = new Date();
+  const now = nowRecife();
   if (now.getFullYear() !== year || now.getMonth() + 1 !== month) {
     return daysInMonth(year, month);
   }
@@ -112,9 +149,10 @@ export function computeSellerStats(args: {
   const realizadoQtd = sales.reduce((s, r) => s + Number(r.quantidade || 0), 0);
   const vendasCount = sales.length;
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = todayISORecife();
+  const nowR = nowRecife();
   const isCurrentMonth =
-    new Date().getFullYear() === year && new Date().getMonth() + 1 === month;
+    nowR.getFullYear() === year && nowR.getMonth() + 1 === month;
   const todaySales = isCurrentMonth ? sales.filter((s) => s.sale_date === todayStr) : [];
   const valorHoje = todaySales.reduce((a, b) => a + Number(b.valor || 0), 0);
   const qtdHoje = todaySales.reduce((a, b) => a + Number(b.quantidade || 0), 0);
