@@ -14,7 +14,9 @@ type Seller = {
 };
 
 function busOf(s: Seller): ("cppem" | "unicive" | "colegio_cppem")[] {
-  const arr = Array.isArray(s.bus) ? s.bus.filter((x) => x === "cppem" || x === "unicive") : [];
+  const arr = Array.isArray(s.bus)
+    ? s.bus.filter((x) => x === "cppem" || x === "unicive" || x === "colegio_cppem")
+    : [];
   return arr.length > 0 ? Array.from(new Set(arr)) : [s.bu];
 }
 

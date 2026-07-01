@@ -10,9 +10,13 @@ export async function GET() {
 
 function sanitizeBus(input: any, fallbackBu: string): string[] {
   const raw = Array.isArray(input) ? input : [];
-  const clean = raw.filter((x) => x === "cppem" || x === "unicive");
+  const clean = raw.filter(
+    (x) => x === "cppem" || x === "unicive" || x === "colegio_cppem"
+  );
   if (clean.length > 0) return Array.from(new Set(clean));
-  if (fallbackBu === "cppem" || fallbackBu === "unicive") return [fallbackBu];
+  if (fallbackBu === "cppem" || fallbackBu === "unicive" || fallbackBu === "colegio_cppem") {
+    return [fallbackBu];
+  }
   return [];
 }
 
