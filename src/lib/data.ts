@@ -286,12 +286,23 @@ export async function buSeries(
     ? (mgoals || []).reduce((a: number, b: any) => a + Number(b.ticket_medio_meta || 0), 0) / (mgoals || []).length
     : 0;
 
+  // Se for CPPEM, tambem soma as vendas do canal direto (site) — elas
+  // contam nas metas de faturamento e por categoria, mas nao pertencem
+  // a nenhum vendedor.
+  const directSales = bu === "cppem" ? await fetchDirectSales(year, month) : [];
+
   const buckets: Record<string, { valor: number; qtd: number; leads: number }> = {};
   for (let d = 1; d <= total; d++) {
     const k = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     buckets[k] = { valor: 0, qtd: 0, leads: 0 };
   }
   for (const r of (sales as any[]) || []) {
+    const k = String(r.sale_date).slice(0, 10);
+    if (!buckets[k]) buckets[k] = { valor: 0, qtd: 0, leads: 0 };
+    buckets[k].valor += Number(r.valor || 0);
+    buckets[k].qtd += Number(r.quantidade || 0);
+  }
+  for (const r of directSales) {
     const k = String(r.sale_date).slice(0, 10);
     if (!buckets[k]) buckets[k] = { valor: 0, qtd: 0, leads: 0 };
     buckets[k].valor += Number(r.valor || 0);
@@ -481,6 +492,19 @@ export async function productBreakdown(
       map[s.product_line].qtd += Number(s.quantidade || 0);
     }
   }
+
+  // Se for CPPEM, tambem soma as vendas do canal direto (site) por
+  // categoria — elas contam nas metas de faturamento e por categoria.
+  if (bu === "cppem") {
+    const directSales = await fetchDirectSales(year, month);
+    for (const r of directSales) {
+      if (map[r.product_line]) {
+        map[r.product_line].valor += Number(r.valor || 0);
+        map[r.product_line].qtd += Number(r.quantidade || 0);
+      }
+    }
+  }
+
   const hasBuGoals = (buGoals as any[])?.length > 0;
   if (hasBuGoals) {
     for (const g of (buGoals as any[]) || []) {
@@ -586,6 +610,148 @@ export async function ligacaoBreakdown(opts?: {
 // =====================================================
 // Snapshot do dashboard
 // =====================================================
+// =====================================================
+// Canal DIRETO (site/direct response) — vendas do CPPEM sem vendedor
+// =====================================================
+export type DirectSaleRow = {
+  id: string;
+  sale_date: string;
+  product_line: string;
+  valor: number;
+  quantidade: number;
+  observacao?: string | null;
+};
+
+async function fetchDirectSales(year: number, month: number): Promise<DirectSaleRow[]> {
+  const firstDay = `${year}-${String(month).padStart(2, "0")}-01`;
+  const next = month === 12 ? { y: year + 1, m: 1 } : { y: year, m: month + 1 };
+  const lastDay = `${next.y}-${String(next.m).padStart(2, "0")}-01`;
+  const { data } = await supabaseAdmin
+    .from("direct_sales")
+    .select("*")
+    .gte("sale_date", firstDay)
+    .lt("sale_date", lastDay)
+    .order("sale_date", { ascending: false })
+    .order("created_at", { ascending: false });
+  return ((data as any[]) || []) as DirectSaleRow[];
+}
+
+async function fetchDirectVisits(year: number, month: number): Promise<{ date: string; qty: number }[]> {
+  const firstDay = `${year}-${String(month).padStart(2, "0")}-01`;
+  const next = month === 12 ? { y: year + 1, m: 1 } : { y: year, m: month + 1 };
+  const lastDay = `${next.y}-${String(next.m).padStart(2, "0")}-01`;
+  const { data } = await supabaseAdmin
+    .from("direct_visits")
+    .select("date, qty")
+    .gte("date", firstDay)
+    .lt("date", lastDay);
+  return ((data as any[]) || []).map((r) => ({ date: r.date, qty: Number(r.qty || 0) }));
+}
+
+export type DirectSnapshot = {
+  year: number;
+  month: number;
+  daily: { day: string; valor: number; qtd: number; visits: number }[];
+  totals: {
+    valor: number;      // faturamento acumulado
+    qtd: number;        // qtd de vendas somadas
+    vendasCount: number;// numero de linhas de venda
+    ticketReal: number; // valor / qtd
+    visits: number;     // visitas totais no mes
+    visitsHoje: number; // visitas do dia atual
+    valorHoje: number;  // faturamento do dia atual
+    qtdHoje: number;    // qtd vendida hoje
+    conversao: number;  // qtd vendida (unidades) / visitas * 100
+  };
+  breakdown: ProductBreakdownRow[]; // por linha de produto (CPPEM)
+};
+
+export async function directSnapshot(opts?: {
+  year?: number;
+  month?: number;
+}): Promise<DirectSnapshot> {
+  const { year, month } = { ...periodNow(), ...opts };
+  const total = daysInMonth(year, month);
+
+  const [sales, visits] = await Promise.all([
+    fetchDirectSales(year, month),
+    fetchDirectVisits(year, month),
+  ]);
+
+  const buckets: Record<string, { valor: number; qtd: number; visits: number }> = {};
+  for (let d = 1; d <= total; d++) {
+    const k = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    buckets[k] = { valor: 0, qtd: 0, visits: 0 };
+  }
+  for (const r of sales) {
+    const k = String(r.sale_date).slice(0, 10);
+    if (!buckets[k]) buckets[k] = { valor: 0, qtd: 0, visits: 0 };
+    buckets[k].valor += Number(r.valor || 0);
+    buckets[k].qtd += Number(r.quantidade || 0);
+  }
+  for (const v of visits) {
+    const k = String(v.date).slice(0, 10);
+    if (!buckets[k]) buckets[k] = { valor: 0, qtd: 0, visits: 0 };
+    buckets[k].visits += Number(v.qty || 0);
+  }
+
+  const daily = [];
+  for (let d = 1; d <= total; d++) {
+    const k = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const b = buckets[k];
+    daily.push({
+      day: `${String(d).padStart(2, "0")}/${String(month).padStart(2, "0")}`,
+      valor: b.valor,
+      qtd: b.qtd,
+      visits: b.visits,
+    });
+  }
+
+  const totalValor = Object.values(buckets).reduce((a, b) => a + b.valor, 0);
+  const totalQtd = Object.values(buckets).reduce((a, b) => a + b.qtd, 0);
+  const totalVisits = Object.values(buckets).reduce((a, b) => a + b.visits, 0);
+  const ticketReal = totalQtd > 0 ? totalValor / totalQtd : 0;
+  const conversao = totalVisits > 0 ? (totalQtd / totalVisits) * 100 : 0;
+
+  const nowR = nowRecife();
+  const today = todayDayOfMonth(year, month);
+  const todayKey = `${year}-${String(month).padStart(2, "0")}-${String(today).padStart(2, "0")}`;
+  const hoje = buckets[todayKey] || { valor: 0, qtd: 0, visits: 0 };
+  const isCurrent = nowR.getFullYear() === year && nowR.getMonth() + 1 === month;
+
+  // Breakdown por linha de produto CPPEM
+  const cppemIds = productIdsFor("cppem") as unknown as string[];
+  const map: Record<string, ProductBreakdownRow> = {};
+  for (const id of cppemIds) {
+    map[id] = { product_line: id, label: productLabel(id), valor: 0, qtd: 0, valor_meta: 0, quantidade_meta: 0 };
+  }
+  for (const r of sales) {
+    if (map[r.product_line]) {
+      map[r.product_line].valor += Number(r.valor || 0);
+      map[r.product_line].qtd += Number(r.quantidade || 0);
+    }
+  }
+  const breakdown = Object.values(map);
+
+  return {
+    year,
+    month,
+    daily,
+    totals: {
+      valor: totalValor,
+      qtd: totalQtd,
+      vendasCount: sales.length,
+      ticketReal,
+      visits: totalVisits,
+      visitsHoje: isCurrent ? hoje.visits : 0,
+      valorHoje: isCurrent ? hoje.valor : 0,
+      qtdHoje: isCurrent ? hoje.qtd : 0,
+      conversao,
+    },
+    breakdown,
+  };
+}
+
 export type DashboardSnapshot = {
   bu: "cppem" | "unicive" | "colegio_cppem";
   series: BUSeries;

@@ -173,6 +173,34 @@ alter table public.sales alter column indicacao_status set default 'sem_indicaca
 alter table public.sales alter column indicacao_status set not null;
 create index if not exists sales_indicacao_idx on public.sales(indicacao_status);
 
+-- ---------- Vendas do canal DIRETO (site / direct response) ----------
+-- Nao pertencem a nenhum vendedor. Sao lancadas pelo admin.
+-- Contam no total de faturamento e por categoria do CPPEM, mas nao
+-- passam por status de ligacao/indicacao/leads.
+create table if not exists public.direct_sales (
+  id uuid primary key default gen_random_uuid(),
+  sale_date date not null default current_date,
+  product_line text not null,
+  valor numeric(12,2) not null default 0,
+  quantidade int not null default 1,
+  observacao text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists direct_sales_date_idx on public.direct_sales(sale_date);
+
+-- Visitas diarias do site (para calculo de conversao do canal direto)
+create table if not exists public.direct_visits (
+  id uuid primary key default gen_random_uuid(),
+  date date not null unique,
+  qty int not null default 0,
+  updated_at timestamptz not null default now()
+);
+create index if not exists direct_visits_date_idx on public.direct_visits(date);
+
+alter table public.direct_sales     disable row level security;
+alter table public.direct_visits    disable row level security;
+
 -- ---------- Frases motivacionais ----------
 create table if not exists public.motivational_quotes (
   id uuid primary key default gen_random_uuid(),

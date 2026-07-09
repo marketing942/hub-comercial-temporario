@@ -1,6 +1,14 @@
-import { dashboardSnapshot, daysInMonth, daysRemainingIncludingToday, periodNow, todayDayOfMonth } from "@/lib/data";
+import {
+  dashboardSnapshot,
+  directSnapshot,
+  daysInMonth,
+  daysRemainingIncludingToday,
+  periodNow,
+  todayDayOfMonth,
+} from "@/lib/data";
 import DashboardCarousel from "@/components/DashboardCarousel";
 import DashboardView from "@/components/DashboardView";
+import DirectDashboardView from "@/components/DirectDashboardView";
 import SellersGameView from "@/components/SellersGameView";
 import PeriodNav from "@/components/PeriodNav";
 import { ALL_BUS } from "@/lib/products";
@@ -31,7 +39,10 @@ export default async function DashboardPage({
     year: "numeric",
   });
 
-  const snaps = await Promise.all(ALL_BUS.map((bu) => dashboardSnapshot(bu, { year, month })));
+  const [snaps, direct] = await Promise.all([
+    Promise.all(ALL_BUS.map((bu) => dashboardSnapshot(bu, { year, month }))),
+    directSnapshot({ year, month }),
+  ]);
   const allSellers = snaps.flatMap((s) => s.sellers);
 
   const slides = [
@@ -48,6 +59,19 @@ export default async function DashboardPage({
         />
       ),
     })),
+    {
+      key: "direto",
+      label: "Direto",
+      node: (
+        <DirectDashboardView
+          snap={direct}
+          day={day}
+          totalDays={totalDays}
+          daysLeft={daysLeft}
+          monthName={monthName}
+        />
+      ),
+    },
     {
       key: "sellers",
       label: "Vendedores",
