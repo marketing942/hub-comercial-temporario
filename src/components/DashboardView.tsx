@@ -266,6 +266,55 @@ export default function DashboardView({
         />
       </section>
 
+      {/* Linha extra so pra Unicive/Colegio: Meta do Dia (R$) + Meta da
+          Semana (R$). Fatura tambem tem peso nessas BUs. */}
+      {isQtd && (
+        <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <MetaDoDiaCard
+            isQtd={false}
+            metaDia={BRL.format(t.metaDiaValor)}
+            realHoje={BRL.format(t.valorHoje)}
+            falta={BRL.format(Math.max(0, t.metaDiaValor - t.valorHoje))}
+            diff={BRL.format(Math.abs(t.valorHoje - t.metaDiaValor))}
+            placarLabel={
+              t.metaValor === 0
+                ? "Sem meta de R$ definida"
+                : t.valor >= t.metaValor
+                ? "Meta de R$ batida"
+                : t.metaDiaValor === 0
+                ? "No pace de R$"
+                : t.valorHoje >= t.metaDiaValor
+                ? "Vencendo o dia em R$"
+                : "Atras em R$ no dia"
+            }
+            placarColor={
+              t.metaValor === 0
+                ? COLOR.mute
+                : t.valor >= t.metaValor
+                ? COLOR.ok
+                : t.valorHoje >= t.metaDiaValor
+                ? COLOR.ok
+                : COLOR.danger
+            }
+            vencendo={t.valorHoje >= t.metaDiaValor && t.metaDiaValor > 0}
+            empate={Math.abs(t.valorHoje - t.metaDiaValor) < 0.01}
+            semMeta={t.metaValor === 0 || t.metaDiaValor <= 0}
+            labelOverride="Meta do Dia (Faturamento)"
+          />
+          <MetaDaSemanaCard
+            isQtd={false}
+            fmtMeta={(n: number) => BRL.format(n)}
+            weekActive={t.weekActive}
+            weekStartDay={t.weekStartDay}
+            weekEndDay={t.weekEndDay}
+            weekTarget={t.weekTargetValor}
+            weekReal={t.weekRealValor}
+            weekRemaining={t.weekRemainingValor}
+            labelOverride="Meta da Semana (Faturamento)"
+          />
+        </section>
+      )}
+
       {/* Receita por categoria + card lateral por BU */}
       {bu === "cppem" && (
         <section className="grid grid-cols-1 xl:grid-cols-5 gap-3">
@@ -388,6 +437,7 @@ function MetaDoDiaCard({
   vencendo,
   empate,
   semMeta,
+  labelOverride,
 }: {
   isQtd: boolean;
   metaDia: string;
@@ -399,6 +449,7 @@ function MetaDoDiaCard({
   vencendo: boolean;
   empate: boolean;
   semMeta: boolean;
+  labelOverride?: string;
 }) {
   const Arrow = vencendo ? ArrowUpRight : ArrowDownRight;
   return (
@@ -409,7 +460,7 @@ function MetaDoDiaCard({
       />
       <div className="relative flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <div className="kpi-label">Meta do Dia</div>
+          <div className="kpi-label">{labelOverride || "Meta do Dia"}</div>
           <div
             className="w-9 h-9 rounded-lg grid place-items-center"
             style={{ background: placarColor + "22", color: placarColor }}
@@ -469,6 +520,7 @@ function MetaDaSemanaCard({
   weekTarget,
   weekReal,
   weekRemaining,
+  labelOverride,
 }: {
   isQtd: boolean;
   fmtMeta: (n: number) => string;
@@ -478,12 +530,13 @@ function MetaDaSemanaCard({
   weekTarget: number;
   weekReal: number;
   weekRemaining: number;
+  labelOverride?: string;
 }) {
   if (!weekActive || weekTarget <= 0) {
     return (
       <div className="card-lg">
         <div className="flex items-center justify-between">
-          <div className="kpi-label">Meta da Semana</div>
+          <div className="kpi-label">{labelOverride || "Meta da Semana"}</div>
           <div
             className="w-9 h-9 rounded-lg grid place-items-center"
             style={{ background: COLOR.mute + "22", color: COLOR.mute }}
@@ -514,7 +567,7 @@ function MetaDaSemanaCard({
       />
       <div className="relative flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <div className="kpi-label">Meta da Semana</div>
+          <div className="kpi-label">{labelOverride || "Meta da Semana"}</div>
           <div
             className="w-9 h-9 rounded-lg grid place-items-center"
             style={{ background: tone + "22", color: tone }}

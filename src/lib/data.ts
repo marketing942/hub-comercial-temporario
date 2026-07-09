@@ -200,6 +200,12 @@ export type BUSeries = {
     weekReal: number;       // realizado de segunda ate hoje
     weekRemaining: number;  // max(0, weekTarget - weekReal)
     weekActive: boolean;    // se o mes visualizado e o mes atual
+    // Metas em FATURAMENTO (utilizadas em Unicive/Colegio onde a meta
+    // primaria e qtd, mas o faturamento tambem tem meta e importa)
+    metaDiaValor: number;   // meta do dia em R$ (util pra Unicive/Colegio)
+    weekTargetValor: number;
+    weekRealValor: number;
+    weekRemainingValor: number;
   };
 };
 
@@ -235,6 +241,7 @@ export async function buSeries(
         leadsMeta: 0, taxaConversaoMeta: 0,
         weekStartDay: 0, weekEndDay: 0, weekDaysInMonth: 0,
         weekTarget: 0, weekReal: 0, weekRemaining: 0, weekActive: false,
+        metaDiaValor: 0, weekTargetValor: 0, weekRealValor: 0, weekRemainingValor: 0,
       },
     };
   }
@@ -353,6 +360,12 @@ export async function buSeries(
   const gap = metaIdealAteHoje - realizado;
   const metaDia = falta > 0 ? falta / bDaysLeft : 0;
 
+  // Metas do dia/semana em FATURAMENTO — usadas em Unicive/Colegio
+  // como o segundo eixo de acompanhamento (alem da qtd).
+  const faltaValor = Math.max(0, metaValor - totalValor);
+  const metaRitmoValor = bDaysTotal > 0 ? metaValor / bDaysTotal : 0;
+  const metaDiaValor = faltaValor > 0 ? faltaValor / bDaysLeft : 0;
+
   const todayLabel = `${String(today).padStart(2, "0")}/${String(month).padStart(2, "0")}`;
   const hojeBucket = daily.find((d) => d.day === todayLabel) || { valor: 0, qtd: 0 };
   const realizadoHoje = isQtd ? hojeBucket.qtd : hojeBucket.valor;
@@ -369,6 +382,9 @@ export async function buSeries(
   let weekTarget = 0;
   let weekReal = 0;
   let weekRemaining = 0;
+  let weekTargetValor = 0;
+  let weekRealValor = 0;
+  let weekRemainingValor = 0;
   const weekActive = sameMonth;
   if (sameMonth) {
     const dow = realToday.getDay(); // 0=dom, 1=seg ... 6=sab
@@ -398,9 +414,12 @@ export async function buSeries(
       const k = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
       const b = buckets[k] || { valor: 0, qtd: 0, leads: 0 };
       weekReal += isQtd ? b.qtd : b.valor;
+      weekRealValor += b.valor;
     }
     weekTarget = metaRitmoInicial * weekBusinessDays;
     weekRemaining = Math.max(0, weekTarget - weekReal);
+    weekTargetValor = metaRitmoValor * weekBusinessDays;
+    weekRemainingValor = Math.max(0, weekTargetValor - weekRealValor);
   }
 
   return {
@@ -430,6 +449,10 @@ export async function buSeries(
       weekReal,
       weekRemaining,
       weekActive,
+      metaDiaValor,
+      weekTargetValor,
+      weekRealValor,
+      weekRemainingValor,
     },
   };
 }

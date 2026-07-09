@@ -69,13 +69,88 @@ export function daysRemainingIncludingToday(year: number, month: number) {
 }
 
 // =====================================================
-// Dias uteis (segunda a sexta) — usado na Meta do Dia
-// Nao considera feriados (implementacao simples).
+// Feriados nacionais do Brasil (fixos + moveis por ano)
+// Retorna Set de "MM-DD" pra lookup rapido.
+// Cache por ano pra nao recalcular em cada chamada.
+// =====================================================
+const _holidayCache = new Map<number, Set<string>>();
+
+// Domingo de Pascoa (algoritmo de Meeus/Jones/Butcher)
+function easterSunday(year: number): { month: number; day: number } {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const L = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * L) / 451);
+  const month = Math.floor((h + L - 7 * m + 114) / 31);
+  const day = ((h + L - 7 * m + 114) % 31) + 1;
+  return { month, day };
+}
+
+function addDays(year: number, month: number, day: number, delta: number) {
+  const d = new Date(Date.UTC(year, month - 1, day));
+  d.setUTCDate(d.getUTCDate() + delta);
+  return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() };
+}
+function mmdd(month: number, day: number) {
+  return `${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+export function getBrazilianHolidays(year: number): Set<string> {
+  const cached = _holidayCache.get(year);
+  if (cached) return cached;
+
+  const set = new Set<string>();
+  // ---- Fixos ----
+  set.add("01-01"); // Confraternizacao Universal
+  set.add("04-21"); // Tiradentes
+  set.add("05-01"); // Dia do Trabalho
+  set.add("09-07"); // Independencia
+  set.add("10-12"); // N. Sra. Aparecida
+  set.add("11-02"); // Finados
+  set.add("11-15"); // Proclamacao da Republica
+  set.add("11-20"); // Consciencia Negra (feriado nacional desde 2024)
+  set.add("12-25"); // Natal
+
+  // ---- Moveis (baseados na Pascoa) ----
+  const easter = easterSunday(year);
+  // Sexta-feira Santa = Pascoa - 2
+  const goodFriday = addDays(year, easter.month, easter.day, -2);
+  set.add(mmdd(goodFriday.month, goodFriday.day));
+  // Carnaval segunda (-48) e terca (-47) — nao sao feriado nacional
+  // oficial mas o comercial nao trabalha; consideramos como nao-util.
+  const carnavalTue = addDays(year, easter.month, easter.day, -47);
+  const carnavalMon = addDays(year, easter.month, easter.day, -48);
+  set.add(mmdd(carnavalTue.month, carnavalTue.day));
+  set.add(mmdd(carnavalMon.month, carnavalMon.day));
+  // Corpus Christi = Pascoa + 60
+  const corpus = addDays(year, easter.month, easter.day, 60);
+  set.add(mmdd(corpus.month, corpus.day));
+
+  _holidayCache.set(year, set);
+  return set;
+}
+
+export function isBrazilianHoliday(year: number, month: number, day: number): boolean {
+  return getBrazilianHolidays(year).has(mmdd(month, day));
+}
+
+// =====================================================
+// Dias uteis (segunda a sexta, EXCLUINDO feriados nacionais)
 // =====================================================
 export function isBusinessDay(year: number, month: number, day: number): boolean {
   const d = new Date(Date.UTC(year, month - 1, day));
   const dow = d.getUTCDay(); // 0=dom, 6=sab
-  return dow >= 1 && dow <= 5;
+  if (dow < 1 || dow > 5) return false;
+  if (isBrazilianHoliday(year, month, day)) return false;
+  return true;
 }
 
 export function businessDaysInMonth(year: number, month: number): number {
