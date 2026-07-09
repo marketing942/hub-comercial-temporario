@@ -68,6 +68,48 @@ export function daysRemainingIncludingToday(year: number, month: number) {
   return Math.max(1, total - today + 1);
 }
 
+// =====================================================
+// Dias uteis (segunda a sexta) — usado na Meta do Dia
+// Nao considera feriados (implementacao simples).
+// =====================================================
+export function isBusinessDay(year: number, month: number, day: number): boolean {
+  const d = new Date(Date.UTC(year, month - 1, day));
+  const dow = d.getUTCDay(); // 0=dom, 6=sab
+  return dow >= 1 && dow <= 5;
+}
+
+export function businessDaysInMonth(year: number, month: number): number {
+  const total = daysInMonth(year, month);
+  let count = 0;
+  for (let d = 1; d <= total; d++) {
+    if (isBusinessDay(year, month, d)) count++;
+  }
+  return count;
+}
+
+// Dias uteis do primeiro dia do mes ate hoje (incluindo hoje).
+// Se hoje for sabado/domingo, conta so os uteis ate a ultima sexta.
+export function businessDaysElapsed(year: number, month: number): number {
+  const today = todayDayOfMonth(year, month);
+  let count = 0;
+  for (let d = 1; d <= today; d++) {
+    if (isBusinessDay(year, month, d)) count++;
+  }
+  return count;
+}
+
+// Dias uteis restantes ate o fim do mes (incluindo hoje se hoje for util).
+// Minimo 1 pra nao dividir por zero.
+export function businessDaysRemainingIncludingToday(year: number, month: number): number {
+  const total = daysInMonth(year, month);
+  const today = todayDayOfMonth(year, month);
+  let count = 0;
+  for (let d = today; d <= total; d++) {
+    if (isBusinessDay(year, month, d)) count++;
+  }
+  return Math.max(1, count);
+}
+
 export type SaleRow = {
   id: string;
   seller_id: string;
@@ -163,18 +205,20 @@ export function computeSellerStats(args: {
   const falta = Math.max(0, metaTotal - realizado);
   const pctSucesso = metaTotal > 0 ? (realizado / metaTotal) * 100 : 0;
 
-  const totalDays = daysInMonth(year, month);
-  const today = todayDayOfMonth(year, month);
-  const daysLeft = daysRemainingIncludingToday(year, month);
+  // Dias UTEIS (seg a sex) — vendemos so em dias uteis, entao a meta
+  // e distribuida por eles.
+  const bDaysTotal = businessDaysInMonth(year, month);
+  const bDaysElapsed = businessDaysElapsed(year, month);
+  const bDaysLeft = businessDaysRemainingIncludingToday(year, month);
 
-  const metaRitmoInicial = metaTotal / totalDays;
-  const metaIdealAteHoje = metaRitmoInicial * today;
+  const metaRitmoInicial = bDaysTotal > 0 ? metaTotal / bDaysTotal : 0;
+  const metaIdealAteHoje = metaRitmoInicial * bDaysElapsed;
   const gap = metaIdealAteHoje - realizado;
 
   // Meta do dia: quanto precisa fazer HOJE pra voltar ao ritmo necessario.
   // Se ja bateu meta, metaDia = 0. Caso contrario, divide o que falta
   // pelos dias restantes incluindo hoje — ja embute o gap automaticamente.
-  const metaDia = falta > 0 ? falta / daysLeft : 0;
+  const metaDia = falta > 0 ? falta / bDaysLeft : 0;
 
   const ticketReal = realizadoQtd > 0 ? realizadoValor / realizadoQtd : 0;
   const ticketMeta = Number(monthly?.ticket_medio_meta || 0);

@@ -3,6 +3,10 @@ import {
   computeSellerStats,
   daysInMonth,
   daysRemainingIncludingToday,
+  businessDaysInMonth,
+  businessDaysElapsed,
+  businessDaysRemainingIncludingToday,
+  isBusinessDay,
   nowRecife,
   periodNow,
   todayDayOfMonth,
@@ -338,13 +342,16 @@ export async function buSeries(
   const ticketReal = totalQtd > 0 ? totalValor / totalQtd : 0;
 
   const today = todayDayOfMonth(year, month);
-  const daysLeft = daysRemainingIncludingToday(year, month);
+  // Meta do dia baseada em DIAS UTEIS (seg-sex) — nao no total corrido do mes
+  const bDaysTotal = businessDaysInMonth(year, month);
+  const bDaysElapsed = businessDaysElapsed(year, month);
+  const bDaysLeft = businessDaysRemainingIncludingToday(year, month);
   const realizado = isQtd ? totalQtd : totalValor;
   const falta = Math.max(0, meta - realizado);
-  const metaRitmoInicial = meta / total;
-  const metaIdealAteHoje = metaRitmoInicial * today;
+  const metaRitmoInicial = bDaysTotal > 0 ? meta / bDaysTotal : 0;
+  const metaIdealAteHoje = metaRitmoInicial * bDaysElapsed;
   const gap = metaIdealAteHoje - realizado;
-  const metaDia = falta > 0 ? falta / daysLeft : 0;
+  const metaDia = falta > 0 ? falta / bDaysLeft : 0;
 
   const todayLabel = `${String(today).padStart(2, "0")}/${String(month).padStart(2, "0")}`;
   const hojeBucket = daily.find((d) => d.day === todayLabel) || { valor: 0, qtd: 0 };
@@ -378,7 +385,13 @@ export async function buSeries(
     const endD = sunday < lastOfMonth ? sunday : lastOfMonth;
     weekStartDay = startD.getDate();
     weekEndDay = endD.getDate();
+    // Total de dias no range da semana dentro do mes (pra label)
     weekDaysInMonth = weekEndDay - weekStartDay + 1;
+    // Dias UTEIS da semana dentro do mes — usado pra distribuir a meta
+    let weekBusinessDays = 0;
+    for (let d = weekStartDay; d <= weekEndDay; d++) {
+      if (isBusinessDay(year, month, d)) weekBusinessDays++;
+    }
 
     const todayDayNum = realToday.getDate();
     for (let d = weekStartDay; d <= weekEndDay && d <= todayDayNum; d++) {
@@ -386,7 +399,7 @@ export async function buSeries(
       const b = buckets[k] || { valor: 0, qtd: 0, leads: 0 };
       weekReal += isQtd ? b.qtd : b.valor;
     }
-    weekTarget = metaRitmoInicial * weekDaysInMonth;
+    weekTarget = metaRitmoInicial * weekBusinessDays;
     weekRemaining = Math.max(0, weekTarget - weekReal);
   }
 
