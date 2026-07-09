@@ -406,7 +406,7 @@ function CompareStatCard({
       <div className="flex items-center justify-between">
         <div className="kpi-label">{label}</div>
         <div
-          className="w-9 h-9 rounded-lg grid place-items-center"
+          className="w-7 h-7 rounded-lg grid place-items-center"
           style={{ background: tone + "22", color: tone }}
         >
           {icon}
@@ -416,8 +416,8 @@ function CompareStatCard({
         <span className="big-num" style={{ color: tone }}>
           {real}
         </span>
-        <span className="text-white/30 text-2xl xl:text-3xl font-bold">/</span>
-        <span className="text-2xl xl:text-3xl font-bold text-white/40">{meta}</span>
+        <span className="text-white/30 text-xl xl:text-2xl font-bold">/</span>
+        <span className="text-xl xl:text-2xl font-bold text-white/40">{meta}</span>
       </div>
       <div className="text-[11px] text-white/40 mt-1 uppercase tracking-wider">
         real / meta{subtitle ? ` · ${subtitle}` : ""}
@@ -462,7 +462,7 @@ function MetaDoDiaCard({
         <div className="flex items-center justify-between">
           <div className="kpi-label">{labelOverride || "Meta do Dia"}</div>
           <div
-            className="w-9 h-9 rounded-lg grid place-items-center"
+            className="w-7 h-7 rounded-lg grid place-items-center"
             style={{ background: placarColor + "22", color: placarColor }}
           >
             <Flame className="w-4 h-4" />
@@ -504,7 +504,7 @@ function Mini({ label, value, tone }: { label: string; value: string; tone: stri
   return (
     <div className="rounded-lg bg-panel2 p-2 text-center">
       <div className="text-[9px] uppercase tracking-wider text-white/40">{label}</div>
-      <div className="text-base font-bold leading-tight mt-0.5" style={{ color: tone }}>
+      <div className="text-sm font-bold leading-tight mt-0.5" style={{ color: tone }}>
         {value}
       </div>
     </div>
@@ -538,7 +538,7 @@ function MetaDaSemanaCard({
         <div className="flex items-center justify-between">
           <div className="kpi-label">{labelOverride || "Meta da Semana"}</div>
           <div
-            className="w-9 h-9 rounded-lg grid place-items-center"
+            className="w-7 h-7 rounded-lg grid place-items-center"
             style={{ background: COLOR.mute + "22", color: COLOR.mute }}
           >
             <Flame className="w-4 h-4" />
@@ -569,7 +569,7 @@ function MetaDaSemanaCard({
         <div className="flex items-center justify-between">
           <div className="kpi-label">{labelOverride || "Meta da Semana"}</div>
           <div
-            className="w-9 h-9 rounded-lg grid place-items-center"
+            className="w-7 h-7 rounded-lg grid place-items-center"
             style={{ background: tone + "22", color: tone }}
           >
             <Flame className="w-4 h-4" />

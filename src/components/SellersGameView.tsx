@@ -218,7 +218,7 @@ function SellerCard({
 
         <div className="flex items-end justify-between gap-2 mt-3">
           <div>
-            <div className="text-3xl xl:text-4xl font-bold leading-none" style={{ color: meta.color }}>
+            <div className="text-2xl xl:text-3xl font-bold leading-none" style={{ color: meta.color }}>
               {fmtPct(s.pctSucesso)}
             </div>
             <div className="text-[11px] text-white/50 mt-0.5">da meta</div>

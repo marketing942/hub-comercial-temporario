@@ -34,7 +34,7 @@ export default function BigStatCard({
           <div className="kpi-label">{label}</div>
           {icon && (
             <div
-              className="w-9 h-9 rounded-lg grid place-items-center text-base"
+              className="w-7 h-7 rounded-lg grid place-items-center text-sm"
               style={{ background: accent + "22", color: accent }}
             >
               {icon}
