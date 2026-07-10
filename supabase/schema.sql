@@ -198,8 +198,7 @@ create table if not exists public.direct_visits (
 );
 create index if not exists direct_visits_date_idx on public.direct_visits(date);
 
-alter table public.direct_sales     disable row level security;
-alter table public.direct_visits    disable row level security;
+-- RLS destas tabelas e ligado em supabase/enable-rls.sql (NAO desligar).
 
 -- ---------- Frases motivacionais ----------
 create table if not exists public.motivational_quotes (
@@ -221,12 +220,9 @@ insert into public.motivational_quotes (text, author) values
 on conflict do nothing;
 
 -- ---------- RLS ----------
--- Mantemos RLS desligado: o acesso a esse banco passa SOMENTE pelas
--- rotas /api do Next, que usam a service role. O front nunca fala direto
--- com o Supabase, entao podemos confiar nas chaves de acesso do app.
-alter table public.sellers           disable row level security;
-alter table public.monthly_goals     disable row level security;
-alter table public.product_goals     disable row level security;
-alter table public.daily_leads       disable row level security;
-alter table public.sales             disable row level security;
-alter table public.motivational_quotes disable row level security;
+-- IMPORTANTE: RLS DEVE ficar LIGADO. Rode supabase/enable-rls.sql.
+-- A anon key e publica (NEXT_PUBLIC_) e, com RLS desligado, qualquer um
+-- com a URL do projeto conseguiria ler/escrever direto no PostgREST,
+-- contornando as rotas /api. Ligar RLS sem policies para anon/authenticated
+-- bloqueia isso; so a service_role (usada no backend) acessa os dados.
+-- (Ver supabase/enable-rls.sql para o comando completo.)

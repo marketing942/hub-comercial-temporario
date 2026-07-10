@@ -3,6 +3,8 @@ import { getSession } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export async function GET(req: Request) {
+  const s = await getSession();
+  if (!s) return NextResponse.json({ error: "Nao autorizado." }, { status: 401 });
   const u = new URL(req.url);
   const bu = u.searchParams.get("bu");
   const year = Number(u.searchParams.get("year"));

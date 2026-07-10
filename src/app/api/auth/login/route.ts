@@ -1,5 +1,14 @@
 import { NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { sessionCookie } from "@/lib/auth";
+
+// Comparacao em tempo constante para evitar timing attack na senha.
+function safeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a, "utf8");
+  const bb = Buffer.from(b, "utf8");
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
+}
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
@@ -19,10 +28,10 @@ export async function POST(req: Request) {
     );
   }
 
-  if (role === "admin" && password !== admin) {
+  if (role === "admin" && !safeEqual(password, admin)) {
     return NextResponse.json({ error: "Senha de administrador incorreta." }, { status: 401 });
   }
-  if (role === "seller" && password !== seller) {
+  if (role === "seller" && !safeEqual(password, seller)) {
     return NextResponse.json({ error: "Senha de vendedor incorreta." }, { status: 401 });
   }
 

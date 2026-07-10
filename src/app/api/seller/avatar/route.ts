@@ -3,7 +3,15 @@ import { getSession } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
 const MAX_SIZE = 10 * 1024 * 1024; // 10 MB (margem; cliente comprime antes)
-const ALLOWED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+// Mapa MIME -> extensao. A extensao vem SEMPRE daqui, nunca do nome do
+// arquivo enviado pelo cliente (evita subir .svg/.html com XSS armazenado).
+const EXT_BY_MIME: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+};
+const ALLOWED = Object.keys(EXT_BY_MIME);
 
 export async function POST(req: Request) {
   const s = await getSession();
@@ -20,7 +28,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Arquivo maior que 10MB depois da compressao." }, { status: 400 });
   }
 
-  const ext = (file.name.split(".").pop() || file.type.split("/")[1] || "jpg").toLowerCase();
+  const ext = EXT_BY_MIME[file.type];
   const path = `${s.sellerId}/avatar-${Date.now()}.${ext}`;
 
   const buf = Buffer.from(await file.arrayBuffer());

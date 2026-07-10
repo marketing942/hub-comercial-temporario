@@ -3,6 +3,8 @@ import { getSession } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export async function GET() {
+  const s = await getSession();
+  if (!s) return NextResponse.json({ error: "Nao autorizado." }, { status: 401 });
   const { data, error } = await supabaseAdmin.from("sellers").select("*").order("name");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ data });

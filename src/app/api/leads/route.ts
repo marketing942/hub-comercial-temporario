@@ -19,6 +19,8 @@ export async function POST(req: Request) {
 
 // GET /api/leads?seller_id=&year=&month=
 export async function GET(req: Request) {
+  const s = await getSession();
+  if (!s) return NextResponse.json({ error: "Nao autorizado." }, { status: 401 });
   const u = new URL(req.url);
   const seller_id = u.searchParams.get("seller_id");
   const year = Number(u.searchParams.get("year"));

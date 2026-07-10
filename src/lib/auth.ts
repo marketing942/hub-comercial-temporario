@@ -7,7 +7,13 @@ const COOKIE = "hub_session";
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 dias
 
 function secret() {
-  return process.env.SESSION_SECRET || "dev-secret-change-me";
+  const s = process.env.SESSION_SECRET;
+  if (!s || s.length < 32) {
+    throw new Error(
+      "SESSION_SECRET ausente ou fraco (>= 32 caracteres obrigatorio)."
+    );
+  }
+  return s;
 }
 
 function b64urlEncode(buf: ArrayBuffer | Uint8Array): string {
@@ -42,10 +48,21 @@ async function hmac(payload: string): Promise<string> {
   return b64urlEncode(sig);
 }
 
+type SignedSession = Session & { exp: number };
+
 export async function encodeSession(s: Session): Promise<string> {
-  const body = b64urlEncodeStr(JSON.stringify(s));
+  const payload: SignedSession = { ...s, exp: Date.now() + MAX_AGE * 1000 };
+  const body = b64urlEncodeStr(JSON.stringify(payload));
   const sig = await hmac(body);
   return `${body}.${sig}`;
+}
+
+// Comparacao de assinatura em tempo constante (evita timing attack).
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
 }
 
 export async function decodeSession(token?: string | null): Promise<Session | null> {
@@ -53,9 +70,15 @@ export async function decodeSession(token?: string | null): Promise<Session | nu
   const [body, sig] = token.split(".");
   if (!body || !sig) return null;
   const expected = await hmac(body);
-  if (expected !== sig) return null;
+  if (!safeEqual(expected, sig)) return null;
   try {
-    return JSON.parse(b64urlDecodeStr(body)) as Session;
+    const parsed = JSON.parse(b64urlDecodeStr(body)) as SignedSession;
+    if (!parsed || typeof parsed.exp !== "number" || parsed.exp < Date.now()) {
+      return null;
+    }
+    const { role, sellerId } = parsed;
+    if (role !== "admin" && role !== "seller") return null;
+    return { role, sellerId };
   } catch {
     return null;
   }

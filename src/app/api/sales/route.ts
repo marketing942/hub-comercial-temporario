@@ -43,8 +43,8 @@ export async function GET(req: Request) {
   const year = Number(u.searchParams.get("year"));
   const month = Number(u.searchParams.get("month"));
   const sellerParam = u.searchParams.get("seller_id");
-  const sellerId =
-    session.role === "admin" ? sellerParam : session.sellerId || sellerParam;
+  // Admin pode consultar qualquer vendedor; vendedor SO ve os proprios dados.
+  const sellerId = session.role === "admin" ? sellerParam : session.sellerId;
 
   if (!year || !month || !sellerId) {
     return NextResponse.json({ error: "Parametros invalidos." }, { status: 400 });
