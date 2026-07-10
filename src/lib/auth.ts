@@ -69,9 +69,12 @@ export async function decodeSession(token?: string | null): Promise<Session | nu
   if (!token) return null;
   const [body, sig] = token.split(".");
   if (!body || !sig) return null;
-  const expected = await hmac(body);
-  if (!safeEqual(expected, sig)) return null;
   try {
+    // hmac() usa secret(); se SESSION_SECRET estiver ausente/fraco, isso
+    // lanca. Aqui tratamos como "sessao invalida" (nao derruba o app) —
+    // o usuario e mandado ao login em vez de receber um 500 no middleware.
+    const expected = await hmac(body);
+    if (!safeEqual(expected, sig)) return null;
     const parsed = JSON.parse(b64urlDecodeStr(body)) as SignedSession;
     if (!parsed || typeof parsed.exp !== "number" || parsed.exp < Date.now()) {
       return null;
@@ -79,7 +82,8 @@ export async function decodeSession(token?: string | null): Promise<Session | nu
     const { role, sellerId } = parsed;
     if (role !== "admin" && role !== "seller") return null;
     return { role, sellerId };
-  } catch {
+  } catch (err) {
+    console.error("decodeSession falhou:", err);
     return null;
   }
 }
