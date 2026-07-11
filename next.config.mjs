@@ -1,11 +1,12 @@
 /** @type {import('next').NextConfig} */
 
 // Content-Security-Policy: restringe origens. Ajuste se adicionar CDNs.
-// 'unsafe-inline' em style-src e necessario pro Tailwind/estilos inline;
-// scripts ficam so na propria origem.
+// 'unsafe-inline' e necessario no script-src porque o Next.js injeta scripts
+// inline de hidratacao/bootstrap (sem isso, o app nao carrega o JS). O mesmo
+// vale para o style-src (Tailwind/estilos inline).
 const csp = [
   "default-src 'self'",
-  "script-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
