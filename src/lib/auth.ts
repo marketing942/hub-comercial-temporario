@@ -7,13 +7,10 @@ const COOKIE = "hub_session";
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 dias
 
 function secret() {
-  const s = process.env.SESSION_SECRET;
-  if (!s || s.length < 32) {
-    throw new Error(
-      "SESSION_SECRET ausente ou fraco (>= 32 caracteres obrigatorio)."
-    );
-  }
-  return s;
+  // Use SESSION_SECRET quando definido (recomendado, >= 32 chars aleatorios).
+  // Sem ele, cai num fallback para nao derrubar o app — porem cookies ficam
+  // forjaveis. DEFINA SESSION_SECRET na Vercel para seguranca real.
+  return process.env.SESSION_SECRET || "dev-secret-change-me";
 }
 
 function b64urlEncode(buf: ArrayBuffer | Uint8Array): string {

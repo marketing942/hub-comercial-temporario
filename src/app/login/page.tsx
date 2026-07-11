@@ -45,12 +45,14 @@ export default function LoginPage() {
         <div className="card">
           <div className="grid grid-cols-2 gap-2 mb-4">
             <button
+              type="button"
               onClick={() => setRole("seller")}
               className={`btn ${role === "seller" ? "btn-primary" : "btn-ghost"}`}
             >
               <Users className="w-4 h-4" /> Vendedor
             </button>
             <button
+              type="button"
               onClick={() => setRole("admin")}
               className={`btn ${role === "admin" ? "btn-primary" : "btn-ghost"}`}
             >

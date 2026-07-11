@@ -7,12 +7,23 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // --- Protecao CSRF (same-origin) nas rotas /api mutantes ---
-  // Navegadores sempre enviam Origin em requisicoes cross-origin que mudam
-  // estado. Se houver Origin e ela nao bater com o host, bloqueia.
+  // Compara o HOST do header Origin com o host real da requisicao (atras do
+  // proxy da Vercel, use x-forwarded-host). So bloqueia se houver Origin e o
+  // host for claramente de outro dominio — nao quebra requisicoes do proprio
+  // site nem clientes sem Origin.
   if (pathname.startsWith("/api") && MUTATING.has(req.method)) {
     const origin = req.headers.get("origin");
-    if (origin && origin !== req.nextUrl.origin) {
-      return NextResponse.json({ error: "Origem invalida." }, { status: 403 });
+    if (origin) {
+      const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
+      let originHost = "";
+      try {
+        originHost = new URL(origin).host;
+      } catch {
+        originHost = "";
+      }
+      if (host && originHost && originHost !== host) {
+        return NextResponse.json({ error: "Origem invalida." }, { status: 403 });
+      }
     }
   }
   // O middleware nao aplica redirecionamento de pagina para rotas de API.
