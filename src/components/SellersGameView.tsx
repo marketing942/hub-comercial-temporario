@@ -13,6 +13,7 @@ import {
   Users,
   Wallet,
   Target,
+  GraduationCap,
 } from "lucide-react";
 
 type Status = "batido" | "quase" | "andamento" | "atrasado";
@@ -240,8 +241,12 @@ function SellerCard({
           <ProgressBar value={s.pctSucesso} color={meta.color} height={7} />
         </div>
 
-        {/* 3 mini stats com REAL / META lado a lado */}
-        <div className="grid grid-cols-3 gap-2 mt-3">
+        {/* Mini stats — Unicive tem 4 (adiciona Matriculas), o resto tem 3 */}
+        <div
+          className={`grid gap-2 mt-3 ${
+            s.bu === "unicive" ? "grid-cols-4" : "grid-cols-3"
+          }`}
+        >
           <CompareStat
             label="Ticket"
             icon={<Wallet className="w-3 h-3" />}
@@ -261,6 +266,13 @@ function SellerCard({
             icon={<Users className="w-3 h-3" />}
             value={fmtInt.format(s.leads)}
           />
+          {s.bu === "unicive" && (
+            <SoloStat
+              label="Matriculas"
+              icon={<GraduationCap className="w-3 h-3" />}
+              value={fmtInt.format(s.qtdRealizada)}
+            />
+          )}
         </div>
       </div>
     </div>

@@ -266,8 +266,85 @@ export default function DashboardView({
         />
       </section>
 
-      {/* Linha extra so pra Unicive/Colegio: Meta do Dia (R$) + Meta da
-          Semana (R$). Fatura tambem tem peso nessas BUs. */}
+      {/* Linha extra da UNICIVE: matriculas como secundaria (o primario
+          agora e faturamento). Mostra qtd real/meta + meta dia + semana. */}
+      {bu === "unicive" && (
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <BigStatCard
+            label="Matriculas (Real / Meta)"
+            value={`${fmtInt.format(t.qtd)} / ${fmtInt.format(t.metaQtd)}`}
+            icon={<TrendingUp />}
+            accent={COLOR.info}
+            valueColor={COLOR.neutral}
+            progressPct={t.metaQtd > 0 ? (t.qtd / t.metaQtd) * 100 : 0}
+            progressColor={
+              t.metaQtd > 0 && t.qtd >= t.metaQtd ? COLOR.ok : COLOR.info
+            }
+            progressFooter={
+              <span>
+                <span
+                  style={{
+                    color: t.metaQtd > 0 && t.qtd >= t.metaQtd ? COLOR.ok : COLOR.neutral,
+                  }}
+                >
+                  {t.metaQtd > 0 ? fmtPct((t.qtd / t.metaQtd) * 100) : "—"}
+                </span>
+                <span className="text-white/40">
+                  {" "}·{" "}
+                  {t.metaQtd > 0 && t.qtd >= t.metaQtd
+                    ? "Meta de matriculas batida"
+                    : `Faltam ${fmtInt.format(Math.max(0, t.metaQtd - t.qtd))}`}
+                </span>
+              </span>
+            }
+          />
+          <MetaDoDiaCard
+            isQtd={true}
+            metaDia={fmtInt.format(Math.round(t.metaDiaQtd))}
+            realHoje={fmtInt.format(Math.round(t.qtdHoje))}
+            falta={fmtInt.format(Math.max(0, Math.round(t.metaDiaQtd - t.qtdHoje)))}
+            diff={fmtInt.format(Math.abs(Math.round(t.qtdHoje - t.metaDiaQtd)))}
+            placarLabel={
+              t.metaQtd === 0
+                ? "Sem meta de matriculas"
+                : t.qtd >= t.metaQtd
+                ? "Meta de matriculas batida"
+                : t.metaDiaQtd === 0
+                ? "No pace de matriculas"
+                : t.qtdHoje >= t.metaDiaQtd
+                ? "Vencendo em matriculas"
+                : "Atras em matriculas"
+            }
+            placarColor={
+              t.metaQtd === 0
+                ? COLOR.mute
+                : t.qtd >= t.metaQtd
+                ? COLOR.ok
+                : t.qtdHoje >= t.metaDiaQtd
+                ? COLOR.ok
+                : COLOR.danger
+            }
+            vencendo={t.qtdHoje >= t.metaDiaQtd && t.metaDiaQtd > 0}
+            empate={Math.abs(t.qtdHoje - t.metaDiaQtd) < 0.5}
+            semMeta={t.metaQtd === 0 || t.metaDiaQtd <= 0}
+            labelOverride="Meta do Dia (Matriculas)"
+          />
+          <MetaDaSemanaCard
+            isQtd={true}
+            fmtMeta={(n: number) => fmtInt.format(Math.round(n))}
+            weekActive={t.weekActive}
+            weekStartDay={t.weekStartDay}
+            weekEndDay={t.weekEndDay}
+            weekTarget={t.weekTargetQtd}
+            weekReal={t.weekRealQtd}
+            weekRemaining={t.weekRemainingQtd}
+            labelOverride="Meta da Semana (Matriculas)"
+          />
+        </section>
+      )}
+
+      {/* Linha extra so pra Colegio: Meta do Dia (R$) + Meta da Semana (R$).
+          Faturamento tambem tem peso no Colegio. */}
       {isQtd && (
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <MetaDoDiaCard

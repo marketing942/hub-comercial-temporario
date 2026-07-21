@@ -202,10 +202,17 @@ export type BUSeries = {
     weekActive: boolean;    // se o mes visualizado e o mes atual
     // Metas em FATURAMENTO (utilizadas em Unicive/Colegio onde a meta
     // primaria e qtd, mas o faturamento tambem tem meta e importa)
-    metaDiaValor: number;   // meta do dia em R$ (util pra Unicive/Colegio)
+    metaDiaValor: number;   // meta do dia em R$ (util pra Colegio)
     weekTargetValor: number;
     weekRealValor: number;
     weekRemainingValor: number;
+    // Mesmas metricas mas em QUANTIDADE (util pra Unicive mostrar
+    // matriculas como secundaria, ja que primaria agora e faturamento)
+    metaQtd: number;
+    metaDiaQtd: number;
+    weekTargetQtd: number;
+    weekRealQtd: number;
+    weekRemainingQtd: number;
   };
 };
 
@@ -242,6 +249,8 @@ export async function buSeries(
         weekStartDay: 0, weekEndDay: 0, weekDaysInMonth: 0,
         weekTarget: 0, weekReal: 0, weekRemaining: 0, weekActive: false,
         metaDiaValor: 0, weekTargetValor: 0, weekRealValor: 0, weekRemainingValor: 0,
+        metaQtd: 0, metaDiaQtd: 0,
+        weekTargetQtd: 0, weekRealQtd: 0, weekRemainingQtd: 0,
       },
     };
   }
@@ -366,6 +375,12 @@ export async function buSeries(
   const metaRitmoValor = bDaysTotal > 0 ? metaValor / bDaysTotal : 0;
   const metaDiaValor = faltaValor > 0 ? faltaValor / bDaysLeft : 0;
 
+  // Mesmas metricas mas em QUANTIDADE — pra Unicive mostrar matriculas
+  // como card secundario, ja que agora o primario dela e faturamento.
+  const faltaQtd = Math.max(0, qtdMeta - totalQtd);
+  const metaRitmoQtd = bDaysTotal > 0 ? qtdMeta / bDaysTotal : 0;
+  const metaDiaQtd = faltaQtd > 0 ? faltaQtd / bDaysLeft : 0;
+
   const todayLabel = `${String(today).padStart(2, "0")}/${String(month).padStart(2, "0")}`;
   const hojeBucket = daily.find((d) => d.day === todayLabel) || { valor: 0, qtd: 0 };
   const realizadoHoje = isQtd ? hojeBucket.qtd : hojeBucket.valor;
@@ -385,6 +400,9 @@ export async function buSeries(
   let weekTargetValor = 0;
   let weekRealValor = 0;
   let weekRemainingValor = 0;
+  let weekTargetQtd = 0;
+  let weekRealQtd = 0;
+  let weekRemainingQtd = 0;
   const weekActive = sameMonth;
   if (sameMonth) {
     const dow = realToday.getDay(); // 0=dom, 1=seg ... 6=sab
@@ -415,11 +433,14 @@ export async function buSeries(
       const b = buckets[k] || { valor: 0, qtd: 0, leads: 0 };
       weekReal += isQtd ? b.qtd : b.valor;
       weekRealValor += b.valor;
+      weekRealQtd += b.qtd;
     }
     weekTarget = metaRitmoInicial * weekBusinessDays;
     weekRemaining = Math.max(0, weekTarget - weekReal);
     weekTargetValor = metaRitmoValor * weekBusinessDays;
     weekRemainingValor = Math.max(0, weekTargetValor - weekRealValor);
+    weekTargetQtd = metaRitmoQtd * weekBusinessDays;
+    weekRemainingQtd = Math.max(0, weekTargetQtd - weekRealQtd);
   }
 
   return {
@@ -453,6 +474,11 @@ export async function buSeries(
       weekTargetValor,
       weekRealValor,
       weekRemainingValor,
+      metaQtd: qtdMeta,
+      metaDiaQtd,
+      weekTargetQtd,
+      weekRealQtd,
+      weekRemainingQtd,
     },
   };
 }

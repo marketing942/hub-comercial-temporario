@@ -246,6 +246,21 @@ export default async function MyPanel({
             }
           />
         )}
+        {bu === "unicive" && (
+          <StatCard
+            label="Matriculas"
+            value={fmtInt.format(stats.qtdRealizada)}
+            hint={
+              stats.qtdMeta > 0
+                ? `Meta ${fmtInt.format(stats.qtdMeta)} (${fmtPct((stats.qtdRealizada / stats.qtdMeta) * 100)})`
+                : "Sem meta de matriculas"
+            }
+            icon={<Users className="w-4 h-4" />}
+            accent={
+              stats.qtdMeta > 0 && stats.qtdRealizada >= stats.qtdMeta ? COLOR.ok : COLOR.neutral
+            }
+          />
+        )}
       </section>
 
       {/* Contexto da BU */}

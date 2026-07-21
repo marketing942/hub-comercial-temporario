@@ -73,10 +73,12 @@ export function productLabel(id: string): string {
   return all.find((p) => p.id === id)?.label ?? id;
 }
 
-// Para Unicive e Colegio, a metrica primaria e quantidade (matriculas).
-// Para CPPEM, e faturamento (R$).
+// Para o COLEGIO CPPEM, a metrica primaria e quantidade de matriculas.
+// UNICIVE tambem lida com matriculas, mas o foco de meta e ranking e
+// FATURAMENTO dessas matriculas — a quantidade fica como secundaria.
+// CPPEM sempre foi faturamento.
 export function isQtdPrimary(bu: BU): boolean {
-  return bu === "unicive" || bu === "colegio_cppem";
+  return bu === "colegio_cppem";
 }
 
 export const TURMAS_GROUP_LABEL = "Turmas Presenciais e Eventos";

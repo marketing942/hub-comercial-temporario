@@ -251,7 +251,9 @@ export function computeSellerStats(args: {
   month: number;
 }): SellerStats {
   const { seller, productGoals, monthly, sales, leadsMonth, year, month } = args;
-  const isUni = seller.bu === "unicive" || seller.bu === "colegio_cppem";
+  // Meta primaria = quantidade so pro Colegio CPPEM. Unicive agora foca
+  // em faturamento (matriculas viram metrica secundaria).
+  const isUni = seller.bu === "colegio_cppem";
 
   // Fonte preferencial: monthly_goals.valor_meta/quantidade_meta (fluxo novo).
   // Fallback: soma de product_goals (compat com dados antigos).
