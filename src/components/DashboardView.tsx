@@ -1,5 +1,5 @@
 import type { DashboardSnapshot } from "@/lib/data";
-import { BRL, fmtInt, fmtPct } from "@/lib/calc";
+import { BRL, fmtInt, fmtPct, paceProjection } from "@/lib/calc";
 import { BU_COLOR, BU_LABEL, BU_THEME, COLOR, tonePctMeta } from "@/lib/brand";
 import { isQtdPrimary } from "@/lib/products";
 import BULogo from "@/components/BULogo";
@@ -83,6 +83,16 @@ export default function DashboardView({
   const leadsPct = leadsMeta > 0 ? (leadsTotal / leadsMeta) * 100 : 0;
   const leadsTone = leadsMeta > 0 ? (leadsTotal >= leadsMeta ? COLOR.ok : COLOR.danger) : COLOR.neutral;
 
+  // ==== Pace + Projecao ====
+  // Total Vendido usa a metrica primaria da BU (R$ pra CPPEM/UNI, qtd pra Colegio)
+  const paceRealizado = paceProjection(realizado, t.meta, t.bDaysElapsed, t.bDaysTotal);
+  // Faturamento (importante em Unicive/Colegio como card separado)
+  const paceValor = paceProjection(t.valor, t.metaValor, t.bDaysElapsed, t.bDaysTotal);
+  // Matriculas (qtd) — usado na linha extra da Unicive
+  const paceQtd = paceProjection(t.qtd, t.metaQtd, t.bDaysElapsed, t.bDaysTotal);
+  // Leads
+  const paceLeads = paceProjection(leadsTotal, leadsMeta, t.bDaysElapsed, t.bDaysTotal);
+
   // Cores semanticas para Ticket e Conversao (X real / Y meta)
   const ticketTone =
     t.ticketMeta > 0
@@ -141,10 +151,20 @@ export default function DashboardView({
               progressPct={pct}
               progressColor={pctTone}
               progressFooter={
-                <span>
-                  <span style={{ color: pctTone }}>{fmtPct(pct)}</span>
-                  <span className="text-white/40"> · {pct >= 100 ? "Meta batida" : `Faltam ${fmtInt.format(falta)}`}</span>
-                </span>
+                <>
+                  <span>
+                    <span style={{ color: pctTone }}>{fmtPct(pct)}</span>
+                    <span className="text-white/40"> · {pct >= 100 ? "Meta batida" : `Faltam ${fmtInt.format(falta)}`}</span>
+                  </span>
+                  <PaceProjInfo
+                    paceDelta={paceRealizado.paceDelta}
+                    paceIsAhead={paceRealizado.paceIsAhead}
+                    hasMeta={paceRealizado.hasMeta}
+                    projecao={paceRealizado.projecao}
+                    pctProjecao={paceRealizado.pctProjecao}
+                    fmt={(n) => fmtInt.format(Math.round(n))}
+                  />
+                </>
               }
             />
             <BigStatCard
@@ -156,10 +176,20 @@ export default function DashboardView({
               progressPct={pctFat}
               progressColor={pctFatTone}
               progressFooter={
-                <span>
-                  <span style={{ color: pctFatTone }}>{fmtPct(pctFat)}</span>
-                  <span className="text-white/40"> · {pctFat >= 100 ? "Meta de R$ batida" : `Faltam ${BRL.format(faltaFat)}`}</span>
-                </span>
+                <>
+                  <span>
+                    <span style={{ color: pctFatTone }}>{fmtPct(pctFat)}</span>
+                    <span className="text-white/40"> · {pctFat >= 100 ? "Meta de R$ batida" : `Faltam ${BRL.format(faltaFat)}`}</span>
+                  </span>
+                  <PaceProjInfo
+                    paceDelta={paceValor.paceDelta}
+                    paceIsAhead={paceValor.paceIsAhead}
+                    hasMeta={paceValor.hasMeta}
+                    projecao={paceValor.projecao}
+                    pctProjecao={paceValor.pctProjecao}
+                    fmt={(n) => BRL.format(n)}
+                  />
+                </>
               }
             />
             <BigStatCard
@@ -193,10 +223,20 @@ export default function DashboardView({
               progressPct={pct}
               progressColor={pctTone}
               progressFooter={
-                <span>
-                  <span style={{ color: pctTone }}>{fmtPct(pct)}</span>
-                  <span className="text-white/40"> · {pct >= 100 ? "Meta batida" : `Faltam ${BRL.format(falta)}`}</span>
-                </span>
+                <>
+                  <span>
+                    <span style={{ color: pctTone }}>{fmtPct(pct)}</span>
+                    <span className="text-white/40"> · {pct >= 100 ? "Meta batida" : `Faltam ${BRL.format(falta)}`}</span>
+                  </span>
+                  <PaceProjInfo
+                    paceDelta={paceRealizado.paceDelta}
+                    paceIsAhead={paceRealizado.paceIsAhead}
+                    hasMeta={paceRealizado.hasMeta}
+                    projecao={paceRealizado.projecao}
+                    pctProjecao={paceRealizado.pctProjecao}
+                    fmt={(n) => BRL.format(n)}
+                  />
+                </>
               }
             />
             <BigStatCard
@@ -253,6 +293,16 @@ export default function DashboardView({
           meta={leadsMeta > 0 ? fmtInt.format(leadsMeta) : "—"}
           tone={leadsTone}
           subtitle={leadsMeta > 0 ? fmtPct(leadsPct) + " da meta" : undefined}
+          footer={
+            <PaceProjInfo
+              paceDelta={paceLeads.paceDelta}
+              paceIsAhead={paceLeads.paceIsAhead}
+              hasMeta={paceLeads.hasMeta}
+              projecao={paceLeads.projecao}
+              pctProjecao={paceLeads.pctProjecao}
+              fmt={(n) => fmtInt.format(Math.round(n))}
+            />
+          }
         />
         <MetaDaSemanaCard
           isQtd={isQtd}
@@ -281,21 +331,31 @@ export default function DashboardView({
               t.metaQtd > 0 && t.qtd >= t.metaQtd ? COLOR.ok : COLOR.info
             }
             progressFooter={
-              <span>
-                <span
-                  style={{
-                    color: t.metaQtd > 0 && t.qtd >= t.metaQtd ? COLOR.ok : COLOR.neutral,
-                  }}
-                >
-                  {t.metaQtd > 0 ? fmtPct((t.qtd / t.metaQtd) * 100) : "—"}
+              <>
+                <span>
+                  <span
+                    style={{
+                      color: t.metaQtd > 0 && t.qtd >= t.metaQtd ? COLOR.ok : COLOR.neutral,
+                    }}
+                  >
+                    {t.metaQtd > 0 ? fmtPct((t.qtd / t.metaQtd) * 100) : "—"}
+                  </span>
+                  <span className="text-white/40">
+                    {" "}·{" "}
+                    {t.metaQtd > 0 && t.qtd >= t.metaQtd
+                      ? "Meta de matriculas batida"
+                      : `Faltam ${fmtInt.format(Math.max(0, t.metaQtd - t.qtd))}`}
+                  </span>
                 </span>
-                <span className="text-white/40">
-                  {" "}·{" "}
-                  {t.metaQtd > 0 && t.qtd >= t.metaQtd
-                    ? "Meta de matriculas batida"
-                    : `Faltam ${fmtInt.format(Math.max(0, t.metaQtd - t.qtd))}`}
-                </span>
-              </span>
+                <PaceProjInfo
+                  paceDelta={paceQtd.paceDelta}
+                  paceIsAhead={paceQtd.paceIsAhead}
+                  hasMeta={paceQtd.hasMeta}
+                  projecao={paceQtd.projecao}
+                  pctProjecao={paceQtd.pctProjecao}
+                  fmt={(n) => fmtInt.format(Math.round(n))}
+                />
+              </>
             }
           />
           <MetaDoDiaCard
@@ -470,6 +530,7 @@ function CompareStatCard({
   meta,
   tone,
   subtitle,
+  footer,
 }: {
   label: string;
   icon?: React.ReactNode;
@@ -477,6 +538,7 @@ function CompareStatCard({
   meta: string;
   tone: string;
   subtitle?: string;
+  footer?: React.ReactNode;
 }) {
   return (
     <div className="card-lg">
@@ -499,6 +561,7 @@ function CompareStatCard({
       <div className="text-[11px] text-white/40 mt-1 uppercase tracking-wider">
         real / meta{subtitle ? ` · ${subtitle}` : ""}
       </div>
+      {footer}
     </div>
   );
 }
@@ -572,6 +635,50 @@ function MetaDoDiaCard({
             </span>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Linha compacta de Pace + Projecao que cabe dentro dos cards de KPI
+// sem estrapolar o layout.
+function PaceProjInfo({
+  paceDelta,
+  paceIsAhead,
+  hasMeta,
+  projecao,
+  pctProjecao,
+  fmt,
+}: {
+  paceDelta: number;
+  paceIsAhead: boolean;
+  hasMeta: boolean;
+  projecao: number;
+  pctProjecao: number;
+  fmt: (n: number) => string;
+}) {
+  const paceColor = !hasMeta ? COLOR.mute : paceIsAhead ? COLOR.ok : COLOR.danger;
+  const projColor = !hasMeta ? COLOR.mute : pctProjecao >= 100 ? COLOR.ok : COLOR.danger;
+  const Arrow = paceIsAhead ? ArrowUpRight : ArrowDownRight;
+  const paceAbs = fmt(Math.abs(paceDelta));
+  return (
+    <div className="mt-1 grid grid-cols-2 gap-1.5">
+      <div className="rounded-md bg-panel2/70 px-2 py-1 flex items-center justify-between gap-1">
+        <span className="text-[9px] uppercase tracking-wider text-white/40">Pace</span>
+        <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold" style={{ color: paceColor }}>
+          {hasMeta ? (
+            <>
+              <Arrow className="w-3 h-3" />
+              {paceIsAhead ? "+" : "-"}{paceAbs}
+            </>
+          ) : "—"}
+        </span>
+      </div>
+      <div className="rounded-md bg-panel2/70 px-2 py-1 flex items-center justify-between gap-1">
+        <span className="text-[9px] uppercase tracking-wider text-white/40">Projecao</span>
+        <span className="text-[11px] font-semibold whitespace-nowrap" style={{ color: projColor }}>
+          {fmt(projecao)}{hasMeta ? ` · ${fmtPct(pctProjecao)}` : ""}
+        </span>
       </div>
     </div>
   );

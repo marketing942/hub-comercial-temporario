@@ -185,6 +185,41 @@ export function businessDaysRemainingIncludingToday(year: number, month: number)
   return Math.max(1, count);
 }
 
+// =====================================================
+// Pace + Projecao (helpers pra cards do dashboard)
+//   pace     = realizado - esperado_ate_agora  (>0 = acima do ritmo)
+//   projecao = realizado extrapolado ate o fim do mes (dias uteis)
+// =====================================================
+export type PaceProjection = {
+  expectedByNow: number;
+  paceDelta: number;      // real - esperado (positivo = acima)
+  paceIsAhead: boolean;   // true se paceDelta >= 0 (com meta > 0)
+  hasMeta: boolean;
+  projecao: number;
+  pctProjecao: number;    // projecao / meta * 100
+};
+
+export function paceProjection(
+  realizado: number,
+  meta: number,
+  bDaysElapsed: number,
+  bDaysTotal: number
+): PaceProjection {
+  const hasMeta = meta > 0 && bDaysTotal > 0;
+  const expectedByNow = hasMeta && bDaysTotal > 0 ? meta * (bDaysElapsed / bDaysTotal) : 0;
+  const paceDelta = realizado - expectedByNow;
+  const projecao = bDaysElapsed > 0 ? realizado * (bDaysTotal / bDaysElapsed) : 0;
+  const pctProjecao = meta > 0 ? (projecao / meta) * 100 : 0;
+  return {
+    expectedByNow,
+    paceDelta,
+    paceIsAhead: hasMeta && paceDelta >= 0,
+    hasMeta,
+    projecao,
+    pctProjecao,
+  };
+}
+
 export type SaleRow = {
   id: string;
   seller_id: string;

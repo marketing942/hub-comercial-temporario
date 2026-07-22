@@ -213,6 +213,10 @@ export type BUSeries = {
     weekTargetQtd: number;
     weekRealQtd: number;
     weekRemainingQtd: number;
+    // Dias uteis do mes (pra o dashboard poder calcular pace/projecao
+    // de coisas que nao sao a metrica primaria — leads, por exemplo).
+    bDaysTotal: number;
+    bDaysElapsed: number;
   };
 };
 
@@ -251,6 +255,8 @@ export async function buSeries(
         metaDiaValor: 0, weekTargetValor: 0, weekRealValor: 0, weekRemainingValor: 0,
         metaQtd: 0, metaDiaQtd: 0,
         weekTargetQtd: 0, weekRealQtd: 0, weekRemainingQtd: 0,
+        bDaysTotal: businessDaysInMonth(year, month),
+        bDaysElapsed: businessDaysElapsed(year, month),
       },
     };
   }
@@ -479,6 +485,8 @@ export async function buSeries(
       weekTargetQtd,
       weekRealQtd,
       weekRemainingQtd,
+      bDaysTotal,
+      bDaysElapsed,
     },
   };
 }
