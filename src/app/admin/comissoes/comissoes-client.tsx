@@ -61,8 +61,11 @@ export default function ComissoesClient({
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-[420px_1fr] gap-4">
-        <RulesEditor bu={tab} initial={rules[tab]} />
-        <BoardView board={boards[tab]} />
+        {/* key={tab} forca remount ao trocar de BU pra o useState
+            reinicializar com o initial certo (senao React reusa a
+            instancia e o form fica com o estado da BU anterior) */}
+        <RulesEditor key={tab} bu={tab} initial={rules[tab]} />
+        <BoardView key={`board-${tab}`} board={boards[tab]} />
       </div>
     </div>
   );
