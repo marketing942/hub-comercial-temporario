@@ -11,6 +11,9 @@ export default function CommissionProgress({
   pctMeta,
   nextTier,
   toNextTier,
+  avatarUrl,
+  avatarInitial,
+  avatarColor,
 }: {
   color: string;
   rules: CommissionRules;
@@ -19,6 +22,9 @@ export default function CommissionProgress({
   pctMeta: number;
   nextTier: CommissionTier | null;
   toNextTier: number;
+  avatarUrl?: string | null;
+  avatarInitial: string;
+  avatarColor: string;
 }) {
   // Escala vai de 0 ate o maior tier (ou 100 se so tiver tiers pequenos).
   const maxTier = rules.tiers.reduce((a, t) => Math.max(a, t.meta_pct), 100);
@@ -26,87 +32,175 @@ export default function CommissionProgress({
   const barPct = Math.min(100, (pctMeta / scale) * 100);
 
   return (
-    <div className="card-lg">
+    <div className="card-lg h-full flex flex-col">
       <div className="flex items-center justify-between mb-3">
         <div className="text-sm font-semibold flex items-center gap-2">
-          <Rocket className="w-4 h-4" style={{ color }} /> Progresso ate o proximo checkpoint
+          <Rocket className="w-4 h-4" style={{ color }} /> Sua jornada ate o proximo checkpoint
         </div>
         <div className="text-xs font-semibold" style={{ color }}>
           {fmtPct(pctMeta)}
         </div>
       </div>
 
-      <div className="relative pt-6 pb-8">
+      {/* ==== Trilha com avatar do vendedor andando ==== */}
+      <div className="relative px-2" style={{ paddingTop: 74, paddingBottom: 44 }}>
         {/* trilha */}
-        <div className="w-full h-3 rounded-full bg-border/60 overflow-hidden">
+        <div className="relative w-full h-2.5 rounded-full bg-border/60 overflow-visible">
           <div
-            className="h-full rounded-full transition-all"
+            className="h-full rounded-full"
             style={{
               width: `${barPct}%`,
               background: `linear-gradient(90deg, ${color}, ${color}cc)`,
               boxShadow: `0 0 12px ${color}55`,
-              transition: "width 700ms cubic-bezier(.4,1.6,.5,1)",
+              transition: "width 900ms cubic-bezier(.4,1.6,.5,1)",
             }}
           />
-        </div>
 
-        {/* checkpoints */}
-        <div className="absolute inset-x-0 top-0 bottom-0 pointer-events-none">
+          {/* Checkpoints (bolinhas sobre a barra, labels embaixo) */}
           {rules.tiers.map((t) => {
             const pos = Math.min(100, (t.meta_pct / scale) * 100);
             const reached = pctMeta >= t.meta_pct;
             return (
               <div
                 key={t.meta_pct}
-                className="absolute"
-                style={{ left: `${pos}%`, transform: "translateX(-50%)", top: 0, bottom: 0 }}
+                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2"
+                style={{ left: `${pos}%` }}
               >
-                {/* etiqueta em cima */}
-                <div className="text-center text-[10px] font-semibold whitespace-nowrap -translate-y-0.5">
-                  <div style={{ color: reached ? color : "#94a3b8" }}>
-                    {t.meta_pct}%
-                  </div>
-                  <div className="text-[9px] text-white/40">
-                    +{t.commission_pct.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%
-                  </div>
-                </div>
-                {/* bolinha no meio da barra */}
                 <div
-                  className="absolute left-1/2 top-[38px] -translate-x-1/2 rounded-full border-2 grid place-items-center"
+                  className="rounded-full border-2 grid place-items-center"
                   style={{
-                    width: 18,
-                    height: 18,
+                    width: 16,
+                    height: 16,
                     background: reached ? color : "#0b1220",
                     borderColor: reached ? color : "#334155",
                     boxShadow: reached ? `0 0 10px ${color}` : undefined,
+                    transition: "background 400ms ease, box-shadow 400ms ease",
                   }}
                 >
-                  {reached && <Zap className="w-2.5 h-2.5 text-black" />}
+                  {reached && <Zap className="w-2 h-2 text-black" />}
+                </div>
+                {/* label abaixo */}
+                <div
+                  className="absolute left-1/2 -translate-x-1/2 mt-2 text-center whitespace-nowrap"
+                  style={{ top: 16 }}
+                >
+                  <div className="text-[10px] font-semibold" style={{ color: reached ? color : "#94a3b8" }}>
+                    {t.meta_pct}%
+                  </div>
+                  <div className="text-[9px] text-white/40 leading-tight">
+                    +{t.commission_pct.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%
+                  </div>
                 </div>
               </div>
             );
           })}
+
+          {/* Avatar do vendedor — anda com o pct */}
+          <div
+            className="absolute -translate-x-1/2"
+            style={{
+              left: `${barPct}%`,
+              bottom: "100%",
+              marginBottom: 6,
+              transition: "left 900ms cubic-bezier(.4,1.6,.5,1)",
+              zIndex: 10,
+            }}
+          >
+            <div className="flex flex-col items-center gap-1">
+              <div
+                className="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap"
+                style={{ background: color, color: "#000" }}
+              >
+                {fmtPct(pctMeta)}
+              </div>
+              <Avatar
+                url={avatarUrl}
+                initial={avatarInitial}
+                color={avatarColor || color}
+                size={44}
+              />
+              {/* seta apontando pra barra */}
+              <div
+                className="w-0 h-0"
+                style={{
+                  borderLeft: "6px solid transparent",
+                  borderRight: "6px solid transparent",
+                  borderTop: `7px solid ${color}`,
+                  filter: `drop-shadow(0 0 4px ${color}88)`,
+                }}
+              />
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-1">
-        <div className="rounded-xl bg-panel2 p-3">
-          <div className="text-[10px] uppercase tracking-wider text-white/50">Realizado</div>
-          <div className="text-lg font-bold">{BRL.format(realizado)}</div>
-        </div>
-        <div className="rounded-xl bg-panel2 p-3">
-          <div className="text-[10px] uppercase tracking-wider text-white/50">Meta</div>
-          <div className="text-lg font-bold">{BRL.format(meta)}</div>
-        </div>
-        <div className="rounded-xl bg-panel2 p-3 col-span-2 md:col-span-1">
-          <div className="text-[10px] uppercase tracking-wider text-white/50">
-            {nextTier ? `Faltam pro tier de ${nextTier.meta_pct}%` : "Tier maximo atingido"}
-          </div>
-          <div className="text-lg font-bold" style={{ color: nextTier ? color : "#22c55e" }}>
-            {nextTier ? BRL.format(toNextTier) : "🏆"}
-          </div>
-        </div>
+      {/* Resumo compacto no rodape */}
+      <div className="mt-auto grid grid-cols-3 gap-2">
+        <MiniStat label="Realizado" value={BRL.format(realizado)} />
+        <MiniStat label="Meta" value={BRL.format(meta)} />
+        <MiniStat
+          label={nextTier ? `Faltam pra ${nextTier.meta_pct}%` : "Tier maximo"}
+          value={nextTier ? BRL.format(toNextTier) : "🏆"}
+          highlightColor={nextTier ? color : "#22c55e"}
+        />
       </div>
+    </div>
+  );
+}
+
+function MiniStat({
+  label,
+  value,
+  highlightColor,
+}: {
+  label: string;
+  value: string;
+  highlightColor?: string;
+}) {
+  return (
+    <div className="rounded-xl bg-panel2 p-2.5">
+      <div className="text-[10px] uppercase tracking-wider text-white/50 leading-tight">
+        {label}
+      </div>
+      <div className="text-sm font-bold mt-0.5" style={highlightColor ? { color: highlightColor } : undefined}>
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function Avatar({
+  url,
+  initial,
+  color,
+  size,
+}: {
+  url?: string | null;
+  initial: string;
+  color: string;
+  size: number;
+}) {
+  return (
+    <div
+      className="rounded-full border-2 grid place-items-center overflow-hidden shadow-lg bg-panel"
+      style={{
+        width: size,
+        height: size,
+        borderColor: color,
+        boxShadow: `0 0 12px ${color}77`,
+      }}
+    >
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt="" className="w-full h-full object-cover" />
+      ) : (
+        <div
+          className="w-full h-full grid place-items-center text-sm font-bold text-white"
+          style={{ background: color + "44" }}
+        >
+          {initial}
+        </div>
+      )}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { getSeller, statsForAll, buListOf } from "@/lib/data";
 import { periodNow, BRL, fmtPct } from "@/lib/calc";
 import { BU_COLOR, BU_LABEL, COLOR, tonePctMeta } from "@/lib/brand";
 import { type BU } from "@/lib/products";
-import { loadCommissionRules, calcCommission, rankBUBonus } from "@/lib/commission";
+import { loadCommissionRules, calcCommission, rankBUBonus, type CommissionRules } from "@/lib/commission";
 import StatCard from "@/components/StatCard";
 import { Wallet, Trophy, Flame, Award, Sparkles, TrendingUp } from "lucide-react";
 import CommissionProgress from "./CommissionProgress";
@@ -133,127 +133,87 @@ export default async function GamificationPage({
         />
       </section>
 
-      {/* Progresso com checkpoints — o coracao da gamificacao */}
-      <CommissionProgress
-        color={color}
-        rules={rules}
-        realizado={realizado}
-        meta={meta}
-        pctMeta={calc.pctMeta}
-        nextTier={calc.nextTier}
-        toNextTier={calc.toNextTier}
-      />
+      {/* Progresso com avatar andando + Bonus do Podio ao lado */}
+      <section className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-3 items-stretch">
+        <CommissionProgress
+          color={color}
+          rules={rules}
+          realizado={realizado}
+          meta={meta}
+          pctMeta={calc.pctMeta}
+          nextTier={calc.nextTier}
+          toNextTier={calc.toNextTier}
+          avatarUrl={seller.avatar_url}
+          avatarInitial={seller.name.trim().charAt(0).toUpperCase() || "?"}
+          avatarColor={seller.avatar_color || color}
+        />
 
-      {/* Tabela de tiers + Bonus podio */}
-      <section className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-3">
-        <div className="card-lg p-0 overflow-hidden">
-          <div className="p-4 border-b border-border">
-            <div className="text-sm font-semibold flex items-center gap-2">
-              <Award className="w-4 h-4" style={{ color }} /> Tabela de comissao vigente — {BU_LABEL[bu]}
-            </div>
-            <div className="text-xs text-white/50 mt-1">
-              Comissao {rules.cumulative ? "acumulativa" : "nao acumulativa"}. Liberada a partir de <b>{rules.min_meta_pct}%</b> da meta.
-              Base de calculo: <b>receita vendida por voce</b>.
-            </div>
-          </div>
-          <table className="w-full text-sm">
-            <thead className="text-xs uppercase tracking-wider text-white/40 bg-panel2">
-              <tr className="text-left">
-                <th className="p-3">% Meta Ind.</th>
-                <th className="p-3">% Comissao</th>
-                <th className="p-3 text-right">Se aplicasse no seu realizado</th>
-                <th className="p-3 text-right">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rules.tiers.map((t) => {
-                const reached = calc.tier && t.meta_pct <= calc.tier.meta_pct;
-                const isCurrent = calc.tier?.meta_pct === t.meta_pct;
-                const wouldPay = (t.commission_pct / 100) * realizado;
-                return (
-                  <tr
-                    key={t.meta_pct}
-                    className={`border-t border-border ${
-                      isCurrent ? "bg-accent/5" : ""
-                    }`}
-                  >
-                    <td className="p-3 font-semibold">{t.meta_pct}%</td>
-                    <td className="p-3 font-semibold" style={{ color: reached ? color : undefined }}>
-                      {t.commission_pct.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%
-                    </td>
-                    <td className="p-3 text-right text-white/70">{BRL.format(wouldPay)}</td>
-                    <td className="p-3 text-right">
-                      {isCurrent ? (
-                        <span className="chip" style={{ background: color + "22", color }}>
-                          <Flame className="w-3 h-3" /> Voce esta aqui
-                        </span>
-                      ) : reached ? (
-                        <span className="chip" style={{ background: COLOR.ok + "22", color: COLOR.ok }}>
-                          Batido
-                        </span>
-                      ) : (
-                        <span className="text-xs text-white/40">
-                          Faltam {BRL.format(Math.max(0, (t.meta_pct / 100) * meta - realizado))}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <PodiumCard
+          bu={bu}
+          rules={rules}
+          buBonus={buBonus}
+          myPodium={myPodium}
+          color={color}
+        />
+      </section>
 
-        {/* Podio coletivo */}
-        <div
-          className="card-lg space-y-3"
-          style={{ borderColor: buBonus.unlocked ? COLOR.ok + "55" : undefined }}
-        >
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4" style={{ color: buBonus.unlocked ? COLOR.ok : "#94a3b8" }} />
-            <div className="text-sm font-semibold">Bonus do podio — {BU_LABEL[bu]}</div>
+      {/* Tabela de tiers */}
+      <section className="card-lg p-0 overflow-hidden">
+        <div className="p-4 border-b border-border">
+          <div className="text-sm font-semibold flex items-center gap-2">
+            <Award className="w-4 h-4" style={{ color }} /> Tabela de comissao vigente — {BU_LABEL[bu]}
           </div>
-          <div className="text-xs text-white/60 leading-snug">
-            Se a BU atingir <b>{buBonus.unlockedAt.toFixed(0)}%</b> da meta coletiva, libera:
-          </div>
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <PodiumChip pos={1} value={rules.top1_bonus} unlocked={buBonus.unlocked} />
-            <PodiumChip pos={2} value={rules.top2_bonus} unlocked={buBonus.unlocked} />
-            <PodiumChip pos={3} value={rules.top3_bonus} unlocked={buBonus.unlocked} />
-          </div>
-          <div className="text-xs text-white/60">
-            Coletiva:{" "}
-            <b style={{ color: buBonus.unlocked ? COLOR.ok : "#94a3b8" }}>
-              {fmtPct(buBonus.pctColetivo)}
-            </b>{" "}
-            de {BRL.format(buBonus.sumMeta)}
-          </div>
-          <div className="rounded-xl border border-border p-3 bg-panel2/40">
-            {myPodium ? (
-              <>
-                <div className="text-xs uppercase tracking-wider text-white/40">
-                  Sua posicao no podio
-                </div>
-                <div className="text-2xl font-extrabold mt-0.5" style={{ color: buBonus.unlocked ? COLOR.ok : color }}>
-                  {myPodium.position}o lugar
-                </div>
-                <div className="text-xs text-white/60 mt-0.5">
-                  {buBonus.unlocked
-                    ? <>+ <b style={{ color: COLOR.ok }}>{BRL.format(myPodium.bonus)}</b> ja garantidos</>
-                    : <>Aguardando a BU atingir a coletiva ({fmtPct(buBonus.unlockedAt - buBonus.pctColetivo)} pra destravar)</>}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="text-xs uppercase tracking-wider text-white/40">Sua posicao</div>
-                <div className="text-sm text-white/70 mt-0.5">Ainda fora do top 3</div>
-                <div className="text-xs text-white/50 mt-0.5">
-                  Continue vendendo pra brigar por uma vaga no podio.
-                </div>
-              </>
-            )}
+          <div className="text-xs text-white/50 mt-1">
+            Comissao {rules.cumulative ? "acumulativa" : "nao acumulativa"}. Liberada a partir de <b>{rules.min_meta_pct}%</b> da meta.
+            Base de calculo: <b>receita vendida por voce</b>.
           </div>
         </div>
+        <table className="w-full text-sm">
+          <thead className="text-xs uppercase tracking-wider text-white/40 bg-panel2">
+            <tr className="text-left">
+              <th className="p-3">% Meta Ind.</th>
+              <th className="p-3">% Comissao</th>
+              <th className="p-3 text-right">Se aplicasse no seu realizado</th>
+              <th className="p-3 text-right">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rules.tiers.map((t) => {
+              const reached = calc.tier && t.meta_pct <= calc.tier.meta_pct;
+              const isCurrent = calc.tier?.meta_pct === t.meta_pct;
+              const wouldPay = (t.commission_pct / 100) * realizado;
+              return (
+                <tr
+                  key={t.meta_pct}
+                  className={`border-t border-border ${
+                    isCurrent ? "bg-accent/5" : ""
+                  }`}
+                >
+                  <td className="p-3 font-semibold">{t.meta_pct}%</td>
+                  <td className="p-3 font-semibold" style={{ color: reached ? color : undefined }}>
+                    {t.commission_pct.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%
+                  </td>
+                  <td className="p-3 text-right text-white/70">{BRL.format(wouldPay)}</td>
+                  <td className="p-3 text-right">
+                    {isCurrent ? (
+                      <span className="chip" style={{ background: color + "22", color }}>
+                        <Flame className="w-3 h-3" /> Voce esta aqui
+                      </span>
+                    ) : reached ? (
+                      <span className="chip" style={{ background: COLOR.ok + "22", color: COLOR.ok }}>
+                        Batido
+                      </span>
+                    ) : (
+                      <span className="text-xs text-white/40">
+                        Faltam {BRL.format(Math.max(0, (t.meta_pct / 100) * meta - realizado))}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </section>
 
       {rules.notes && (
@@ -261,6 +221,71 @@ export default async function GamificationPage({
           <b>Regras:</b> {rules.notes}
         </div>
       )}
+    </div>
+  );
+}
+
+function PodiumCard({
+  bu,
+  rules,
+  buBonus,
+  myPodium,
+  color,
+}: {
+  bu: BU;
+  rules: CommissionRules;
+  buBonus: ReturnType<typeof rankBUBonus>;
+  myPodium: ReturnType<typeof rankBUBonus>["ranking"][number] | null;
+  color: string;
+}) {
+  return (
+    <div
+      className="card-lg h-full flex flex-col gap-3"
+      style={{ borderColor: buBonus.unlocked ? COLOR.ok + "55" : undefined }}
+    >
+      <div className="flex items-center gap-2">
+        <Sparkles className="w-4 h-4" style={{ color: buBonus.unlocked ? COLOR.ok : "#94a3b8" }} />
+        <div className="text-sm font-semibold">Bonus do podio — {BU_LABEL[bu]}</div>
+      </div>
+      <div className="text-xs text-white/60 leading-snug">
+        Se a BU atingir <b>{buBonus.unlockedAt.toFixed(0)}%</b> da meta coletiva, libera:
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <PodiumChip pos={1} value={rules.top1_bonus} unlocked={buBonus.unlocked} />
+        <PodiumChip pos={2} value={rules.top2_bonus} unlocked={buBonus.unlocked} />
+        <PodiumChip pos={3} value={rules.top3_bonus} unlocked={buBonus.unlocked} />
+      </div>
+      <div className="text-xs text-white/60">
+        Coletiva:{" "}
+        <b style={{ color: buBonus.unlocked ? COLOR.ok : "#94a3b8" }}>
+          {fmtPct(buBonus.pctColetivo)}
+        </b>
+      </div>
+      <div className="mt-auto rounded-xl border border-border p-3 bg-panel2/40">
+        {myPodium ? (
+          <>
+            <div className="text-[10px] uppercase tracking-wider text-white/40">
+              Sua posicao no podio
+            </div>
+            <div className="text-2xl font-extrabold mt-0.5" style={{ color: buBonus.unlocked ? COLOR.ok : color }}>
+              {myPodium.position}o lugar
+            </div>
+            <div className="text-xs text-white/60 mt-0.5">
+              {buBonus.unlocked
+                ? <>+ <b style={{ color: COLOR.ok }}>{BRL.format(myPodium.bonus)}</b> ja garantidos</>
+                : <>Aguardando a BU atingir a coletiva</>}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="text-[10px] uppercase tracking-wider text-white/40">Sua posicao</div>
+            <div className="text-sm text-white/70 mt-0.5">Ainda fora do top 3</div>
+            <div className="text-xs text-white/50 mt-0.5">
+              Continue vendendo pra brigar por uma vaga.
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
