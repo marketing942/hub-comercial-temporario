@@ -16,6 +16,7 @@ export default async function DashLayout({ children }: { children: React.ReactNo
         { href: "/admin/sellers", label: "Vendedores", icon: "users" },
         { href: "/admin/goals", label: "Metas", icon: "target" },
         { href: "/admin/vendas", label: "Todas as Vendas", icon: "receipt" },
+        { href: "/admin/comissoes", label: "Comissoes", icon: "coins" },
         { href: "/admin/leads", label: "Leads", icon: "leads" },
         { href: "/admin/direto", label: "Canal Direto", icon: "cart" },
         { href: "/dashboard", label: "Dashboard TV", icon: "trophy" },
@@ -24,6 +25,7 @@ export default async function DashLayout({ children }: { children: React.ReactNo
         { href: "/dashboard", label: "Dashboard TV", icon: "trophy" },
         { href: "/seller", label: "Meu Painel", icon: "dashboard" },
         { href: "/seller/sales", label: "Minhas Vendas", icon: "cart" },
+        { href: "/seller/gamification", label: "Gamificacao", icon: "game" },
       ];
 
   return (

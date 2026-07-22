@@ -213,6 +213,10 @@ export type SellerStats = {
   vendasCount: number;
   qtdRealizada: number;
   qtdMeta: number;
+  // Sempre em R$ (independente de qual e a metrica primaria da BU)
+  // Uteis para calculo de comissao, que roda sempre sobre receita.
+  valorRealizado: number;
+  valorMeta: number;
   // Total de vendas do vendedor no mes em TODAS as BUs (nao so a do contexto).
   // Usado no calculo de conversao real pois leads nao distinguem por BU.
   vendasCountTotal: number;
@@ -326,6 +330,8 @@ export function computeSellerStats(args: {
     vendasCount,
     qtdRealizada: realizadoQtd,
     qtdMeta: qtdMetaTotal,
+    valorRealizado: realizadoValor,
+    valorMeta: valorMetaTotal,
     vendasCountTotal: vendasCountTotalV,
     metaRitmoInicial,
     metaIdealAteHoje,

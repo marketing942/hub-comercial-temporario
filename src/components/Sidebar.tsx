@@ -14,6 +14,8 @@ import {
   User,
   ShoppingCart,
   Receipt,
+  Gamepad2,
+  Coins,
   PanelLeftClose,
   PanelLeft,
 } from "lucide-react";
@@ -33,6 +35,8 @@ const ICONS = {
   user: User,
   cart: ShoppingCart,
   receipt: Receipt,
+  game: Gamepad2,
+  coins: Coins,
 };
 
 const STORAGE_KEY = "hub_sidebar_collapsed";

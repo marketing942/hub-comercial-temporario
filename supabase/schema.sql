@@ -204,6 +204,70 @@ create index if not exists direct_visits_date_idx on public.direct_visits(date);
 
 -- RLS destas tabelas e ligado em supabase/enable-rls.sql (NAO desligar).
 
+-- ---------- Regras de Comissao / Gamificacao ----------
+-- Regras por BU (min% pra ter comissao, bonus de podio coletivo, etc)
+create table if not exists public.commission_rules (
+  bu text primary key check (bu in ('cppem','unicive','colegio_cppem')),
+  min_meta_pct numeric(5,2) not null default 80,
+  cumulative boolean not null default false,
+  bu_bonus_extra_pct numeric(5,2) not null default 10,
+  top1_bonus numeric(10,2) not null default 300,
+  top2_bonus numeric(10,2) not null default 200,
+  top3_bonus numeric(10,2) not null default 100,
+  notes text,
+  updated_at timestamptz not null default now()
+);
+alter table public.commission_rules drop constraint if exists commission_rules_bu_check;
+alter table public.commission_rules add constraint commission_rules_bu_check
+  check (bu in ('cppem','unicive','colegio_cppem'));
+
+-- Tiers (linhas da tabela % Meta Ind -> % Comissao) por BU
+create table if not exists public.commission_tiers (
+  id uuid primary key default gen_random_uuid(),
+  bu text not null check (bu in ('cppem','unicive','colegio_cppem')),
+  meta_pct numeric(5,2) not null,
+  commission_pct numeric(5,2) not null,
+  unique (bu, meta_pct)
+);
+alter table public.commission_tiers drop constraint if exists commission_tiers_bu_check;
+alter table public.commission_tiers add constraint commission_tiers_bu_check
+  check (bu in ('cppem','unicive','colegio_cppem'));
+create index if not exists commission_tiers_bu_idx on public.commission_tiers(bu, meta_pct);
+
+-- Seed defaults conforme prints (idempotente via on conflict do nothing).
+insert into public.commission_rules (bu, min_meta_pct, cumulative, bu_bonus_extra_pct, top1_bonus, top2_bonus, top3_bonus, notes) values
+  ('cppem', 80, false, 10, 300, 200, 100, 'Comissao a partir de 80% da meta. Comissao = % vendida pelo vendedor.'),
+  ('unicive', 80, false, 10, 300, 200, 100, 'Comissao nao acumulativa. % baseada na receita em matriculas do mes.'),
+  ('colegio_cppem', 80, false, 10, 300, 200, 100, 'Mesmo modelo da UNICIVE por enquanto.')
+on conflict (bu) do nothing;
+
+-- CPPEM tiers
+insert into public.commission_tiers (bu, meta_pct, commission_pct) values
+  ('cppem', 80, 2),
+  ('cppem', 90, 2.5),
+  ('cppem', 100, 3),
+  ('cppem', 110, 3.5),
+  ('cppem', 120, 4)
+on conflict (bu, meta_pct) do nothing;
+
+-- UNICIVE tiers
+insert into public.commission_tiers (bu, meta_pct, commission_pct) values
+  ('unicive', 80, 6),
+  ('unicive', 90, 8),
+  ('unicive', 100, 11),
+  ('unicive', 120, 14),
+  ('unicive', 140, 16)
+on conflict (bu, meta_pct) do nothing;
+
+-- Colegio CPPEM: mesmo modelo temporario da UNICIVE
+insert into public.commission_tiers (bu, meta_pct, commission_pct) values
+  ('colegio_cppem', 80, 6),
+  ('colegio_cppem', 90, 8),
+  ('colegio_cppem', 100, 11),
+  ('colegio_cppem', 120, 14),
+  ('colegio_cppem', 140, 16)
+on conflict (bu, meta_pct) do nothing;
+
 -- ---------- Frases motivacionais ----------
 create table if not exists public.motivational_quotes (
   id uuid primary key default gen_random_uuid(),
