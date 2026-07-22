@@ -150,6 +150,7 @@ create table if not exists public.sales (
   product_line text not null,
   valor numeric(12,2) not null default 0,
   quantidade int not null default 1,
+  cliente_nome text,
   observacao text,
   ligacao_status text not null default 'sem_ligacao',
   created_at timestamptz not null default now(),
@@ -158,6 +159,9 @@ create table if not exists public.sales (
 
 create index if not exists sales_seller_date_idx
   on public.sales(seller_id, sale_date);
+
+-- migracao idempotente: nome do cliente na venda
+alter table public.sales add column if not exists cliente_nome text;
 
 -- migracao idempotente: tudo que ja existe vira 'sem_ligacao'
 alter table public.sales add column if not exists ligacao_status text;

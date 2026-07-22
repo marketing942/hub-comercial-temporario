@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Apenas vendedores logados." }, { status: 401 });
   }
   const b = await req.json();
-  const { sale_date, product_line, valor, quantidade, observacao, ligacao_status, indicacao_status } = b || {};
+  const { sale_date, product_line, valor, quantidade, cliente_nome, observacao, ligacao_status, indicacao_status } = b || {};
   if (!sale_date || !product_line) {
     return NextResponse.json({ error: "Faltam sale_date / product_line." }, { status: 400 });
   }
@@ -17,6 +17,7 @@ export async function POST(req: Request) {
   const ligacao = validLigacao.includes(ligacao_status) ? ligacao_status : "sem_ligacao";
   const validIndicacao = ["feita_por_indicacao", "sem_indicacao"];
   const indicacao = validIndicacao.includes(indicacao_status) ? indicacao_status : "sem_indicacao";
+  const cliente = typeof cliente_nome === "string" ? cliente_nome.trim().slice(0, 200) : "";
   const { data, error } = await supabaseAdmin
     .from("sales")
     .insert({
@@ -25,6 +26,7 @@ export async function POST(req: Request) {
       product_line,
       valor: Number(valor || 0),
       quantidade: Number(quantidade || 1),
+      cliente_nome: cliente || null,
       observacao: observacao || null,
       ligacao_status: ligacao,
       indicacao_status: indicacao,

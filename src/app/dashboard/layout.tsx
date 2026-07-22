@@ -15,6 +15,7 @@ export default async function DashLayout({ children }: { children: React.ReactNo
         { href: "/admin", label: "Visao Geral", icon: "dashboard" },
         { href: "/admin/sellers", label: "Vendedores", icon: "users" },
         { href: "/admin/goals", label: "Metas", icon: "target" },
+        { href: "/admin/vendas", label: "Todas as Vendas", icon: "receipt" },
         { href: "/admin/leads", label: "Leads", icon: "leads" },
         { href: "/admin/direto", label: "Canal Direto", icon: "cart" },
         { href: "/dashboard", label: "Dashboard TV", icon: "trophy" },

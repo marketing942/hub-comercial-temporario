@@ -11,6 +11,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (typeof b.product_line === "string") patch.product_line = b.product_line;
   if (b.valor !== undefined) patch.valor = Number(b.valor);
   if (b.quantidade !== undefined) patch.quantidade = Number(b.quantidade);
+  if (b.cliente_nome !== undefined) {
+    const c = typeof b.cliente_nome === "string" ? b.cliente_nome.trim().slice(0, 200) : "";
+    patch.cliente_nome = c || null;
+  }
   if (b.observacao !== undefined) patch.observacao = b.observacao;
   if (typeof b.ligacao_status === "string") {
     const valid = ["consegui_direto", "consegui_indireto", "sem_ligacao"];

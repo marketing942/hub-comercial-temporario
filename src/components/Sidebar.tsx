@@ -13,6 +13,7 @@ import {
   Trophy,
   User,
   ShoppingCart,
+  Receipt,
   PanelLeftClose,
   PanelLeft,
 } from "lucide-react";
@@ -31,6 +32,7 @@ const ICONS = {
   trophy: Trophy,
   user: User,
   cart: ShoppingCart,
+  receipt: Receipt,
 };
 
 const STORAGE_KEY = "hub_sidebar_collapsed";

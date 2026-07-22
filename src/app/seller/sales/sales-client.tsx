@@ -15,7 +15,7 @@ import {
   PRODUCT_LINES_COLEGIO,
 } from "@/lib/products";
 import { BRL, fmtInt } from "@/lib/calc";
-import { Plus, Pencil, Trash2, Check, X, Phone, UserPlus } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, X, Phone, UserPlus, User } from "lucide-react";
 import NumberField from "@/components/NumberField";
 
 type Sale = {
@@ -24,6 +24,7 @@ type Sale = {
   product_line: string;
   valor: number;
   quantidade: number;
+  cliente_nome?: string | null;
   observacao?: string | null;
   ligacao_status?: string | null;
   indicacao_status?: string | null;
@@ -73,6 +74,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
   const [turma, setTurma] = useState<string>(TURMAS[0].id);
   const [valor, setValor] = useState<number>(0);
   const [qtd, setQtd] = useState<number>(1);
+  const [cliente, setCliente] = useState<string>("");
   const [ligacao, setLigacao] = useState<string>("");
   const [indicacao, setIndicacao] = useState<string>("");
   const [saving, setSaving] = useState(false);
@@ -99,6 +101,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
         product_line,
         valor,
         quantidade: qtd,
+        cliente_nome: cliente,
         ligacao_status: ligacao,
         indicacao_status: indicacao,
       }),
@@ -109,6 +112,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
       setList((l) => [data, ...l]);
       setValor(0);
       setQtd(1);
+      setCliente("");
       setLigacao("");
       setIndicacao("");
       router.refresh();
@@ -175,6 +179,21 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
           <button className="btn-primary" disabled={saving || !valor || !ligacao || !indicacao} onClick={add}>
             <Plus className="w-4 h-4" /> Lancar
           </button>
+        </div>
+
+        {/* Cliente (opcional, mas ajuda muito no controle) */}
+        <div className="mt-4">
+          <label className="label flex items-center gap-1">
+            <User className="w-3 h-3" /> Nome do cliente
+          </label>
+          <input
+            type="text"
+            className="input"
+            placeholder="Ex: Joao da Silva"
+            value={cliente}
+            onChange={(e) => setCliente(e.target.value)}
+            maxLength={200}
+          />
         </div>
 
         {/* Seletor obrigatorio de Ligacao */}
@@ -257,6 +276,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
             <tr className="text-left">
               <th className="p-3">Data</th>
               <th className="p-3">Produto</th>
+              <th className="p-3">Cliente</th>
               <th className="p-3">Valor</th>
               <th className="p-3">Qtd</th>
               <th className="p-3">Origem</th>
@@ -267,7 +287,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
           <tbody>
             {list.length === 0 && (
               <tr>
-                <td colSpan={7} className="p-6 text-center text-white/50">
+                <td colSpan={8} className="p-6 text-center text-white/50">
                   Nenhuma venda este mes. Lance a primeira acima.
                 </td>
               </tr>
@@ -307,6 +327,7 @@ function Row({
   const [line, setLine] = useState(sale.product_line);
   const [valor, setValor] = useState(Number(sale.valor));
   const [qtd, setQtd] = useState(Number(sale.quantidade));
+  const [cliente, setCliente] = useState(sale.cliente_nome || "");
   const [ligacao, setLigacao] = useState(sale.ligacao_status || "sem_ligacao");
   const [indicacao, setIndicacao] = useState(sale.indicacao_status || "sem_indicacao");
 
@@ -334,6 +355,7 @@ function Row({
         product_line: line,
         valor,
         quantidade: qtd,
+        cliente_nome: cliente,
         ligacao_status: ligacao,
         indicacao_status: indicacao,
       }),
@@ -344,6 +366,7 @@ function Row({
         product_line: line,
         valor,
         quantidade: qtd,
+        cliente_nome: cliente || null,
         ligacao_status: ligacao,
         indicacao_status: indicacao,
       });
@@ -368,6 +391,11 @@ function Row({
       <tr className="border-t border-border">
         <td className="p-3">{new Date(sale.sale_date + "T00:00").toLocaleDateString("pt-BR")}</td>
         <td className="p-3">{productLabel(sale.product_line)}</td>
+        <td className="p-3">
+          {sale.cliente_nome
+            ? <span className="text-white/90">{sale.cliente_nome}</span>
+            : <span className="text-white/30 text-xs">—</span>}
+        </td>
         <td className="p-3 font-semibold">{BRL.format(Number(sale.valor))}</td>
         <td className="p-3">{sale.quantidade}</td>
         <td className="p-3">
@@ -417,6 +445,16 @@ function Row({
             </option>
           ))}
         </select>
+      </td>
+      <td className="p-2">
+        <input
+          type="text"
+          className="input h-9"
+          value={cliente}
+          onChange={(e) => setCliente(e.target.value)}
+          placeholder="Cliente"
+          maxLength={200}
+        />
       </td>
       <td className="p-2">
         <NumberField step="0.01" className="input h-9" value={valor} onChange={setValor} />
