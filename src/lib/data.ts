@@ -12,7 +12,7 @@ import {
   todayDayOfMonth,
   type SellerStats,
 } from "./calc";
-import { productLabel, productIdsFor, buFromProductLine } from "./products";
+import { productLabel, productIdsFor, buFromProductLine, isQtdPrimary } from "./products";
 
 export type Seller = {
   id: string;
@@ -334,7 +334,7 @@ export async function buSeries(
     buckets[k].leads += Number(r.qty || 0);
   }
 
-  const isQtd = bu === "unicive" || bu === "colegio_cppem";
+  const isQtd = isQtdPrimary(bu);
   const meta = isQtd ? qtdMeta : metaValor;
 
   const daily: DailySeriesRow[] = [];

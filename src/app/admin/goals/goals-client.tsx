@@ -9,7 +9,7 @@ import {
   SplitSquareHorizontal,
 } from "lucide-react";
 import { BU_COLOR, BU_LABEL } from "@/lib/brand";
-import { ALL_BUS, PRODUCT_LINES_COLEGIO, type BU } from "@/lib/products";
+import { ALL_BUS, PRODUCT_LINES_COLEGIO, isQtdPrimary, type BU } from "@/lib/products";
 import NumberField from "@/components/NumberField";
 
 type Seller = {
@@ -91,7 +91,10 @@ export default function GoalsClient({
       }),
     [sellers, bu]
   );
-  const isQtd = bu === "unicive" || bu === "colegio_cppem";
+  const isQtd = isQtdPrimary(bu);
+  // Unicive continua vendendo matriculas, entao ainda queremos editar
+  // a coluna de qtd por vendedor mesmo com faturamento como primario.
+  const showQtdCol = isQtd || bu === "unicive";
   const color = BU_COLOR[bu];
   const linesDef =
     bu === "cppem" ? CPPEM_LINES : bu === "unicive" ? UNICIVE_LINES : COLEGIO_LINES;
@@ -347,7 +350,7 @@ export default function GoalsClient({
             </div>
             <div>
               <div className="label">
-                {isQtd ? "Matriculas (qtd)" : "Quantidade total"}
+                {bu === "colegio_cppem" || bu === "unicive" ? "Matriculas (qtd)" : "Quantidade total"}
               </div>
               <NumberField
                 className="input text-xl font-bold"
@@ -472,7 +475,7 @@ export default function GoalsClient({
                 <tr className="text-left">
                   <th className="py-2">Vendedor</th>
                   <th className="text-right">Faturamento</th>
-                  {isQtd && <th className="text-right">Matriculas (qtd)</th>}
+                  {showQtdCol && <th className="text-right">Matriculas (qtd)</th>}
                   <th className="text-right">Ticket meta (R$)</th>
                   <th className="text-right">Conversao meta (%)</th>
                   <th className="text-right">% da BU</th>
@@ -501,7 +504,7 @@ export default function GoalsClient({
                           onChange={(v) => updateSeller(s.id, { valor_meta: v })}
                         />
                       </td>
-                      {isQtd && (
+                      {showQtdCol && (
                         <td className="text-right">
                           <NumberField
                             className="input h-8 text-right text-xs"
