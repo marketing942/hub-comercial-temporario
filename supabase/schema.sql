@@ -29,6 +29,14 @@ alter table public.sellers add column if not exists bus text[] not null default 
 update public.sellers set bus = array[bu]
   where coalesce(array_length(bus, 1), 0) = 0;
 
+-- Garante que active existe, tem default true e nao aceita NULL. Em bases
+-- antigas onde a coluna foi adicionada sem default, vendedores novos
+-- entravam com active NULL e sumiam do /escolher-vendedor.
+alter table public.sellers add column if not exists active boolean;
+alter table public.sellers alter column active set default true;
+update public.sellers set active = true where active is null;
+alter table public.sellers alter column active set not null;
+
 create index if not exists sellers_bu_idx on public.sellers(bu);
 create index if not exists sellers_bus_idx on public.sellers using gin (bus);
 

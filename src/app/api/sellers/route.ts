@@ -33,7 +33,16 @@ export async function POST(req: Request) {
   }
   const { data, error } = await supabaseAdmin
     .from("sellers")
-    .insert({ name, bu: cleanBus[0], bus: cleanBus, avatar_color: avatar_color || "#22c55e" })
+    .insert({
+      name,
+      bu: cleanBus[0],
+      bus: cleanBus,
+      avatar_color: avatar_color || "#22c55e",
+      // Explicito pra nao depender de DEFAULT do banco (em DBs antigos o
+      // default pode nao estar setado, o que fazia o vendedor entrar com
+      // active=NULL e sumir do /escolher-vendedor).
+      active: true,
+    })
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
