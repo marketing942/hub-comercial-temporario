@@ -6,18 +6,29 @@ import { ALL_BUS, isQtdPrimary, type BU } from "@/lib/products";
 import ProgressBar from "@/components/ProgressBar";
 import OriginDonut from "@/components/OriginDonut";
 import { LIGACAO_STATUSES, INDICACAO_STATUSES } from "@/lib/products";
+import MonthFilter from "./MonthFilter";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminHome() {
+export default async function AdminHome({
+  searchParams,
+}: {
+  searchParams: { year?: string; month?: string };
+}) {
+  const now = periodNow();
+  const year = Number(searchParams.year) || now.year;
+  const month = Number(searchParams.month) || now.month;
+  const isCurrentMonth = year === now.year && month === now.month;
+
+  const opts = { year, month };
   const [stats, ligC, ligU, ligCol, indC, indU, indCol] = await Promise.all<any>([
-    statsForAll(),
-    ligacaoBreakdown({ bu: "cppem" }),
-    ligacaoBreakdown({ bu: "unicive" }),
-    ligacaoBreakdown({ bu: "colegio_cppem" }),
-    indicacaoBreakdown({ bu: "cppem" }),
-    indicacaoBreakdown({ bu: "unicive" }),
-    indicacaoBreakdown({ bu: "colegio_cppem" }),
+    statsForAll(opts),
+    ligacaoBreakdown({ bu: "cppem", ...opts }),
+    ligacaoBreakdown({ bu: "unicive", ...opts }),
+    ligacaoBreakdown({ bu: "colegio_cppem", ...opts }),
+    indicacaoBreakdown({ bu: "cppem", ...opts }),
+    indicacaoBreakdown({ bu: "unicive", ...opts }),
+    indicacaoBreakdown({ bu: "colegio_cppem", ...opts }),
   ]);
   const ligacaoMap: Record<BU, LigacaoRow[]> = {
     cppem: ligC, unicive: ligU, colegio_cppem: ligCol,
@@ -26,7 +37,6 @@ export default async function AdminHome() {
     cppem: indC, unicive: indU, colegio_cppem: indCol,
   };
 
-  const { year, month } = periodNow();
   const daysLeft = daysRemainingIncludingToday(year, month);
 
   const buSellers: Record<BU, SellerStats[]> = {
@@ -42,11 +52,16 @@ export default async function AdminHome() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Visao geral - {monthName}</h1>
-        <p className="text-sm text-white/50">
-          Faltam {daysLeft} dia{daysLeft > 1 ? "s" : ""} para o fim do mes.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Visao geral - {monthName}</h1>
+          <p className="text-sm text-white/50">
+            {isCurrentMonth
+              ? <>Faltam {daysLeft} dia{daysLeft > 1 ? "s" : ""} para o fim do mes.</>
+              : <>Consulta historica. <span className="text-white/40">Mes ja encerrado.</span></>}
+          </p>
+        </div>
+        <MonthFilter year={year} month={month} currentYear={now.year} currentMonth={now.month} />
       </div>
 
       {/* 3 cards comparativos por BU (sem 'hoje', com ticket e conversao) */}
