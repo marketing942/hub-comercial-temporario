@@ -7,6 +7,7 @@ import ProgressBar from "@/components/ProgressBar";
 import OriginDonut from "@/components/OriginDonut";
 import { LIGACAO_STATUSES, INDICACAO_STATUSES } from "@/lib/products";
 import MonthFilter from "./MonthFilter";
+import BackupButton from "./BackupButton";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +62,10 @@ export default async function AdminHome({
               : <>Consulta historica. <span className="text-white/40">Mes ja encerrado.</span></>}
           </p>
         </div>
-        <MonthFilter year={year} month={month} currentYear={now.year} currentMonth={now.month} />
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+          <MonthFilter year={year} month={month} currentYear={now.year} currentMonth={now.month} />
+          <BackupButton year={year} month={month} monthLabel={monthName} />
+        </div>
       </div>
 
       {/* 3 cards comparativos por BU (sem 'hoje', com ticket e conversao) */}
