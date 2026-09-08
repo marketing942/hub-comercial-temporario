@@ -10,6 +10,7 @@ import ProductRevenueBreakdown from "@/components/ProductRevenueBreakdown";
 import ColegioTurmasBreakdown from "@/components/ColegioTurmasBreakdown";
 import TurmasBreakdown from "@/components/TurmasBreakdown";
 import UniciveCategoriasBreakdown from "@/components/UniciveCategoriasBreakdown";
+import LongTermGoalCard from "@/components/LongTermGoalCard";
 import {
   Flame,
   Target,
@@ -136,6 +137,12 @@ export default function DashboardView({
           </div>
         </div>
       </div>
+
+      {/* Card de META DE LONGO PRAZO — quando existe, aparece antes de
+          tudo (e o principal indicador da BU no periodo definido). */}
+      {snap.longTerm && (
+        <LongTermGoalCard progress={snap.longTerm} accent={theme.accent2 || color} />
+      )}
 
       {/* 4 KPIs grandes (sem legenda em baixo). Total Vendido / Matriculas
           / Faturamento (Unicive) tem BARRA de progresso embutida. */}

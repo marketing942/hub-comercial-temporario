@@ -212,6 +212,38 @@ create index if not exists direct_visits_date_idx on public.direct_visits(date);
 
 -- RLS destas tabelas e ligado em supabase/enable-rls.sql (NAO desligar).
 
+-- ---------- Metas de LONGO PRAZO (multi-mes) ----------
+-- Ex.: "Meta de matriculas do Colegio de agosto/2026 a janeiro/2027".
+-- A meta persiste independente do mes visualizado no dashboard. O
+-- realizado = base_count (alunos ja matriculados antes do inicio) +
+-- somatorio de quantidade das vendas dentro do periodo, filtrando por
+-- product_line relevante da BU (matriculas). O dashboard sempre acumula
+-- de start_year/start_month ate HOJE (nao respeita o filtro de mes).
+create table if not exists public.long_term_goals (
+  id uuid primary key default gen_random_uuid(),
+  bu text not null check (bu in ('cppem','unicive','colegio_cppem')),
+  label text not null,
+  base_count int not null default 0,
+  target int not null default 0,
+  start_year int not null,
+  start_month int not null check (start_month between 1 and 12),
+  end_year int not null,
+  end_month int not null check (end_month between 1 and 12),
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+create index if not exists long_term_goals_bu_active_idx on public.long_term_goals(bu, active);
+
+-- Seed: Meta de Matriculas 2027 do Colegio (127/350, ago/2026 -> jan/2027).
+-- Idempotente: so insere se nao ja existir ativa pra colegio_cppem.
+insert into public.long_term_goals
+  (bu, label, base_count, target, start_year, start_month, end_year, end_month, active)
+select 'colegio_cppem', 'Meta de Matriculas 2027', 127, 350, 2026, 8, 2027, 1, true
+where not exists (
+  select 1 from public.long_term_goals where bu = 'colegio_cppem' and active = true
+);
+
 -- ---------- Regras de Comissao / Gamificacao ----------
 -- Regras por BU (min% pra ter comissao, bonus de podio coletivo, etc)
 create table if not exists public.commission_rules (

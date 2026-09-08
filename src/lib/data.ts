@@ -831,19 +831,23 @@ export type DashboardSnapshot = {
   breakdown: ProductBreakdownRow[];
   ligacao: LigacaoRow[];
   indicacao: IndicacaoRow[];
+  longTerm: import("./longTerm").LongTermProgress | null;
 };
 
 export async function dashboardSnapshot(
   bu: "cppem" | "unicive" | "colegio_cppem",
   opts?: { year?: number; month?: number }
 ): Promise<DashboardSnapshot> {
-  const [series, all, breakdown, ligacao, indicacao] = await Promise.all([
+  const { loadLongTermGoal, computeLongTermProgress } = await import("./longTerm");
+  const [series, all, breakdown, ligacao, indicacao, ltGoal] = await Promise.all([
     buSeries(bu, opts),
     statsForAll(opts),
     productBreakdown(bu, opts),
     ligacaoBreakdown({ bu, ...opts }),
     indicacaoBreakdown({ bu, ...opts }),
+    loadLongTermGoal(bu),
   ]);
+  const longTerm = ltGoal ? await computeLongTermProgress(ltGoal) : null;
   const sellers = all.filter((s) => s.bu === bu);
   // Leads sao por vendedor (sem distincao de BU). Pra evitar dupla contagem
   // em vendedor multi-BU, dedup por sellerId.
@@ -854,7 +858,7 @@ export async function dashboardSnapshot(
   const leadsTotal = Array.from(leadsBySeller.values()).reduce((a, b) => a + b, 0);
   const vendas = sellers.reduce((a, b) => a + b.vendasCount, 0);
   const taxaConversao = leadsTotal > 0 ? (vendas / leadsTotal) * 100 : 0;
-  return { bu, series, sellers, leadsTotal, taxaConversao, breakdown, ligacao, indicacao };
+  return { bu, series, sellers, leadsTotal, taxaConversao, breakdown, ligacao, indicacao, longTerm };
 }
 
 export { daysInMonth, daysRemainingIncludingToday, todayDayOfMonth, periodNow };
