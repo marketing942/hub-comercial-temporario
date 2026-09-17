@@ -14,6 +14,7 @@ import {
   Wallet,
   Target,
   GraduationCap,
+  ShieldCheck,
 } from "lucide-react";
 
 type Status = "batido" | "quase" | "andamento" | "atrasado";
@@ -96,11 +97,88 @@ export default function SellersGameView({
         </section>
       )}
 
+      {/* Barra do Coordenador: meta agregada CPPEM + UNICIVE (so vendedores) */}
+      <CoordinatorBar stats={stats} />
+
       {/* Cards por BU agrupados */}
       {ALL_BUS.map((bu) => (
         <BUGroup key={bu} bu={bu} sellers={ranks[bu]} accent={BU_COLOR[bu]} />
       ))}
     </div>
+  );
+}
+
+function CoordinatorBar({ stats }: { stats: SellerStats[] }) {
+  // So considera CPPEM + UNICIVE (Colegio nao entra nessa barra) e apenas
+  // valorRealizado/valorMeta de VENDEDORES — nao inclui direct_sales
+  // nem vendas IA (que sao lancadas via /admin/direto).
+  const relevant = stats.filter((s) => s.bu === "cppem" || s.bu === "unicive");
+  const meta = relevant.reduce((a, s) => a + Number(s.valorMeta || 0), 0);
+  const real = relevant.reduce((a, s) => a + Number(s.valorRealizado || 0), 0);
+  const pct = meta > 0 ? (real / meta) * 100 : 0;
+  const tone =
+    meta <= 0 ? COLOR.mute : pct >= 100 ? COLOR.ok : pct >= 80 ? COLOR.warning : COLOR.danger;
+  const falta = Math.max(0, meta - real);
+
+  return (
+    <section
+      className="card-lg relative overflow-hidden"
+      style={{ borderColor: tone + "55" }}
+    >
+      <div
+        aria-hidden
+        className="absolute -top-16 -right-16 w-56 h-56 rounded-full blur-3xl opacity-25 pointer-events-none"
+        style={{ background: tone }}
+      />
+      <div className="relative">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 min-w-0">
+            <div
+              className="w-9 h-9 rounded-xl grid place-items-center shrink-0"
+              style={{ background: tone + "22", color: tone }}
+            >
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="text-[11px] uppercase tracking-wider text-white/50">
+                Barra do Coordenador
+              </div>
+              <div className="text-sm font-semibold">
+                Receita CPPEM + UNICIVE <span className="text-white/40 font-normal">(so vendedores)</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="text-3xl xl:text-4xl font-extrabold" style={{ color: tone }}>
+              {BRL.format(real)}
+            </span>
+            <span className="text-white/30 text-xl xl:text-2xl font-bold">/</span>
+            <span className="text-xl xl:text-2xl font-bold text-white/50">
+              {BRL.format(meta)}
+            </span>
+            <span
+              className="ml-2 px-2.5 py-1 rounded-lg text-sm font-bold"
+              style={{ background: tone + "22", color: tone }}
+            >
+              {fmtPct(pct)}
+            </span>
+          </div>
+        </div>
+        <div className="mt-3">
+          <ProgressBar value={pct} color={tone} height={12} />
+          <div className="text-[11px] mt-1.5 flex items-center gap-3 flex-wrap text-white/60">
+            <span>
+              Faltam <b className="text-white/85">{BRL.format(falta)}</b>
+            </span>
+            <span className="text-white/40">·</span>
+            <span>
+              {relevant.length} entrada{relevant.length === 1 ? "" : "s"}{" "}
+              <span className="text-white/40">de vendedor x BU</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 

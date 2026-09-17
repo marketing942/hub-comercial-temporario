@@ -4,7 +4,7 @@ import { COLOR } from "@/lib/brand";
 import BigStatCard from "@/components/BigStatCard";
 import DailySalesChart from "@/components/charts/DailySalesChart";
 import ProductRevenueBreakdown from "@/components/ProductRevenueBreakdown";
-import { Wallet, Target, MousePointerClick, Trophy, Globe, Bot } from "lucide-react";
+import { Wallet, Target, MousePointerClick, Globe, Bot } from "lucide-react";
 
 const CPPEM_TURMA_IDS = ["turma_pmal", "turma_pmpe", "turma_carreiras"];
 
@@ -146,38 +146,6 @@ export default function DirectDashboardView({
         </div>
       </section>
 
-      {/* Linha secundaria (contexto do dia + qtd vendida) */}
-      <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-        <MiniStat
-          label="Qtd Vendida"
-          value={fmtInt.format(t.qtd)}
-          hint={`${fmtInt.format(t.vendasCount)} venda${t.vendasCount === 1 ? "" : "s"}`}
-          icon={<Trophy className="w-4 h-4" />}
-          accent={t.qtd > 0 ? COLOR.ok : COLOR.neutral}
-        />
-        <MiniStat
-          label="Faturamento Hoje"
-          value={BRL.format(t.valorHoje)}
-          hint={`Dia ${day}/${totalDays}`}
-          icon={<Wallet className="w-4 h-4" />}
-          accent={t.valorHoje > 0 ? COLOR.ok : COLOR.neutral}
-        />
-        <MiniStat
-          label="Visitas Hoje (site)"
-          value={fmtInt.format(t.visitsHoje)}
-          hint="Preenchido pelo admin"
-          icon={<MousePointerClick className="w-4 h-4" />}
-          accent={t.visitsHoje > 0 ? COLOR.ok : COLOR.neutral}
-        />
-        <MiniStat
-          label="Qtd Vendida Hoje"
-          value={fmtInt.format(t.qtdHoje)}
-          hint="Unidades no dia"
-          icon={<Trophy className="w-4 h-4" />}
-          accent={t.qtdHoje > 0 ? COLOR.ok : COLOR.neutral}
-        />
-      </section>
-
       {/* Breakdown CPPEM (direto + IA CPPEM) */}
       <ProductRevenueBreakdown
         rows={snap.breakdown}
@@ -257,34 +225,3 @@ function SplitTile({
   );
 }
 
-function MiniStat({
-  label,
-  value,
-  hint,
-  icon,
-  accent,
-}: {
-  label: string;
-  value: React.ReactNode;
-  hint?: React.ReactNode;
-  icon?: React.ReactNode;
-  accent: string;
-}) {
-  return (
-    <div className="card card-hover">
-      <div className="flex items-center justify-between">
-        <div className="kpi-label">{label}</div>
-        <div
-          className="w-7 h-7 rounded-lg grid place-items-center"
-          style={{ background: accent + "22", color: accent }}
-        >
-          {icon}
-        </div>
-      </div>
-      <div className="text-xl font-bold mt-0.5" style={{ color: accent }}>
-        {value}
-      </div>
-      {hint && <div className="text-[11px] text-white/50 mt-0.5">{hint}</div>}
-    </div>
-  );
-}
