@@ -61,7 +61,7 @@ export default async function DashboardPage({
     })),
     {
       key: "direto",
-      label: "Direto",
+      label: "Direto / IA",
       node: (
         <DirectDashboardView
           snap={direct}

@@ -1,10 +1,17 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Save, Pencil, Trash2, Check, X } from "lucide-react";
+import { Plus, Save, Pencil, Trash2, Check, X, Globe, Bot } from "lucide-react";
 import NumberField from "@/components/NumberField";
 import { BRL, fmtInt } from "@/lib/calc";
-import { PRODUCT_LINES_CPPEM, productLabel } from "@/lib/products";
+import {
+  PRODUCT_LINES_CPPEM,
+  PRODUCT_LINES_UNICIVE,
+  productLabel,
+  type BU,
+} from "@/lib/products";
+
+type Channel = "direto" | "ia";
 
 type Sale = {
   id: string;
@@ -13,6 +20,7 @@ type Sale = {
   valor: number;
   quantidade: number;
   observacao?: string | null;
+  channel?: Channel | null;
 };
 
 const MONTHS = [
@@ -22,6 +30,16 @@ const MONTHS = [
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
+}
+
+// Retorna as linhas de produto disponiveis pro canal/BU
+function linesFor(channel: Channel, bu: BU): { id: string; label: string }[] {
+  if (channel === "direto") {
+    return PRODUCT_LINES_CPPEM.map((l) => ({ id: l.id, label: l.label }));
+  }
+  // IA
+  if (bu === "unicive") return PRODUCT_LINES_UNICIVE.map((l) => ({ id: l.id, label: l.label }));
+  return PRODUCT_LINES_CPPEM.map((l) => ({ id: l.id, label: l.label }));
 }
 
 export default function DiretoClient({
@@ -36,21 +54,31 @@ export default function DiretoClient({
   const [month, setMonth] = useState(defaultMonth);
 
   const [list, setList] = useState<Sale[]>([]);
-  const [visits, setVisits] = useState<Record<string, number>>({}); // date -> qty
+  const [visits, setVisits] = useState<Record<string, number>>({});
 
   // form de nova venda
+  const [channel, setChannel] = useState<Channel>("direto");
+  const [buForIA, setBuForIA] = useState<BU>("cppem");
   const [date, setDate] = useState(todayISO());
   const [line, setLine] = useState<string>(PRODUCT_LINES_CPPEM[0].id);
   const [valor, setValor] = useState<number>(0);
   const [qtd, setQtd] = useState<number>(1);
   const [obs, setObs] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   // form de visita
   const [visitDate, setVisitDate] = useState(todayISO());
   const [visitQty, setVisitQty] = useState<number>(0);
   const [visitSaving, setVisitSaving] = useState(false);
   const [visitFeedback, setVisitFeedback] = useState<string | null>(null);
+
+  // Ao mudar canal ou BU (do IA), garante que a linha selecionada e valida
+  useEffect(() => {
+    const opts = linesFor(channel, buForIA);
+    if (!opts.some((o) => o.id === line)) setLine(opts[0]?.id || "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channel, buForIA]);
 
   useEffect(() => {
     loadSales();
@@ -69,7 +97,6 @@ export default function DiretoClient({
     const map: Record<string, number> = {};
     for (const v of j.data || []) map[v.date] = Number(v.qty || 0);
     setVisits(map);
-    // preenche o input com o valor do dia escolhido
     setVisitQty(map[visitDate] || 0);
   }
 
@@ -80,10 +107,21 @@ export default function DiretoClient({
   const totalValor = useMemo(() => list.reduce((a, b) => a + Number(b.valor || 0), 0), [list]);
   const totalQtd = useMemo(() => list.reduce((a, b) => a + Number(b.quantidade || 0), 0), [list]);
   const totalVisits = useMemo(() => Object.values(visits).reduce((a, b) => a + b, 0), [visits]);
+  const totalDireto = useMemo(
+    () => list.filter((s) => (s.channel || "direto") === "direto").reduce((a, b) => a + Number(b.valor || 0), 0),
+    [list]
+  );
+  const totalIA = useMemo(
+    () => list.filter((s) => s.channel === "ia").reduce((a, b) => a + Number(b.valor || 0), 0),
+    [list]
+  );
+
+  const lineOptions = useMemo(() => linesFor(channel, buForIA), [channel, buForIA]);
 
   async function addSale() {
     if (!valor) return;
     setSaving(true);
+    setErr(null);
     const r = await fetch("/api/direct/sales", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -93,6 +131,7 @@ export default function DiretoClient({
         valor,
         quantidade: qtd,
         observacao: obs || null,
+        channel,
       }),
     });
     setSaving(false);
@@ -104,7 +143,8 @@ export default function DiretoClient({
       setObs("");
       router.refresh();
     } else {
-      alert("Erro ao lancar venda do direto.");
+      const j = await r.json().catch(() => ({}));
+      setErr(j.error || "Erro ao lancar venda.");
     }
   }
 
@@ -130,7 +170,7 @@ export default function DiretoClient({
   return (
     <div className="space-y-4">
       {/* Seletor de periodo */}
-      <div className="card grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+      <div className="card grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
         <div>
           <label className="label">Mes</label>
           <select className="input" value={month} onChange={(e) => setMonth(Number(e.target.value))}>
@@ -143,30 +183,83 @@ export default function DiretoClient({
           <label className="label">Ano</label>
           <NumberField className="input" value={year} onChange={setYear} />
         </div>
-        <div className="text-xs text-white/60 leading-tight">
+        <div className="text-xs text-white/60 leading-tight md:col-span-2">
           <div>
             <b className="text-white">{list.length}</b> vendas -{" "}
-            <b className="text-white">{BRL.format(totalValor)}</b> -{" "}
+            <b className="text-white">{BRL.format(totalValor)}</b> total -{" "}
             <b className="text-white">{fmtInt.format(totalQtd)}</b> un.
           </div>
-          <div>
-            <b className="text-white">{fmtInt.format(totalVisits)}</b> visitas no mes
+          <div className="mt-0.5 flex gap-3">
+            <span>
+              Direto: <b style={{ color: "#7dd3fc" }}>{BRL.format(totalDireto)}</b>
+            </span>
+            <span>
+              IA: <b style={{ color: "#a78bfa" }}>{BRL.format(totalIA)}</b>
+            </span>
+            <span className="text-white/40">
+              {fmtInt.format(totalVisits)} visitas no site
+            </span>
           </div>
         </div>
       </div>
 
       {/* Form nova venda */}
       <div className="card">
-        <div className="text-sm font-semibold mb-3">Lancar nova venda do direto</div>
+        <div className="text-sm font-semibold mb-3">Lancar nova venda</div>
+
+        {/* Selector de canal */}
+        <div className="mb-3">
+          <label className="label">Canal</label>
+          <div className="inline-flex p-1 rounded-xl bg-panel border border-border">
+            <button
+              type="button"
+              onClick={() => setChannel("direto")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1.5 ${
+                channel === "direto"
+                  ? "text-black"
+                  : "text-white/60 hover:text-white"
+              }`}
+              style={channel === "direto" ? { background: "#7dd3fc" } : undefined}
+            >
+              <Globe className="w-3.5 h-3.5" /> Direto (site — CPPEM)
+            </button>
+            <button
+              type="button"
+              onClick={() => setChannel("ia")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition inline-flex items-center gap-1.5 ${
+                channel === "ia" ? "text-black" : "text-white/60 hover:text-white"
+              }`}
+              style={channel === "ia" ? { background: "#a78bfa" } : undefined}
+            >
+              <Bot className="w-3.5 h-3.5" /> IA (atendimento)
+            </button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+          {channel === "ia" && (
+            <div>
+              <label className="label">BU</label>
+              <select
+                className="input"
+                value={buForIA}
+                onChange={(e) => setBuForIA(e.target.value as BU)}
+              >
+                <option value="cppem">CPPEM</option>
+                <option value="unicive">UNICIVE</option>
+              </select>
+            </div>
+          )}
           <div>
             <label className="label">Data</label>
             <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
-          <div className="md:col-span-2">
-            <label className="label">Categoria (CPPEM)</label>
+          <div className={channel === "ia" ? "md:col-span-2" : "md:col-span-2"}>
+            <label className="label">
+              Categoria ({channel === "direto" ? "CPPEM" : buForIA === "unicive" ? "UNICIVE" : "CPPEM"})
+            </label>
             <select className="input" value={line} onChange={(e) => setLine(e.target.value)}>
-              {PRODUCT_LINES_CPPEM.map((l) => (
+              {lineOptions.map((l) => (
                 <option key={l.id} value={l.id}>
                   {l.label}
                 </option>
@@ -189,14 +282,15 @@ export default function DiretoClient({
           <label className="label">Observacao (opcional)</label>
           <input
             className="input"
-            placeholder="Ex: campanha X, cupom Y..."
+            placeholder="Ex: campanha X, cupom Y, nome do agente IA..."
             value={obs}
             onChange={(e) => setObs(e.target.value)}
           />
         </div>
+        {err && <div className="mt-2 text-xs text-danger">{err}</div>}
       </div>
 
-      {/* Form visitas diarias */}
+      {/* Form visitas diarias (so afeta calculo de conversao do site) */}
       <div className="card">
         <div className="text-sm font-semibold mb-3">Visitas diarias do site</div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
@@ -215,14 +309,14 @@ export default function DiretoClient({
         </div>
         <div className="text-[11px] text-white/40 mt-2">
           Total no mes: <b className="text-white">{fmtInt.format(totalVisits)}</b> visitas.
-          Usado no calculo de conversao do direto (qtd vendida / visitas).
+          Usado no calculo de conversao do direto (qtd vendida via site / visitas).
         </div>
       </div>
 
-      {/* Tabela de vendas do direto */}
+      {/* Tabela de vendas do direto + IA */}
       <div className="card p-0 overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <div className="text-sm font-semibold">Vendas do direto no mes</div>
+          <div className="text-sm font-semibold">Vendas do mes (Direto + IA)</div>
           <div className="text-xs text-white/60">
             {list.length} venda{list.length === 1 ? "" : "s"} - {BRL.format(totalValor)}
           </div>
@@ -231,6 +325,7 @@ export default function DiretoClient({
           <thead className="text-xs uppercase tracking-wider text-white/40 bg-panel2">
             <tr className="text-left">
               <th className="p-3">Data</th>
+              <th className="p-3">Canal</th>
               <th className="p-3">Categoria</th>
               <th className="p-3">Valor</th>
               <th className="p-3">Qtd</th>
@@ -241,8 +336,8 @@ export default function DiretoClient({
           <tbody>
             {list.length === 0 && (
               <tr>
-                <td colSpan={6} className="p-6 text-center text-white/50">
-                  Nenhuma venda do direto este mes.
+                <td colSpan={7} className="p-6 text-center text-white/50">
+                  Nenhuma venda este mes.
                 </td>
               </tr>
             )}
@@ -262,6 +357,21 @@ export default function DiretoClient({
   );
 }
 
+function ChannelChip({ channel }: { channel: Channel }) {
+  if (channel === "ia") {
+    return (
+      <span className="chip" style={{ background: "#a78bfa22", color: "#a78bfa" }}>
+        <Bot className="w-3 h-3" /> IA
+      </span>
+    );
+  }
+  return (
+    <span className="chip" style={{ background: "#7dd3fc22", color: "#7dd3fc" }}>
+      <Globe className="w-3 h-3" /> Direto
+    </span>
+  );
+}
+
 function Row({
   sale,
   onChange,
@@ -274,26 +384,42 @@ function Row({
   onAfter: () => void;
 }) {
   const [edit, setEdit] = useState(false);
+  const [channel, setChannel] = useState<Channel>((sale.channel === "ia" ? "ia" : "direto"));
   const [date, setDate] = useState(sale.sale_date);
   const [line, setLine] = useState(sale.product_line);
   const [valor, setValor] = useState(Number(sale.valor));
   const [qtd, setQtd] = useState(Number(sale.quantidade));
   const [obs, setObs] = useState(sale.observacao || "");
+  // Pra IA, deduz BU pela categoria atual
+  const [buForIA, setBuForIA] = useState<BU>(
+    (PRODUCT_LINES_UNICIVE as readonly { id: string }[]).some((p) => p.id === sale.product_line) ? "unicive" : "cppem"
+  );
+
+  const lineOptions = useMemo(() => linesFor(channel, buForIA), [channel, buForIA]);
+  useEffect(() => {
+    if (!lineOptions.some((o) => o.id === line)) setLine(lineOptions[0]?.id || "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channel, buForIA]);
 
   async function save() {
     const r = await fetch(`/api/direct/sales/${sale.id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ sale_date: date, product_line: line, valor, quantidade: qtd, observacao: obs }),
+      body: JSON.stringify({
+        sale_date: date, product_line: line, valor, quantidade: qtd, observacao: obs, channel,
+      }),
     });
     if (r.ok) {
-      onChange({ sale_date: date, product_line: line, valor, quantidade: qtd, observacao: obs });
+      onChange({ sale_date: date, product_line: line, valor, quantidade: qtd, observacao: obs, channel });
       setEdit(false);
       onAfter();
+    } else {
+      const j = await r.json().catch(() => ({}));
+      alert(j.error || "Erro ao salvar.");
     }
   }
   async function remove() {
-    if (!confirm("Remover essa venda do direto?")) return;
+    if (!confirm("Remover essa venda?")) return;
     const r = await fetch(`/api/direct/sales/${sale.id}`, { method: "DELETE" });
     if (r.ok) {
       onDelete();
@@ -305,6 +431,7 @@ function Row({
     return (
       <tr className="border-t border-border">
         <td className="p-3">{new Date(sale.sale_date + "T00:00").toLocaleDateString("pt-BR")}</td>
+        <td className="p-3"><ChannelChip channel={(sale.channel === "ia" ? "ia" : "direto")} /></td>
         <td className="p-3">{productLabel(sale.product_line)}</td>
         <td className="p-3 font-semibold">{BRL.format(Number(sale.valor))}</td>
         <td className="p-3">{sale.quantidade}</td>
@@ -327,8 +454,30 @@ function Row({
         <input type="date" className="input h-9" value={date} onChange={(e) => setDate(e.target.value)} />
       </td>
       <td className="p-2">
+        <div className="flex flex-col gap-1">
+          <select
+            className="input h-9 text-xs"
+            value={channel}
+            onChange={(e) => setChannel(e.target.value as Channel)}
+          >
+            <option value="direto">Direto</option>
+            <option value="ia">IA</option>
+          </select>
+          {channel === "ia" && (
+            <select
+              className="input h-9 text-xs"
+              value={buForIA}
+              onChange={(e) => setBuForIA(e.target.value as BU)}
+            >
+              <option value="cppem">CPPEM</option>
+              <option value="unicive">UNICIVE</option>
+            </select>
+          )}
+        </div>
+      </td>
+      <td className="p-2">
         <select className="input h-9" value={line} onChange={(e) => setLine(e.target.value)}>
-          {PRODUCT_LINES_CPPEM.map((l) => (
+          {lineOptions.map((l) => (
             <option key={l.id} value={l.id}>{l.label}</option>
           ))}
         </select>

@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 
 const CPPEM_TURMA_IDS = ["turma_pmal", "turma_pmpe", "turma_carreiras"];
-const UNICIVE_CATEGORY_IDS = ["matriculas", "bolsas_unicive"];
 
 export default function DashboardView({
   snap,
@@ -472,21 +471,11 @@ export default function DashboardView({
       )}
 
       {bu === "unicive" && (
-        <section className="grid grid-cols-1 xl:grid-cols-5 gap-3">
-          <div className="xl:col-span-3">
-            <ProductRevenueBreakdown rows={breakdown} color={color} excludeIds={UNICIVE_CATEGORY_IDS} />
-          </div>
-          <div className="xl:col-span-2">
-            <UniciveCategoriasBreakdown rows={breakdown} />
-          </div>
-        </section>
+        <UniciveCategoriasBreakdown rows={breakdown} />
       )}
 
       {bu === "colegio_cppem" && (
-        <>
-          <ProductRevenueBreakdown rows={breakdown} color={color} />
-          <ColegioTurmasBreakdown rows={breakdown} />
-        </>
+        <ColegioTurmasBreakdown rows={breakdown} />
       )}
 
       {/* Charts no fim: 3 charts em grid */}

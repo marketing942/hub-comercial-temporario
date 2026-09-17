@@ -52,7 +52,7 @@ export async function GET(req: Request) {
       .order("sale_date", { ascending: true }),
     supabaseAdmin
       .from("direct_sales")
-      .select("id, sale_date, product_line, valor, quantidade, observacao, created_at")
+      .select("id, sale_date, product_line, valor, quantidade, observacao, channel, created_at")
       .gte("sale_date", firstDay)
       .lt("sale_date", lastDay)
       .order("sale_date", { ascending: true }),
@@ -196,10 +196,12 @@ export async function GET(req: Request) {
   );
   styleHeader(wsSales);
 
-  // -------- Vendas Canal Direto --------
-  const wsDirect = wb.addWorksheet("Vendas Canal Direto");
+  // -------- Vendas Direto / IA --------
+  const wsDirect = wb.addWorksheet("Vendas Direto e IA");
   wsDirect.columns = [
     { header: "Data", key: "sale_date", width: 12 },
+    { header: "Canal", key: "channel", width: 12 },
+    { header: "BU", key: "bu", width: 18 },
     { header: "Produto", key: "product", width: 30 },
     { header: "Valor (R$)", key: "valor", width: 14, style: { numFmt: '"R$"#,##0.00' } },
     { header: "Qtd", key: "quantidade", width: 8 },
@@ -210,6 +212,8 @@ export async function GET(req: Request) {
   wsDirect.addRows(
     ((directSalesRes.data as any[]) || []).map((r) => ({
       sale_date: r.sale_date,
+      channel: r.channel === "ia" ? "IA" : "Direto",
+      bu: buLabel(buFromProductLine(r.product_line)),
       product: productLabel(r.product_line),
       valor: Number(r.valor || 0),
       quantidade: Number(r.quantidade || 0),

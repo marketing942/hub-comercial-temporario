@@ -312,10 +312,15 @@ export async function buSeries(
     ? (mgoals || []).reduce((a: number, b: any) => a + Number(b.ticket_medio_meta || 0), 0) / (mgoals || []).length
     : 0;
 
-  // Se for CPPEM, tambem soma as vendas do canal direto (site) — elas
-  // contam nas metas de faturamento e por categoria, mas nao pertencem
-  // a nenhum vendedor.
-  const directSales = bu === "cppem" ? await fetchDirectSales(year, month) : [];
+  // Vendas do canal DIRETO (site) e IA (atendimento por IA) tambem
+  // contam nas metas coletivas da BU. Elas nao pertencem a nenhum
+  // vendedor. O canal 'direto' e so CPPEM; o canal 'ia' pode ser tanto
+  // CPPEM quanto UNICIVE. Filtra por product_line pra pegar so as
+  // vendas relevantes pra BU atual (Colegio nunca tem venda no direto/IA).
+  const buProductIds = new Set(productIds);
+  const directSales = bu === "colegio_cppem"
+    ? []
+    : (await fetchDirectSales(year, month)).filter((s) => buProductIds.has(s.product_line));
 
   const buckets: Record<string, { valor: number; qtd: number; leads: number }> = {};
   for (let d = 1; d <= total; d++) {
@@ -563,9 +568,10 @@ export async function productBreakdown(
     }
   }
 
-  // Se for CPPEM, tambem soma as vendas do canal direto (site) por
-  // categoria — elas contam nas metas de faturamento e por categoria.
-  if (bu === "cppem") {
+  // Vendas do canal DIRETO/IA tambem contam nas metas por categoria da
+  // BU. Direto e so CPPEM; IA pode ser CPPEM ou UNICIVE. Filtra por
+  // product_line (`map`) pra pegar so as relevantes da BU atual.
+  if (bu === "cppem" || bu === "unicive") {
     const directSales = await fetchDirectSales(year, month);
     for (const r of directSales) {
       if (map[r.product_line]) {
@@ -690,6 +696,7 @@ export type DirectSaleRow = {
   valor: number;
   quantidade: number;
   observacao?: string | null;
+  channel?: "direto" | "ia" | null;
 };
 
 async function fetchDirectSales(year: number, month: number): Promise<DirectSaleRow[]> {
@@ -723,17 +730,28 @@ export type DirectSnapshot = {
   month: number;
   daily: { day: string; valor: number; qtd: number; visits: number }[];
   totals: {
-    valor: number;      // faturamento acumulado
+    valor: number;      // faturamento acumulado (direto + IA)
     qtd: number;        // qtd de vendas somadas
     vendasCount: number;// numero de linhas de venda
     ticketReal: number; // valor / qtd
-    visits: number;     // visitas totais no mes
+    visits: number;     // visitas totais no mes (canal direto/site)
     visitsHoje: number; // visitas do dia atual
     valorHoje: number;  // faturamento do dia atual
     qtdHoje: number;    // qtd vendida hoje
-    conversao: number;  // qtd vendida (unidades) / visitas * 100
+    conversao: number;  // qtd vendida (unidades) / visitas * 100 (canal direto)
+    // Split por canal:
+    valorDireto: number;
+    valorIA: number;
+    qtdDireto: number;
+    qtdIA: number;
+    // Split por BU (so tem IA em UNICIVE hoje):
+    valorCppem: number;
+    valorUnicive: number;
+    qtdCppem: number;
+    qtdUnicive: number;
   };
-  breakdown: ProductBreakdownRow[]; // por linha de produto (CPPEM)
+  breakdown: ProductBreakdownRow[];         // por linha de produto CPPEM (direto + IA CPPEM)
+  breakdownUnicive: ProductBreakdownRow[];  // por linha de produto UNICIVE (so IA)
 };
 
 export async function directSnapshot(opts?: {
@@ -789,19 +807,44 @@ export async function directSnapshot(opts?: {
   const hoje = buckets[todayKey] || { valor: 0, qtd: 0, visits: 0 };
   const isCurrent = nowR.getFullYear() === year && nowR.getMonth() + 1 === month;
 
-  // Breakdown por linha de produto CPPEM
+  // Breakdown por linha de produto CPPEM (direto + IA cppem)
   const cppemIds = productIdsFor("cppem") as unknown as string[];
+  const unciveIds = productIdsFor("unicive") as unknown as string[];
+  const cppemSet = new Set(cppemIds);
+  const uniciveSet = new Set(unciveIds);
   const map: Record<string, ProductBreakdownRow> = {};
   for (const id of cppemIds) {
     map[id] = { product_line: id, label: productLabel(id), valor: 0, qtd: 0, valor_meta: 0, quantidade_meta: 0 };
   }
+  const mapUni: Record<string, ProductBreakdownRow> = {};
+  for (const id of unciveIds) {
+    mapUni[id] = { product_line: id, label: productLabel(id), valor: 0, qtd: 0, valor_meta: 0, quantidade_meta: 0 };
+  }
+
+  let valorDireto = 0, valorIA = 0, qtdDireto = 0, qtdIA = 0;
+  let valorCppem = 0, valorUnicive = 0, qtdCppem = 0, qtdUnicive = 0;
+
   for (const r of sales) {
-    if (map[r.product_line]) {
-      map[r.product_line].valor += Number(r.valor || 0);
-      map[r.product_line].qtd += Number(r.quantidade || 0);
+    const v = Number(r.valor || 0);
+    const q = Number(r.quantidade || 0);
+    if (r.channel === "ia") { valorIA += v; qtdIA += q; }
+    else { valorDireto += v; qtdDireto += q; }
+    if (cppemSet.has(r.product_line)) {
+      valorCppem += v; qtdCppem += q;
+      if (map[r.product_line]) {
+        map[r.product_line].valor += v;
+        map[r.product_line].qtd += q;
+      }
+    } else if (uniciveSet.has(r.product_line)) {
+      valorUnicive += v; qtdUnicive += q;
+      if (mapUni[r.product_line]) {
+        mapUni[r.product_line].valor += v;
+        mapUni[r.product_line].qtd += q;
+      }
     }
   }
   const breakdown = Object.values(map);
+  const breakdownUnicive = Object.values(mapUni);
 
   return {
     year,
@@ -817,8 +860,11 @@ export async function directSnapshot(opts?: {
       valorHoje: isCurrent ? hoje.valor : 0,
       qtdHoje: isCurrent ? hoje.qtd : 0,
       conversao,
+      valorDireto, valorIA, qtdDireto, qtdIA,
+      valorCppem, valorUnicive, qtdCppem, qtdUnicive,
     },
     breakdown,
+    breakdownUnicive,
   };
 }
 

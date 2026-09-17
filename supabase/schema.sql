@@ -201,6 +201,14 @@ create table if not exists public.direct_sales (
 );
 create index if not exists direct_sales_date_idx on public.direct_sales(sale_date);
 
+-- Canal da venda: 'direto' (site/direct response, so CPPEM) ou 'ia'
+-- (atendimento por IA, pode ser CPPEM ou UNICIVE). Idempotente.
+alter table public.direct_sales add column if not exists channel text not null default 'direto';
+alter table public.direct_sales drop constraint if exists direct_sales_channel_check;
+alter table public.direct_sales add constraint direct_sales_channel_check
+  check (channel in ('direto','ia'));
+create index if not exists direct_sales_channel_idx on public.direct_sales(channel);
+
 -- Visitas diarias do site (para calculo de conversao do canal direto)
 create table if not exists public.direct_visits (
   id uuid primary key default gen_random_uuid(),

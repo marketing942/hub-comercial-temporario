@@ -8,10 +8,11 @@ export default function DiretoAdminPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold">Canal Direto (Site)</h1>
+        <h1 className="text-2xl font-bold">Direto / IA</h1>
         <p className="text-sm text-white/50">
-          Lance as vendas atribuidas ao site/direct response e atualize as
-          visitas diarias. Elas contam no faturamento e categoria do CPPEM.
+          Lance as vendas do site (direto) e as vendas fechadas pelas IAs de
+          atendimento (podem ser CPPEM ou UNICIVE). Todas contam nas metas
+          coletivas da BU. Atualize tambem as visitas diarias do site.
         </p>
       </div>
       <DiretoClient defaultYear={year} defaultMonth={month} />

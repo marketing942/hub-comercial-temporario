@@ -1,23 +1,30 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
-import { CPPEM_PRODUCT_IDS } from "@/lib/products";
+import { CPPEM_PRODUCT_IDS, UNICIVE_PRODUCT_IDS } from "@/lib/products";
 
 const CPPEM_IDS = CPPEM_PRODUCT_IDS as unknown as string[];
+const UNI_IDS = UNICIVE_PRODUCT_IDS as unknown as string[];
 
-// POST /api/direct/sales { sale_date, product_line, valor, quantidade, observacao? }
+// POST /api/direct/sales { sale_date, product_line, valor, quantidade, observacao?, channel? }
+// channel = 'direto' (default, so CPPEM) ou 'ia' (CPPEM ou UNICIVE)
 export async function POST(req: Request) {
   const s = await getSession();
   if (s?.role !== "admin") {
-    return NextResponse.json({ error: "Apenas admin lanca venda do direto." }, { status: 401 });
+    return NextResponse.json({ error: "Apenas admin lanca venda do direto/IA." }, { status: 401 });
   }
   const b = await req.json();
   const { sale_date, product_line, valor, quantidade, observacao } = b || {};
+  const channel: "direto" | "ia" = b?.channel === "ia" ? "ia" : "direto";
   if (!sale_date || !product_line) {
     return NextResponse.json({ error: "Faltam sale_date / product_line." }, { status: 400 });
   }
-  if (!CPPEM_IDS.includes(product_line)) {
-    return NextResponse.json({ error: "Categoria invalida (so CPPEM no direto)." }, { status: 400 });
+  // Direto: so CPPEM. IA: CPPEM ou UNICIVE.
+  if (channel === "direto" && !CPPEM_IDS.includes(product_line)) {
+    return NextResponse.json({ error: "Canal Direto so aceita categorias CPPEM." }, { status: 400 });
+  }
+  if (channel === "ia" && !CPPEM_IDS.includes(product_line) && !UNI_IDS.includes(product_line)) {
+    return NextResponse.json({ error: "Canal IA so aceita categorias CPPEM ou UNICIVE." }, { status: 400 });
   }
   const { data, error } = await supabaseAdmin
     .from("direct_sales")
@@ -27,6 +34,7 @@ export async function POST(req: Request) {
       valor: Number(valor || 0),
       quantidade: Number(quantidade || 1),
       observacao: observacao || null,
+      channel,
     })
     .select()
     .single();
