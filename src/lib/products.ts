@@ -3,11 +3,12 @@ export const ALL_BUS: BU[] = ["cppem", "unicive", "colegio_cppem"];
 
 export const PRODUCT_LINES_CPPEM = [
   { id: "mentorias", label: "Mentorias" },
-  { id: "cursos_digitais", label: "Cursos e Materiais Digitais" },
+  { id: "turmas_presenciais", label: "Turmas Presenciais" },
+  { id: "cursos_online", label: "Cursos online" },
+  { id: "presencial_em_casa", label: "Presencial em casa" },
+  { id: "materiais_digitais", label: "Materiais Digitais" },
   { id: "fisicos", label: "Produtos Fisicos" },
-  { id: "turma_pmal", label: "Turma PMAL" },
-  { id: "turma_pmpe", label: "Turma PMPE" },
-  { id: "turma_carreiras", label: "Turma Carreiras Policiais" },
+  { id: "eventos", label: "Eventos" },
 ] as const;
 
 export const PRODUCT_LINES_UNICIVE = [
@@ -40,8 +41,18 @@ export const COLEGIO_MATRICULAS_IDS = [
 ] as const;
 
 export const CPPEM_PRODUCT_IDS = [
-  "mentorias","cursos_digitais","fisicos","turma_pmal","turma_pmpe","turma_carreiras",
+  "mentorias","turmas_presenciais","cursos_online","presencial_em_casa","materiais_digitais","fisicos","eventos",
 ] as const;
+
+// Ids antigos que foram consolidados nas novas categorias. Mantido pra
+// (1) fallback de label ate a migracao rodar e (2) permitir mapeamento
+// reverso em relatorios historicos.
+const LEGACY_LABELS: Record<string, string> = {
+  cursos_digitais: "Cursos online",
+  turma_pmal: "Turmas Presenciais",
+  turma_pmpe: "Turmas Presenciais",
+  turma_carreiras: "Turmas Presenciais",
+};
 export const UNICIVE_PRODUCT_IDS = ["matriculas", "bolsas_unicive"] as const;
 export const COLEGIO_PRODUCT_IDS = PRODUCT_LINES_COLEGIO.map((p) => p.id) as readonly string[];
 
@@ -70,7 +81,9 @@ export function buFromProductLine(pl: string): BU {
 
 export function productLabel(id: string): string {
   const all = [...PRODUCT_LINES_CPPEM, ...PRODUCT_LINES_UNICIVE, ...PRODUCT_LINES_COLEGIO];
-  return all.find((p) => p.id === id)?.label ?? id;
+  const found = all.find((p) => p.id === id);
+  if (found) return found.label;
+  return LEGACY_LABELS[id] || id;
 }
 
 // Para o COLEGIO CPPEM, a metrica primaria e quantidade de matriculas.
@@ -80,14 +93,6 @@ export function productLabel(id: string): string {
 export function isQtdPrimary(bu: BU): boolean {
   return bu === "colegio_cppem";
 }
-
-export const TURMAS_GROUP_LABEL = "Turmas Presenciais e Eventos";
-
-export const TURMAS = [
-  { id: "turma_pmal", label: "PMAL" },
-  { id: "turma_pmpe", label: "PMPE" },
-  { id: "turma_carreiras", label: "Carreiras Policiais" },
-] as const;
 
 // ===== Status da ligacao Onvox =====
 export const LIGACAO_STATUSES = [

@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import {
   productLabel,
   productLinesFor,
-  TURMAS,
   type BU,
   LIGACAO_STATUSES,
   ligacaoShort,
@@ -12,6 +11,7 @@ import {
   INDICACAO_STATUSES,
   indicacaoShort,
   indicacaoColor,
+  PRODUCT_LINES_CPPEM,
   PRODUCT_LINES_COLEGIO,
 } from "@/lib/products";
 import { BRL, fmtInt } from "@/lib/calc";
@@ -52,11 +52,8 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
   const hasColegio = sellerBus.includes("colegio_cppem");
   const selectLines: { id: string; label: string; group?: string }[] = [];
   if (hasCppem) {
-    selectLines.push(
-      { id: "mentorias", label: "Mentorias", group: "CPPEM" },
-      { id: "cursos_digitais", label: "Cursos e Materiais Digitais", group: "CPPEM" },
-      { id: "fisicos", label: "Produtos Fisicos", group: "CPPEM" },
-      { id: "turmas_eventos", label: "Turmas Presenciais e Eventos", group: "CPPEM" },
+    PRODUCT_LINES_CPPEM.forEach((l) =>
+      selectLines.push({ id: l.id, label: l.label, group: "CPPEM" })
     );
   }
   if (hasUnicive) {
@@ -67,11 +64,8 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
       selectLines.push({ id: l.id, label: l.label, group: "Colegio CPPEM" })
     );
   }
-  // Para CPPEM com turmas/eventos, mostra um sub-select com a turma
-  const isCppemTurma = (id: string) => id === "turmas_eventos";
 
   const [line, setLine] = useState<string>(selectLines[0]?.id || "");
-  const [turma, setTurma] = useState<string>(TURMAS[0].id);
   const [valor, setValor] = useState<number>(0);
   const [qtd, setQtd] = useState<number>(1);
   const [cliente, setCliente] = useState<string>("");
@@ -92,7 +86,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
       return;
     }
     setSaving(true);
-    const product_line = isCppemTurma(line) ? turma : line;
+    const product_line = line;
     const r = await fetch("/api/sales", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -130,7 +124,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
             <label className="label">Data</label>
             <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
-          <div className={isCppemTurma(line) ? "md:col-span-1" : "md:col-span-2"}>
+          <div className="md:col-span-2">
             <label className="label">Linha de produto</label>
             <select className="input" value={line} onChange={(e) => setLine(e.target.value)}>
               {sellerBus.length > 1
@@ -156,18 +150,6 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
                   ))}
             </select>
           </div>
-          {isCppemTurma(line) && (
-            <div>
-              <label className="label">Turma</label>
-              <select className="input" value={turma} onChange={(e) => setTurma(e.target.value)}>
-                {TURMAS.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
           <div>
             <label className="label">Valor (R$)</label>
             <NumberField step="0.01" className="input" value={valor} onChange={setValor} />
@@ -331,14 +313,7 @@ function Row({
   const [ligacao, setLigacao] = useState(sale.ligacao_status || "sem_ligacao");
   const [indicacao, setIndicacao] = useState(sale.indicacao_status || "sem_indicacao");
 
-  const cppemLines = [
-    { id: "mentorias", label: "Mentorias" },
-    { id: "cursos_digitais", label: "Cursos e Materiais Digitais" },
-    { id: "fisicos", label: "Produtos Fisicos" },
-    { id: "turma_pmal", label: "Turma PMAL" },
-    { id: "turma_pmpe", label: "Turma PMPE" },
-    { id: "turma_carreiras", label: "Turma Carreiras Policiais" },
-  ];
+  const cppemLines = PRODUCT_LINES_CPPEM.map((p) => ({ id: p.id, label: p.label }));
   const uniLines = [{ id: "matriculas", label: "Matriculas Unicive" }];
   const colegioLines = PRODUCT_LINES_COLEGIO.map((p) => ({ id: p.id, label: p.label }));
   const lines: { id: string; label: string }[] = [];

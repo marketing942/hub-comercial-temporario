@@ -9,7 +9,7 @@ import {
   SplitSquareHorizontal,
 } from "lucide-react";
 import { BU_COLOR, BU_LABEL } from "@/lib/brand";
-import { ALL_BUS, PRODUCT_LINES_COLEGIO, isQtdPrimary, type BU } from "@/lib/products";
+import { ALL_BUS, PRODUCT_LINES_CPPEM, PRODUCT_LINES_UNICIVE, PRODUCT_LINES_COLEGIO, isQtdPrimary, type BU } from "@/lib/products";
 import NumberField from "@/components/NumberField";
 
 type Seller = {
@@ -40,18 +40,8 @@ const MONTHS = [
   "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro",
 ];
 
-const CPPEM_LINES = [
-  { id: "mentorias", label: "Mentorias" },
-  { id: "cursos_digitais", label: "Cursos / Materiais Digitais" },
-  { id: "fisicos", label: "Produtos Fisicos" },
-  { id: "turma_pmal", label: "Turma PMAL" },
-  { id: "turma_pmpe", label: "Turma PMPE" },
-  { id: "turma_carreiras", label: "Turma Carreiras Policiais" },
-];
-const UNICIVE_LINES = [
-  { id: "matriculas", label: "Matriculas" },
-  { id: "bolsas_unicive", label: "Bolsas" },
-];
+const CPPEM_LINES = PRODUCT_LINES_CPPEM.map((p) => ({ id: p.id, label: p.label }));
+const UNICIVE_LINES = PRODUCT_LINES_UNICIVE.map((p) => ({ id: p.id, label: p.label }));
 const COLEGIO_LINES = PRODUCT_LINES_COLEGIO.map((p) => ({ id: p.id, label: p.label }));
 
 const BRL = (n: number) =>

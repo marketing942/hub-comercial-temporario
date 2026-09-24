@@ -6,7 +6,6 @@ import DailySalesChart from "@/components/charts/DailySalesChart";
 import ProductRevenueBreakdown from "@/components/ProductRevenueBreakdown";
 import { Wallet, Target, MousePointerClick, Globe, Bot } from "lucide-react";
 
-const CPPEM_TURMA_IDS = ["turma_pmal", "turma_pmpe", "turma_carreiras"];
 
 export default function DirectDashboardView({
   snap,
@@ -146,11 +145,10 @@ export default function DirectDashboardView({
         </div>
       </section>
 
-      {/* Breakdown CPPEM (direto + IA CPPEM) */}
+      {/* Breakdown CPPEM (direto + IA CPPEM) — todas as 7 categorias */}
       <ProductRevenueBreakdown
         rows={snap.breakdown}
         color="#7dd3fc"
-        excludeIds={CPPEM_TURMA_IDS}
       />
 
       {/* Breakdown UNICIVE — so aparece se ha venda IA em UNICIVE */}

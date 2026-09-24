@@ -335,6 +335,68 @@ insert into public.motivational_quotes (text, author) values
   ('Hoje e o melhor dia pra bater meta.', 'Comercial Unicive')
 on conflict do nothing;
 
+-- ---------- Migracao: novas categorias CPPEM ----------
+-- Antes: mentorias / cursos_digitais / fisicos / turma_pmal / turma_pmpe /
+--        turma_carreiras
+-- Depois: mentorias / turmas_presenciais / cursos_online /
+--         presencial_em_casa / materiais_digitais / fisicos / eventos
+--
+-- Regras de migracao (aprovadas):
+--   cursos_digitais -> cursos_online (rename)
+--   turma_pmal + turma_pmpe + turma_carreiras -> turmas_presenciais (merge)
+--
+-- Idempotente: rodar de novo apos migrado vira no-op.
+
+-- Vendas: simples rename (nao ha unique por product_line).
+update public.sales
+   set product_line = 'cursos_online'
+ where product_line = 'cursos_digitais';
+update public.sales
+   set product_line = 'turmas_presenciais'
+ where product_line in ('turma_pmal','turma_pmpe','turma_carreiras');
+
+update public.direct_sales
+   set product_line = 'cursos_online'
+ where product_line = 'cursos_digitais';
+update public.direct_sales
+   set product_line = 'turmas_presenciais'
+ where product_line in ('turma_pmal','turma_pmpe','turma_carreiras');
+
+-- Metas por produto do vendedor: rename direto pro cursos_online.
+update public.product_goals
+   set product_line = 'cursos_online'
+ where product_line = 'cursos_digitais';
+
+-- Turmas: consolida os 3 (+ eventual turmas_presenciais existente) somando.
+insert into public.product_goals (seller_id, month, year, product_line, valor_meta, quantidade_meta)
+select seller_id, month, year, 'turmas_presenciais',
+       sum(valor_meta), sum(quantidade_meta)
+  from public.product_goals
+ where product_line in ('turma_pmal','turma_pmpe','turma_carreiras','turmas_presenciais')
+ group by seller_id, month, year
+on conflict (seller_id, month, year, product_line)
+do update set valor_meta = excluded.valor_meta,
+              quantidade_meta = excluded.quantidade_meta;
+delete from public.product_goals
+ where product_line in ('turma_pmal','turma_pmpe','turma_carreiras');
+
+-- Mesma coisa pra bu_product_goals.
+update public.bu_product_goals
+   set product_line = 'cursos_online'
+ where product_line = 'cursos_digitais';
+
+insert into public.bu_product_goals (bu, month, year, product_line, valor_meta, quantidade_meta)
+select bu, month, year, 'turmas_presenciais',
+       sum(valor_meta), sum(quantidade_meta)
+  from public.bu_product_goals
+ where product_line in ('turma_pmal','turma_pmpe','turma_carreiras','turmas_presenciais')
+ group by bu, month, year
+on conflict (bu, year, month, product_line)
+do update set valor_meta = excluded.valor_meta,
+              quantidade_meta = excluded.quantidade_meta;
+delete from public.bu_product_goals
+ where product_line in ('turma_pmal','turma_pmpe','turma_carreiras');
+
 -- ---------- RLS ----------
 -- IMPORTANTE: RLS DEVE ficar LIGADO. Rode supabase/enable-rls.sql.
 -- A anon key e publica (NEXT_PUBLIC_) e, com RLS desligado, qualquer um

@@ -8,7 +8,6 @@ import DailySalesChart from "@/components/charts/DailySalesChart";
 import CumulativeGoalChart from "@/components/charts/CumulativeGoalChart";
 import ProductRevenueBreakdown from "@/components/ProductRevenueBreakdown";
 import ColegioTurmasBreakdown from "@/components/ColegioTurmasBreakdown";
-import TurmasBreakdown from "@/components/TurmasBreakdown";
 import UniciveCategoriasBreakdown from "@/components/UniciveCategoriasBreakdown";
 import LongTermGoalCard from "@/components/LongTermGoalCard";
 import {
@@ -21,7 +20,6 @@ import {
   ArrowDownRight,
 } from "lucide-react";
 
-const CPPEM_TURMA_IDS = ["turma_pmal", "turma_pmpe", "turma_carreiras"];
 
 export default function DashboardView({
   snap,
@@ -458,16 +456,9 @@ export default function DashboardView({
         </section>
       )}
 
-      {/* Receita por categoria + card lateral por BU */}
+      {/* Receita por categoria — CPPEM mostra todas as 7 categorias novas */}
       {bu === "cppem" && (
-        <section className="grid grid-cols-1 xl:grid-cols-5 gap-3">
-          <div className="xl:col-span-3">
-            <ProductRevenueBreakdown rows={breakdown} color={color} excludeIds={CPPEM_TURMA_IDS} />
-          </div>
-          <div className="xl:col-span-2">
-            <TurmasBreakdown rows={breakdown} variant="stack" />
-          </div>
-        </section>
+        <ProductRevenueBreakdown rows={breakdown} color={color} />
       )}
 
       {bu === "unicive" && (
