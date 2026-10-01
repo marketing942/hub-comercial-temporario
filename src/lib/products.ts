@@ -9,6 +9,7 @@ export const PRODUCT_LINES_CPPEM = [
   { id: "materiais_digitais", label: "Materiais Digitais" },
   { id: "fisicos", label: "Produtos Fisicos" },
   { id: "eventos", label: "Eventos" },
+  { id: "supletivo", label: "Supletivo" },
 ] as const;
 
 export const PRODUCT_LINES_UNICIVE = [
@@ -41,7 +42,7 @@ export const COLEGIO_MATRICULAS_IDS = [
 ] as const;
 
 export const CPPEM_PRODUCT_IDS = [
-  "mentorias","turmas_presenciais","cursos_online","presencial_em_casa","materiais_digitais","fisicos","eventos",
+  "mentorias","turmas_presenciais","cursos_online","presencial_em_casa","materiais_digitais","fisicos","eventos","supletivo",
 ] as const;
 
 // Ids antigos que foram consolidados nas novas categorias. Mantido pra
