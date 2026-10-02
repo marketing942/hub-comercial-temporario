@@ -5,8 +5,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Tema por variaveis CSS (globals.css): padrao = rebranding CPPEM (preto + dourado);
-        // html[data-theme="colegio_cppem"] troca para o azul do Colegio.
+        // Tema por variaveis CSS (globals.css): rebranding CPPEM (preto + dourado).
         bg: "rgb(var(--c-bg) / <alpha-value>)",
         panel: "rgb(var(--c-panel) / <alpha-value>)",
         panel2: "rgb(var(--c-panel2) / <alpha-value>)",

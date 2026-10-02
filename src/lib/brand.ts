@@ -1,7 +1,7 @@
 import type { BU } from "./products";
 
-export const LOGO_CPPEM =
-  "https://raw.githubusercontent.com/marketing942/fotos-dos-bots/main/LOGO%20CPPEM.png";
+// Leao dourado do rebranding 2026 (arquivo local em public/brand)
+export const LOGO_CPPEM = "/brand/logo-cppem.png";
 
 export const LOGO_UNICIVE =
   "https://raw.githubusercontent.com/marketing942/fotos-dos-bots/main/Polo%20Caruaru-%20PE%20(1).png";
@@ -110,8 +110,8 @@ export const BU_THEME: Record<
   colegio_cppem: {
     accent: "#5aa2ff",
     accent2: "#f2b01e",
-    bg: "radial-gradient(900px 320px at 15% 0%, rgba(47,127,240,0.30), transparent 60%), radial-gradient(700px 280px at 90% 8%, rgba(242,176,30,0.10), transparent 60%)",
-    headerBg: "linear-gradient(120deg, rgba(90,162,255,0.30), rgba(10,35,86,0.8))",
-    surface: "rgba(10,35,86,0.6)",
+    bg: "radial-gradient(900px 320px at 15% 0%, rgba(90,162,255,0.14), transparent 60%), radial-gradient(700px 280px at 90% 8%, rgba(242,176,30,0.08), transparent 60%)",
+    headerBg: "linear-gradient(120deg, rgba(90,162,255,0.20), rgba(24,24,30,0.7))",
+    surface: "rgba(24,24,30,0.6)",
   },
 };

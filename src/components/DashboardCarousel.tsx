@@ -66,16 +66,6 @@ export default function DashboardCarousel({
     };
   }, [paused, intervalSec, slides.length, idx]);
 
-  // tema da tela acompanha o slide ativo (o Colegio tem paleta propria em globals.css)
-  const activeKey = slides[idx]?.key;
-  useEffect(() => {
-    if (!activeKey) return;
-    document.documentElement.dataset.theme = activeKey;
-    return () => {
-      delete document.documentElement.dataset.theme;
-    };
-  }, [activeKey]);
-
   // fullscreen
   useEffect(() => {
     const onFs = () => setFull(!!document.fullscreenElement);
