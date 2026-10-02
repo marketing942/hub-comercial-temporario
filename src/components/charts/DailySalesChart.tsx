@@ -13,7 +13,7 @@ type Row = { day: string; valor: number; qtd: number; leads?: number };
 
 export default function DailySalesChart({
   data,
-  color = "#22c55e",
+  color = "#c9ae7a",
   field = "valor",
   unit = "currency",
 }: {
@@ -33,10 +33,10 @@ export default function DailySalesChart({
               <stop offset="100%" stopColor={color} stopOpacity={0.45} />
             </linearGradient>
           </defs>
-          <CartesianGrid stroke="#1f3a2a" strokeDasharray="3 4" vertical={false} />
-          <XAxis dataKey="day" stroke="#7d8a83" fontSize={12} tickLine={false} axisLine={false} />
+          <CartesianGrid stroke="rgb(var(--c-border))" strokeDasharray="3 4" vertical={false} />
+          <XAxis dataKey="day" stroke="#87847a" fontSize={12} tickLine={false} axisLine={false} />
           <YAxis
-            stroke="#7d8a83"
+            stroke="#87847a"
             fontSize={12}
             tickLine={false}
             axisLine={false}
@@ -47,12 +47,12 @@ export default function DailySalesChart({
             }
           />
           <Tooltip
-            cursor={{ fill: "rgba(34,197,94,0.08)" }}
+            cursor={{ fill: "rgb(var(--c-accent) / 0.08)" }}
             contentStyle={{
-              background: "#0c1b13",
-              border: "1px solid #1f3a2a",
+              background: "rgb(var(--c-panel))",
+              border: "1px solid rgb(var(--c-border))",
               borderRadius: 12,
-              color: "#e8efe9",
+              color: "rgb(var(--c-text))",
             }}
             formatter={(val: any) =>
               unit === "currency"

@@ -6,7 +6,7 @@ export default function BigStatCard({
   value,
   hint,
   icon,
-  accent = "#22c55e",
+  accent = "#c9ae7a",
   valueColor,
   progressPct,
   progressColor,
