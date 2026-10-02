@@ -47,10 +47,10 @@ export default function LigacaoDonut({
               <Tooltip
                 cursor={false}
                 contentStyle={{
-                  background: "rgb(var(--c-panel))",
-                  border: "1px solid rgb(var(--c-border))",
+                  background: "#0c1b13",
+                  border: "1px solid #1f3a2a",
                   borderRadius: 10,
-                  color: "rgb(var(--c-text))",
+                  color: "#e8efe9",
                   fontSize: 12,
                 }}
                 formatter={(val: any, _name: any, props: any) => [

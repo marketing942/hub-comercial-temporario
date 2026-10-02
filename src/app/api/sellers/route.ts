@@ -38,7 +38,7 @@ export async function POST(req: Request) {
       name,
       bu: cleanBus[0],
       bus: cleanBus,
-      avatar_color: avatar_color || "#c9ae7a",
+      avatar_color: avatar_color || "#22c55e",
       // Explicito pra nao depender de DEFAULT do banco (em DBs antigos o
       // default pode nao estar setado, o que fazia o vendedor entrar com
       // active=NULL e sumir do /escolher-vendedor).

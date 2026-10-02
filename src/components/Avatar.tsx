@@ -1,7 +1,7 @@
 export default function Avatar({
   name,
   url,
-  color = "#c9ae7a",
+  color = "#22c55e",
   size = 40,
   className = "",
 }: {
