@@ -14,7 +14,7 @@ import {
   PRODUCT_LINES_CPPEM,
   PRODUCT_LINES_COLEGIO,
 } from "@/lib/products";
-import { BRL, fmtInt } from "@/lib/calc";
+import { BRL, fmtInt, todayISORecife } from "@/lib/calc";
 import { Plus, Pencil, Trash2, Check, X, Phone, UserPlus, User } from "lucide-react";
 import NumberField from "@/components/NumberField";
 
@@ -38,7 +38,10 @@ function busOf(s: Seller): BU[] {
 }
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  // Usa o fuso de Recife — toISOString() entrega UTC e, apos ~21h local,
+  // ja vira pro dia seguinte, fazendo o vendedor lancar venda com data
+  // errada sem perceber.
+  return todayISORecife();
 }
 
 export default function SalesClient({ seller, initial }: { seller: Seller; initial: Sale[] }) {
@@ -122,7 +125,7 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
         <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
           <div>
             <label className="label">Data</label>
-            <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
+            <input type="date" className="input" value={date} max={todayISO()} onChange={(e) => setDate(e.target.value)} />
           </div>
           <div className="md:col-span-2">
             <label className="label">Linha de produto</label>
@@ -410,7 +413,7 @@ function Row({
   return (
     <tr className="border-t border-border bg-panel2/40">
       <td className="p-2">
-        <input type="date" className="input h-9" value={date} onChange={(e) => setDate(e.target.value)} />
+        <input type="date" className="input h-9" value={date} max={todayISORecife()} onChange={(e) => setDate(e.target.value)} />
       </td>
       <td className="p-2">
         <select className="input h-9" value={line} onChange={(e) => setLine(e.target.value)}>

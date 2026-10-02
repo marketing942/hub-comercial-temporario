@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Save, Pencil, Trash2, Check, X, Globe, Bot } from "lucide-react";
 import NumberField from "@/components/NumberField";
-import { BRL, fmtInt } from "@/lib/calc";
+import { BRL, fmtInt, todayISORecife } from "@/lib/calc";
 import {
   PRODUCT_LINES_CPPEM,
   PRODUCT_LINES_UNICIVE,
@@ -29,7 +29,9 @@ const MONTHS = [
 ];
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  // Usa o fuso de Recife — toISOString() entrega UTC e, apos ~21h local,
+  // ja vira pro dia seguinte, bagunçando o pace diario.
+  return todayISORecife();
 }
 
 // Retorna as linhas de produto disponiveis pro canal/BU
@@ -252,7 +254,7 @@ export default function DiretoClient({
           )}
           <div>
             <label className="label">Data</label>
-            <input type="date" className="input" value={date} onChange={(e) => setDate(e.target.value)} />
+            <input type="date" className="input" value={date} max={todayISO()} onChange={(e) => setDate(e.target.value)} />
           </div>
           <div className={channel === "ia" ? "md:col-span-2" : "md:col-span-2"}>
             <label className="label">
@@ -296,7 +298,7 @@ export default function DiretoClient({
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
           <div>
             <label className="label">Data</label>
-            <input type="date" className="input" value={visitDate} onChange={(e) => setVisitDate(e.target.value)} />
+            <input type="date" className="input" value={visitDate} max={todayISO()} onChange={(e) => setVisitDate(e.target.value)} />
           </div>
           <div>
             <label className="label">Visitas no dia</label>
@@ -451,7 +453,7 @@ function Row({
   return (
     <tr className="border-t border-border bg-panel2/40">
       <td className="p-2">
-        <input type="date" className="input h-9" value={date} onChange={(e) => setDate(e.target.value)} />
+        <input type="date" className="input h-9" value={date} max={todayISORecife()} onChange={(e) => setDate(e.target.value)} />
       </td>
       <td className="p-2">
         <div className="flex flex-col gap-1">

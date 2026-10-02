@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { todayISORecife } from "@/lib/calc";
 
 // POST /api/sales { sale_date, product_line, valor, quantidade, observacao? }
 export async function POST(req: Request) {
@@ -12,6 +13,15 @@ export async function POST(req: Request) {
   const { sale_date, product_line, valor, quantidade, cliente_nome, observacao, ligacao_status, indicacao_status } = b || {};
   if (!sale_date || !product_line) {
     return NextResponse.json({ error: "Faltam sale_date / product_line." }, { status: 400 });
+  }
+  // Guarda: nao aceita venda com data no futuro (fuso de Recife). Protege
+  // contra o bug do default UTC que fazia venda da noite ser contabilizada
+  // no dia seguinte.
+  if (typeof sale_date === "string" && sale_date > todayISORecife()) {
+    return NextResponse.json(
+      { error: "Data da venda nao pode ser no futuro." },
+      { status: 400 }
+    );
   }
   const validLigacao = ["consegui_direto", "consegui_indireto", "sem_ligacao"];
   const ligacao = validLigacao.includes(ligacao_status) ? ligacao_status : "sem_ligacao";

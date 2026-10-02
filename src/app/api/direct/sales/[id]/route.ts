@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { CPPEM_PRODUCT_IDS, UNICIVE_PRODUCT_IDS } from "@/lib/products";
+import { todayISORecife } from "@/lib/calc";
 
 const CPPEM_IDS = CPPEM_PRODUCT_IDS as unknown as string[];
 const UNI_IDS = UNICIVE_PRODUCT_IDS as unknown as string[];
@@ -26,7 +27,15 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       .maybeSingle();
     effectiveChannel = ((cur as any)?.channel === "ia" ? "ia" : "direto");
   }
-  if (typeof b.sale_date === "string") patch.sale_date = b.sale_date;
+  if (typeof b.sale_date === "string") {
+    if (b.sale_date > todayISORecife()) {
+      return NextResponse.json(
+        { error: "Data da venda nao pode ser no futuro." },
+        { status: 400 }
+      );
+    }
+    patch.sale_date = b.sale_date;
+  }
   if (typeof b.product_line === "string") {
     if (effectiveChannel === "direto" && !CPPEM_IDS.includes(b.product_line)) {
       return NextResponse.json({ error: "Canal Direto so aceita categorias CPPEM." }, { status: 400 });

@@ -1,13 +1,22 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
+import { todayISORecife } from "@/lib/calc";
 
 export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const s = await getSession();
   if (!s) return NextResponse.json({ error: "Nao autorizado." }, { status: 401 });
   const b = await req.json();
   const patch: Record<string, any> = { updated_at: new Date().toISOString() };
-  if (typeof b.sale_date === "string") patch.sale_date = b.sale_date;
+  if (typeof b.sale_date === "string") {
+    if (b.sale_date > todayISORecife()) {
+      return NextResponse.json(
+        { error: "Data da venda nao pode ser no futuro." },
+        { status: 400 }
+      );
+    }
+    patch.sale_date = b.sale_date;
+  }
   if (typeof b.product_line === "string") patch.product_line = b.product_line;
   if (b.valor !== undefined) patch.valor = Number(b.valor);
   if (b.quantidade !== undefined) patch.quantidade = Number(b.quantidade);

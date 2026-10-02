@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { CPPEM_PRODUCT_IDS, UNICIVE_PRODUCT_IDS } from "@/lib/products";
+import { todayISORecife } from "@/lib/calc";
 
 const CPPEM_IDS = CPPEM_PRODUCT_IDS as unknown as string[];
 const UNI_IDS = UNICIVE_PRODUCT_IDS as unknown as string[];
@@ -18,6 +19,13 @@ export async function POST(req: Request) {
   const channel: "direto" | "ia" = b?.channel === "ia" ? "ia" : "direto";
   if (!sale_date || !product_line) {
     return NextResponse.json({ error: "Faltam sale_date / product_line." }, { status: 400 });
+  }
+  // Guarda: nao aceita venda com data no futuro (fuso de Recife).
+  if (typeof sale_date === "string" && sale_date > todayISORecife()) {
+    return NextResponse.json(
+      { error: "Data da venda nao pode ser no futuro." },
+      { status: 400 }
+    );
   }
   // Direto: so CPPEM. IA: CPPEM ou UNICIVE.
   if (channel === "direto" && !CPPEM_IDS.includes(product_line)) {
