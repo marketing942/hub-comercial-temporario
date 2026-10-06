@@ -4,8 +4,7 @@ import { BU_COLOR, BU_LABEL, BU_THEME, COLOR, tonePctMeta } from "@/lib/brand";
 import { isQtdPrimary } from "@/lib/products";
 import BULogo from "@/components/BULogo";
 import BigStatCard from "@/components/BigStatCard";
-import DailySalesChart from "@/components/charts/DailySalesChart";
-import CumulativeGoalChart from "@/components/charts/CumulativeGoalChart";
+import UnifiedDailyChart, { type UnifiedChartRow } from "@/components/charts/UnifiedDailyChart";
 import ProductRevenueBreakdown from "@/components/ProductRevenueBreakdown";
 import ColegioTurmasBreakdown from "@/components/ColegioTurmasBreakdown";
 import UniciveCategoriasBreakdown from "@/components/UniciveCategoriasBreakdown";
@@ -456,7 +455,67 @@ export default function DashboardView({
         </section>
       )}
 
-      {/* Receita por categoria — CPPEM mostra todas as 7 categorias novas */}
+      {/* ===== Grafico unificado (Vendas + Leads + % Meta) — maior,
+          3x o tamanho dos antigos, ocupando toda a linha ===== */}
+      <section className="card-lg">
+        <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+          <div>
+            <div className="text-sm font-semibold">
+              Evolucao Diaria — {BU_LABEL[bu]}
+            </div>
+            <div className="text-xs text-white/50">
+              {isQtd ? "Matriculas" : "Vendas"}, leads e % da meta acumulada por dia
+            </div>
+          </div>
+          <div className="text-[10px] text-white/40 uppercase tracking-wider">
+            Linha tracejada = ritmo ideal (100% ate o fim do mes)
+          </div>
+        </div>
+        <UnifiedDailyChart
+          data={buildUnifiedRows(series.daily, series.cumulative)}
+          leftUnit={isQtd ? "int" : "currency"}
+          rightUnit="percent"
+          rightDomain={[0, (dataMax: number) => Math.max(100, Math.ceil(dataMax / 10) * 10)] as any}
+          showIdealReference
+          series={[
+            {
+              key: isQtd ? "qtd" : "valor",
+              label: isQtd ? "Matriculas (dia)" : "Vendas (dia)",
+              color,
+              axis: "left",
+              unit: isQtd ? "int" : "currency",
+              strokeWidth: 2.5,
+            },
+            {
+              key: "leads",
+              label: "Leads (dia)",
+              color: COLOR.info,
+              axis: "left",
+              unit: "int",
+              strokeWidth: 2,
+            },
+            {
+              key: "pct",
+              label: "% Meta acumulada",
+              color: pctTone,
+              axis: "right",
+              unit: "percent",
+              strokeWidth: 3,
+            },
+            {
+              key: "idealPct",
+              label: "% Ideal",
+              color: "#facc15",
+              axis: "right",
+              unit: "percent",
+              dashed: true,
+              strokeWidth: 1.5,
+            },
+          ]}
+        />
+      </section>
+
+      {/* Receita por categoria — abaixo do grafico unificado */}
       {bu === "cppem" && (
         <ProductRevenueBreakdown rows={breakdown} color={color} />
       )}
@@ -468,46 +527,28 @@ export default function DashboardView({
       {bu === "colegio_cppem" && (
         <ColegioTurmasBreakdown rows={breakdown} />
       )}
-
-      {/* Charts no fim: 3 charts em grid */}
-      <section className="grid grid-cols-1 xl:grid-cols-3 gap-3">
-        <div className="card-lg">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <div className="text-sm font-semibold">Evolucao Diaria - Vendas</div>
-              <div className="text-xs text-white/50">
-                {isQtd ? "Matriculas por dia" : "Faturamento por dia"}
-              </div>
-            </div>
-          </div>
-          <DailySalesChart
-            data={series.daily}
-            color={color}
-            field={isQtd ? "qtd" : "valor"}
-            unit={isQtd ? "int" : "currency"}
-          />
-        </div>
-        <div className="card-lg">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <div className="text-sm font-semibold">Evolucao Diaria - Leads</div>
-              <div className="text-xs text-white/50">Leads recebidos por dia</div>
-            </div>
-          </div>
-          <DailySalesChart data={series.daily} color={COLOR.info} field="leads" unit="int" />
-        </div>
-        <div className="card-lg">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <div className="text-sm font-semibold">% da Meta Acumulada</div>
-              <div className="text-xs text-white/50">Linha tracejada = ritmo ideal</div>
-            </div>
-          </div>
-          <CumulativeGoalChart data={series.cumulative} color={pctTone} />
-        </div>
-      </section>
     </div>
   );
+}
+
+// Combina os arrays series.daily e series.cumulative (mesma qtd de dias)
+// num unico array pro UnifiedDailyChart.
+function buildUnifiedRows(
+  daily: { day: string; valor: number; qtd: number; leads: number }[],
+  cumulative: { day: string; pct: number; idealPct: number }[]
+): UnifiedChartRow[] {
+  const cumByDay = new Map(cumulative.map((c) => [c.day, c]));
+  return daily.map((d) => {
+    const c = cumByDay.get(d.day);
+    return {
+      day: d.day,
+      valor: d.valor,
+      qtd: d.qtd,
+      leads: d.leads,
+      pct: c ? c.pct : 0,
+      idealPct: c ? c.idealPct : 0,
+    };
+  });
 }
 
 function CompareStatCard({

@@ -68,7 +68,7 @@ export default function LongTermGoalCard({
             )}
           </div>
           <div className="mt-1 flex items-baseline gap-2 flex-wrap">
-            <span className="text-5xl xl:text-6xl font-extrabold leading-none" style={{ color: pctTone }}>
+            <span className="text-4xl xl:text-5xl font-extrabold leading-none" style={{ color: pctTone }}>
               {fmtInt.format(progress.realizado)}
             </span>
             <span className="text-2xl xl:text-3xl font-bold text-white/40">/</span>

@@ -2,7 +2,7 @@ import type { DirectSnapshot } from "@/lib/data";
 import { BRL, fmtInt, fmtPct } from "@/lib/calc";
 import { COLOR } from "@/lib/brand";
 import BigStatCard from "@/components/BigStatCard";
-import DailySalesChart from "@/components/charts/DailySalesChart";
+import UnifiedDailyChart from "@/components/charts/UnifiedDailyChart";
 import ProductRevenueBreakdown from "@/components/ProductRevenueBreakdown";
 import { Wallet, Target, MousePointerClick, Globe, Bot } from "lucide-react";
 
@@ -145,7 +145,46 @@ export default function DirectDashboardView({
         </div>
       </section>
 
-      {/* Breakdown CPPEM (direto + IA CPPEM) — todas as 7 categorias */}
+      {/* ===== Grafico unificado (Vendas + Visitas) — maior, ocupa a linha ===== */}
+      <section className="card-lg">
+        <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+          <div>
+            <div className="text-sm font-semibold">Evolucao Diaria — Direto / IA</div>
+            <div className="text-xs text-white/50">
+              Faturamento total (direto + IA) e visitas do site por dia
+            </div>
+          </div>
+        </div>
+        <UnifiedDailyChart
+          data={snap.daily.map((d) => ({
+            day: d.day,
+            valor: d.valor,
+            visits: d.visits,
+          }))}
+          leftUnit="currency"
+          rightUnit="int"
+          series={[
+            {
+              key: "valor",
+              label: "Vendas (dia)",
+              color: "#22c55e",
+              axis: "left",
+              unit: "currency",
+              strokeWidth: 2.5,
+            },
+            {
+              key: "visits",
+              label: "Visitas (dia)",
+              color: "#7dd3fc",
+              axis: "right",
+              unit: "int",
+              strokeWidth: 2,
+            },
+          ]}
+        />
+      </section>
+
+      {/* Breakdown CPPEM (direto + IA CPPEM) — abaixo do grafico */}
       <ProductRevenueBreakdown
         rows={snap.breakdown}
         color="#7dd3fc"
@@ -158,38 +197,6 @@ export default function DirectDashboardView({
           color="#c4b5fd"
         />
       )}
-
-      {/* Charts: vendas por dia + visitas por dia */}
-      <section className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-        <div className="card-lg">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <div className="text-sm font-semibold">Evolucao Diaria - Vendas</div>
-              <div className="text-xs text-white/50">Faturamento total (direto + IA) por dia</div>
-            </div>
-          </div>
-          <DailySalesChart
-            data={snap.daily.map((d) => ({ day: d.day, valor: d.valor, qtd: d.qtd }))}
-            color="#22c55e"
-            field="valor"
-            unit="currency"
-          />
-        </div>
-        <div className="card-lg">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <div className="text-sm font-semibold">Evolucao Diaria - Visitas</div>
-              <div className="text-xs text-white/50">Visitas do site por dia</div>
-            </div>
-          </div>
-          <DailySalesChart
-            data={snap.daily.map((d) => ({ day: d.day, valor: 0, qtd: 0, leads: d.visits }))}
-            color="#7dd3fc"
-            field="leads"
-            unit="int"
-          />
-        </div>
-      </section>
     </div>
   );
 }
