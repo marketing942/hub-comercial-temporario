@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { periodNow } from "@/lib/calc";
 import { productIdsFor, type BU } from "@/lib/products";
 import VendasClient from "./vendas-client";
+import BackupButton from "./BackupButton";
 
 export const dynamic = "force-dynamic";
 
@@ -51,14 +52,22 @@ export default async function VendasPage({
 
   const { data: sales } = await q;
 
+  const monthName = new Date(year, month - 1, 1).toLocaleDateString("pt-BR", {
+    month: "long",
+    year: "numeric",
+  });
+
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Todas as vendas</h1>
-        <p className="text-sm text-white/50">
-          Todas as vendas do sistema no periodo selecionado. Filtre por vendedor, BU ou mes para
-          conferencia detalhada.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Todas as vendas</h1>
+          <p className="text-sm text-white/50">
+            Todas as vendas do sistema no periodo selecionado. Filtre por vendedor, BU ou mes para
+            conferencia detalhada.
+          </p>
+        </div>
+        <BackupButton year={year} month={month} monthLabel={monthName} />
       </div>
       <VendasClient
         sellers={sellers}

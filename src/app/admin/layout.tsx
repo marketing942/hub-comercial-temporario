@@ -9,7 +9,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (s.role !== "admin") redirect("/dashboard");
 
   const items: SidebarItem[] = [
-    { href: "/admin", label: "Visao Geral", icon: "dashboard" },
     { href: "/admin/sellers", label: "Vendedores", icon: "users" },
     { href: "/admin/goals", label: "Metas", icon: "target" },
     { href: "/admin/vendas", label: "Todas as Vendas", icon: "receipt" },

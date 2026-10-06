@@ -3,6 +3,8 @@ import {
   directSnapshot,
   daysInMonth,
   daysRemainingIncludingToday,
+  ligacaoBreakdown,
+  indicacaoBreakdown,
   periodNow,
   todayDayOfMonth,
 } from "@/lib/data";
@@ -39,9 +41,13 @@ export default async function DashboardPage({
     year: "numeric",
   });
 
-  const [snaps, direct] = await Promise.all([
+  const [snaps, direct, ligacaoAll, indicacaoAll] = await Promise.all([
     Promise.all(ALL_BUS.map((bu) => dashboardSnapshot(bu, { year, month }))),
     directSnapshot({ year, month }),
+    // Agregado de todas as BUs — reaproveitado da aba "Visao Geral"
+    // (removida) e exibido como ultima secao do slide Direto / IA.
+    ligacaoBreakdown({ year, month }),
+    indicacaoBreakdown({ year, month }),
   ]);
   const allSellers = snaps.flatMap((s) => s.sellers);
 
@@ -69,6 +75,8 @@ export default async function DashboardPage({
           totalDays={totalDays}
           daysLeft={daysLeft}
           monthName={monthName}
+          ligacao={ligacaoAll}
+          indicacao={indicacaoAll}
         />
       ),
     },

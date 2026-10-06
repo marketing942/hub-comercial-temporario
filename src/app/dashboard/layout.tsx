@@ -12,7 +12,6 @@ export default async function DashLayout({ children }: { children: React.ReactNo
 
   const items: SidebarItem[] = isAdmin
     ? [
-        { href: "/admin", label: "Visao Geral", icon: "dashboard" },
         { href: "/admin/sellers", label: "Vendedores", icon: "users" },
         { href: "/admin/goals", label: "Metas", icon: "target" },
         { href: "/admin/vendas", label: "Todas as Vendas", icon: "receipt" },

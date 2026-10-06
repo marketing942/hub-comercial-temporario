@@ -1,9 +1,11 @@
-import type { DirectSnapshot } from "@/lib/data";
+import type { DirectSnapshot, LigacaoRow, IndicacaoRow } from "@/lib/data";
 import { BRL, fmtInt, fmtPct } from "@/lib/calc";
 import { COLOR } from "@/lib/brand";
+import { LIGACAO_STATUSES, INDICACAO_STATUSES } from "@/lib/products";
 import BigStatCard from "@/components/BigStatCard";
 import UnifiedDailyChart from "@/components/charts/UnifiedDailyChart";
 import ProductRevenueBreakdown from "@/components/ProductRevenueBreakdown";
+import OriginDonut from "@/components/OriginDonut";
 import { Wallet, Target, MousePointerClick, Globe, Bot } from "lucide-react";
 
 
@@ -13,12 +15,16 @@ export default function DirectDashboardView({
   totalDays,
   daysLeft,
   monthName,
+  ligacao,
+  indicacao,
 }: {
   snap: DirectSnapshot;
   day: number;
   totalDays: number;
   daysLeft: number;
   monthName: string;
+  ligacao?: LigacaoRow[];
+  indicacao?: IndicacaoRow[];
 }) {
   const t = snap.totals;
   const hasUnicive = (t.valorUnicive || 0) > 0 || (snap.breakdownUnicive || []).some((r) => r.valor > 0);
@@ -196,6 +202,29 @@ export default function DirectDashboardView({
           rows={snap.breakdownUnicive}
           color="#c4b5fd"
         />
+      )}
+
+      {/* ===== Ultima secao: Origem por Onvox e por Indicacao
+          Agregado de todas as BUs — reaproveitado da antiga "Visao Geral". ===== */}
+      {(ligacao || indicacao) && (
+        <section className="grid grid-cols-1 xl:grid-cols-2 gap-3">
+          {ligacao && (
+            <OriginDonut
+              rows={ligacao}
+              statuses={LIGACAO_STATUSES}
+              title="Origem por Onvox — Geral"
+              subtitle="A ligacao Onvox influenciou a venda? (todas as BUs)"
+            />
+          )}
+          {indicacao && (
+            <OriginDonut
+              rows={indicacao}
+              statuses={INDICACAO_STATUSES}
+              title="Origem por Indicacao — Geral"
+              subtitle="A venda veio de indicacao? (todas as BUs)"
+            />
+          )}
+        </section>
       )}
     </div>
   );
