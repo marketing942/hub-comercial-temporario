@@ -40,11 +40,24 @@ export default function DashboardCarousel({
     return () => clearInterval(clk);
   }, []);
 
-  // auto-refresh dos dados
+  // auto-refresh dos dados — so com a aba visivel. Ao voltar pra aba, atualiza
+  // na hora se os dados ja estiverem velhos.
   useEffect(() => {
-    refreshRef.current = setInterval(() => router.refresh(), refreshMs);
+    let last = Date.now();
+    const refresh = () => {
+      last = Date.now();
+      router.refresh();
+    };
+    refreshRef.current = setInterval(() => {
+      if (!document.hidden) refresh();
+    }, refreshMs);
+    const onVisible = () => {
+      if (!document.hidden && Date.now() - last >= refreshMs) refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       if (refreshRef.current) clearInterval(refreshRef.current);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [router, refreshMs]);
 

@@ -475,7 +475,7 @@ export default function DashboardView({
           data={buildUnifiedRows(series.daily, series.cumulative)}
           leftUnit={isQtd ? "int" : "currency"}
           rightUnit="percent"
-          rightDomain={[0, (dataMax: number) => Math.max(100, Math.ceil(dataMax / 10) * 10)] as any}
+          rightPercentScale
           showIdealReference
           series={[
             {

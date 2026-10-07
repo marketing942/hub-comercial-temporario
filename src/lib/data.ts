@@ -882,12 +882,15 @@ export type DashboardSnapshot = {
 
 export async function dashboardSnapshot(
   bu: "cppem" | "unicive" | "colegio_cppem",
-  opts?: { year?: number; month?: number }
+  opts?: { year?: number; month?: number },
+  // Stats de todos os vendedores ja carregados por quem chama — evita refazer
+  // as mesmas consultas uma vez por BU.
+  allStats?: SellerStats[]
 ): Promise<DashboardSnapshot> {
   const { loadLongTermGoal, computeLongTermProgress } = await import("./longTerm");
   const [series, all, breakdown, ligacao, indicacao, ltGoal] = await Promise.all([
     buSeries(bu, opts),
-    statsForAll(opts),
+    allStats ?? statsForAll(opts),
     productBreakdown(bu, opts),
     ligacaoBreakdown({ bu, ...opts }),
     indicacaoBreakdown({ bu, ...opts }),

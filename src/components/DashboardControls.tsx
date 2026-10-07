@@ -20,7 +20,9 @@ export default function DashboardControls({ refreshMs = 60000 }: { refreshMs?: n
     };
     tick();
     const clock = setInterval(tick, 30_000);
-    timer.current = setInterval(() => router.refresh(), refreshMs);
+    timer.current = setInterval(() => {
+      if (!document.hidden) router.refresh();
+    }, refreshMs);
     return () => {
       clearInterval(clock);
       if (timer.current) clearInterval(timer.current);
