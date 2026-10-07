@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import {
   dashboardSnapshot,
   directSnapshot,
@@ -6,8 +7,10 @@ import {
   ligacaoBreakdown,
   indicacaoBreakdown,
   periodNow,
+  statsForAll,
   todayDayOfMonth,
 } from "@/lib/data";
+import { DASHBOARD_TAG } from "@/lib/supabase";
 import DashboardCarousel from "@/components/DashboardCarousel";
 import DashboardView from "@/components/DashboardView";
 import DirectDashboardView from "@/components/DirectDashboardView";
@@ -17,6 +20,29 @@ import { ALL_BUS } from "@/lib/products";
 import { BU_LABEL } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
+
+// Os dados do painel ficam em cache no servidor e sao compartilhados por todas
+// as abas/TVs abertas. O cache cai sozinho a cada escrita no banco (ver
+// lib/supabase.ts); o revalidate cobre a virada do dia e alteracoes feitas
+// direto no Supabase.
+const DASHBOARD_CACHE_SECONDS = 120;
+
+const loadDashboardData = unstable_cache(
+  async (year: number, month: number) => {
+    const stats = await statsForAll({ year, month });
+    const [snaps, direct, ligacaoAll, indicacaoAll] = await Promise.all([
+      Promise.all(ALL_BUS.map((bu) => dashboardSnapshot(bu, { year, month }, stats))),
+      directSnapshot({ year, month }),
+      // Agregado de todas as BUs — reaproveitado da aba "Visao Geral"
+      // (removida) e exibido como ultima secao do slide Direto / IA.
+      ligacaoBreakdown({ year, month }),
+      indicacaoBreakdown({ year, month }),
+    ]);
+    return { snaps, direct, ligacaoAll, indicacaoAll };
+  },
+  ["dashboard-data"],
+  { revalidate: DASHBOARD_CACHE_SECONDS, tags: [DASHBOARD_TAG] }
+);
 
 function parseYearMonth(searchParams: { year?: string; month?: string }) {
   const now = periodNow();
@@ -41,14 +67,7 @@ export default async function DashboardPage({
     year: "numeric",
   });
 
-  const [snaps, direct, ligacaoAll, indicacaoAll] = await Promise.all([
-    Promise.all(ALL_BUS.map((bu) => dashboardSnapshot(bu, { year, month }))),
-    directSnapshot({ year, month }),
-    // Agregado de todas as BUs — reaproveitado da aba "Visao Geral"
-    // (removida) e exibido como ultima secao do slide Direto / IA.
-    ligacaoBreakdown({ year, month }),
-    indicacaoBreakdown({ year, month }),
-  ]);
+  const { snaps, direct, ligacaoAll, indicacaoAll } = await loadDashboardData(year, month);
   const allSellers = snaps.flatMap((s) => s.sellers);
 
   const slides = [

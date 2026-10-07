@@ -52,6 +52,7 @@ export default function UnifiedDailyChart({
   leftUnit = "currency",
   rightUnit = "percent",
   rightDomain,
+  rightPercentScale = false,
   showIdealReference = false,
   height = 380,
 }: {
@@ -60,6 +61,10 @@ export default function UnifiedDailyChart({
   leftUnit?: UnifiedChartSeries["unit"];
   rightUnit?: UnifiedChartSeries["unit"];
   rightDomain?: [number | string, number | string];
+  // Eixo direito de 0 ate pelo menos 100%, arredondado pra dezena de cima.
+  // Fica aqui (e nao como prop) porque funcao nao atravessa de Server
+  // Component pra Client Component.
+  rightPercentScale?: boolean;
   showIdealReference?: boolean;
   height?: number;
 }) {
@@ -105,7 +110,11 @@ export default function UnifiedDailyChart({
               axisLine={false}
               tickFormatter={tickCompact(rightUnit)}
               width={44}
-              domain={rightDomain as any}
+              domain={
+                (rightPercentScale
+                  ? [0, (dataMax: number) => Math.max(100, Math.ceil(dataMax / 10) * 10)]
+                  : rightDomain) as any
+              }
             />
           )}
           <Tooltip
