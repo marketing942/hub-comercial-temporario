@@ -2,7 +2,6 @@ import type { DashboardSnapshot } from "@/lib/data";
 import { BRL, fmtInt, fmtPct, paceProjection } from "@/lib/calc";
 import { BU_COLOR, BU_LABEL, BU_THEME, COLOR, tonePctMeta } from "@/lib/brand";
 import { isQtdPrimary } from "@/lib/products";
-import BULogo from "@/components/BULogo";
 import BigStatCard from "@/components/BigStatCard";
 import UnifiedDailyChart, { type UnifiedChartRow } from "@/components/charts/UnifiedDailyChart";
 import ProductRevenueBreakdown from "@/components/ProductRevenueBreakdown";
@@ -107,31 +106,17 @@ export default function DashboardView({
 
   return (
     <div
-      className="space-y-4 rounded-2xl p-4 -m-1 relative overflow-hidden"
+      className="space-y-3 rounded-2xl p-3 -m-1 relative overflow-hidden"
       style={{ backgroundImage: theme.bg }}
     >
-      {/* Header da BU */}
+      {/* Header da BU — compacto, so o titulo centralizado */}
       <div
-        className="rounded-2xl p-4 flex items-center justify-between gap-4 border border-white/5"
+        className="rounded-xl py-2 px-3 border border-white/5 text-center"
         style={{ backgroundImage: theme.headerBg }}
       >
-        <div className="flex items-center gap-3">
-          <BULogo bu={bu} size={56} />
-          <div>
-            <div className="text-[11px] uppercase tracking-wider text-white/60">
-              {monthName} - dia {day}/{totalDays} - faltam {daysLeft} dia{daysLeft > 1 ? "s" : ""}
-            </div>
-            <h2 className="text-2xl xl:text-3xl font-bold mt-0.5">Dashboard {BU_LABEL[bu]}</h2>
-          </div>
-        </div>
-        <div className="hidden md:flex items-center gap-2">
-          <div
-            className="px-3 py-1 rounded-full text-xs font-semibold"
-            style={{ background: theme.accent2 + "22", color: theme.accent2 }}
-          >
-            {BU_LABEL[bu]} · {monthName}
-          </div>
-        </div>
+        <h2 className="text-lg xl:text-xl font-bold tracking-tight">
+          Dashboard {BU_LABEL[bu]}
+        </h2>
       </div>
 
       {/* Card de META DE LONGO PRAZO — quando existe, aparece antes de
@@ -272,8 +257,19 @@ export default function DashboardView({
         )}
       </section>
 
-      {/* Linha 2: Ticket, Conversao, Leads, Meta da Semana */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+      {/* Linha 2: Ticket, Conversao, Leads, Meta da Semana + extras por BU
+          (Unicive: Matriculas qtd + Meta Dia/Semana qtd;
+           Colegio: Meta Dia/Semana faturamento R$) — tudo na mesma linha
+          pra economizar espaco vertical. */}
+      <section
+        className={`grid gap-3 grid-cols-2 ${
+          bu === "unicive"
+            ? "xl:grid-cols-7"
+            : isQtd
+            ? "xl:grid-cols-6"
+            : "xl:grid-cols-4"
+        }`}
+      >
         <CompareStatCard
           label="Ticket Medio"
           icon={<Wallet className="w-4 h-4" />}
@@ -317,143 +313,141 @@ export default function DashboardView({
           weekReal={t.weekReal}
           weekRemaining={t.weekRemaining}
         />
+
+        {/* UNICIVE: 3 extras — Matriculas qtd + Meta Dia (qtd) + Meta Semana (qtd) */}
+        {bu === "unicive" && (
+          <>
+            <BigStatCard
+              label="Matriculas (Real / Meta)"
+              value={`${fmtInt.format(t.qtd)} / ${fmtInt.format(t.metaQtd)}`}
+              icon={<TrendingUp />}
+              accent={COLOR.info}
+              valueColor={COLOR.neutral}
+              progressPct={t.metaQtd > 0 ? (t.qtd / t.metaQtd) * 100 : 0}
+              progressColor={
+                t.metaQtd > 0 && t.qtd >= t.metaQtd ? COLOR.ok : COLOR.info
+              }
+              progressFooter={
+                <>
+                  <span>
+                    <span
+                      style={{
+                        color: t.metaQtd > 0 && t.qtd >= t.metaQtd ? COLOR.ok : COLOR.neutral,
+                      }}
+                    >
+                      {t.metaQtd > 0 ? fmtPct((t.qtd / t.metaQtd) * 100) : "—"}
+                    </span>
+                    <span className="text-white/40">
+                      {" "}·{" "}
+                      {t.metaQtd > 0 && t.qtd >= t.metaQtd
+                        ? "Meta de matriculas batida"
+                        : `Faltam ${fmtInt.format(Math.max(0, t.metaQtd - t.qtd))}`}
+                    </span>
+                  </span>
+                  <PaceProjInfo
+                    paceDelta={paceQtd.paceDelta}
+                    paceIsAhead={paceQtd.paceIsAhead}
+                    hasMeta={paceQtd.hasMeta}
+                    projecao={paceQtd.projecao}
+                    pctProjecao={paceQtd.pctProjecao}
+                    fmt={(n) => fmtInt.format(Math.round(n))}
+                  />
+                </>
+              }
+            />
+            <MetaDoDiaCard
+              isQtd={true}
+              metaDia={fmtInt.format(Math.round(t.metaDiaQtd))}
+              realHoje={fmtInt.format(Math.round(t.qtdHoje))}
+              falta={fmtInt.format(Math.max(0, Math.round(t.metaDiaQtd - t.qtdHoje)))}
+              diff={fmtInt.format(Math.abs(Math.round(t.qtdHoje - t.metaDiaQtd)))}
+              placarLabel={
+                t.metaQtd === 0
+                  ? "Sem meta de matriculas"
+                  : t.qtd >= t.metaQtd
+                  ? "Meta de matriculas batida"
+                  : t.metaDiaQtd === 0
+                  ? "No pace de matriculas"
+                  : t.qtdHoje >= t.metaDiaQtd
+                  ? "Vencendo em matriculas"
+                  : "Atras em matriculas"
+              }
+              placarColor={
+                t.metaQtd === 0
+                  ? COLOR.mute
+                  : t.qtd >= t.metaQtd
+                  ? COLOR.ok
+                  : t.qtdHoje >= t.metaDiaQtd
+                  ? COLOR.ok
+                  : COLOR.danger
+              }
+              vencendo={t.qtdHoje >= t.metaDiaQtd && t.metaDiaQtd > 0}
+              empate={Math.abs(t.qtdHoje - t.metaDiaQtd) < 0.5}
+              semMeta={t.metaQtd === 0 || t.metaDiaQtd <= 0}
+              labelOverride="Meta do Dia (Matriculas)"
+            />
+            <MetaDaSemanaCard
+              isQtd={true}
+              fmtMeta={(n: number) => fmtInt.format(Math.round(n))}
+              weekActive={t.weekActive}
+              weekStartDay={t.weekStartDay}
+              weekEndDay={t.weekEndDay}
+              weekTarget={t.weekTargetQtd}
+              weekReal={t.weekRealQtd}
+              weekRemaining={t.weekRemainingQtd}
+              labelOverride="Meta da Semana (Matriculas)"
+            />
+          </>
+        )}
+
+        {/* COLEGIO: 2 extras — Meta Dia (R$) + Meta Semana (R$) */}
+        {isQtd && (
+          <>
+            <MetaDoDiaCard
+              isQtd={false}
+              metaDia={BRL.format(t.metaDiaValor)}
+              realHoje={BRL.format(t.valorHoje)}
+              falta={BRL.format(Math.max(0, t.metaDiaValor - t.valorHoje))}
+              diff={BRL.format(Math.abs(t.valorHoje - t.metaDiaValor))}
+              placarLabel={
+                t.metaValor === 0
+                  ? "Sem meta de R$ definida"
+                  : t.valor >= t.metaValor
+                  ? "Meta de R$ batida"
+                  : t.metaDiaValor === 0
+                  ? "No pace de R$"
+                  : t.valorHoje >= t.metaDiaValor
+                  ? "Vencendo o dia em R$"
+                  : "Atras em R$ no dia"
+              }
+              placarColor={
+                t.metaValor === 0
+                  ? COLOR.mute
+                  : t.valor >= t.metaValor
+                  ? COLOR.ok
+                  : t.valorHoje >= t.metaDiaValor
+                  ? COLOR.ok
+                  : COLOR.danger
+              }
+              vencendo={t.valorHoje >= t.metaDiaValor && t.metaDiaValor > 0}
+              empate={Math.abs(t.valorHoje - t.metaDiaValor) < 0.01}
+              semMeta={t.metaValor === 0 || t.metaDiaValor <= 0}
+              labelOverride="Meta do Dia (Faturamento)"
+            />
+            <MetaDaSemanaCard
+              isQtd={false}
+              fmtMeta={(n: number) => BRL.format(n)}
+              weekActive={t.weekActive}
+              weekStartDay={t.weekStartDay}
+              weekEndDay={t.weekEndDay}
+              weekTarget={t.weekTargetValor}
+              weekReal={t.weekRealValor}
+              weekRemaining={t.weekRemainingValor}
+              labelOverride="Meta da Semana (Faturamento)"
+            />
+          </>
+        )}
       </section>
-
-      {/* Linha extra da UNICIVE: matriculas como secundaria (o primario
-          agora e faturamento). Mostra qtd real/meta + meta dia + semana. */}
-      {bu === "unicive" && (
-        <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <BigStatCard
-            label="Matriculas (Real / Meta)"
-            value={`${fmtInt.format(t.qtd)} / ${fmtInt.format(t.metaQtd)}`}
-            icon={<TrendingUp />}
-            accent={COLOR.info}
-            valueColor={COLOR.neutral}
-            progressPct={t.metaQtd > 0 ? (t.qtd / t.metaQtd) * 100 : 0}
-            progressColor={
-              t.metaQtd > 0 && t.qtd >= t.metaQtd ? COLOR.ok : COLOR.info
-            }
-            progressFooter={
-              <>
-                <span>
-                  <span
-                    style={{
-                      color: t.metaQtd > 0 && t.qtd >= t.metaQtd ? COLOR.ok : COLOR.neutral,
-                    }}
-                  >
-                    {t.metaQtd > 0 ? fmtPct((t.qtd / t.metaQtd) * 100) : "—"}
-                  </span>
-                  <span className="text-white/40">
-                    {" "}·{" "}
-                    {t.metaQtd > 0 && t.qtd >= t.metaQtd
-                      ? "Meta de matriculas batida"
-                      : `Faltam ${fmtInt.format(Math.max(0, t.metaQtd - t.qtd))}`}
-                  </span>
-                </span>
-                <PaceProjInfo
-                  paceDelta={paceQtd.paceDelta}
-                  paceIsAhead={paceQtd.paceIsAhead}
-                  hasMeta={paceQtd.hasMeta}
-                  projecao={paceQtd.projecao}
-                  pctProjecao={paceQtd.pctProjecao}
-                  fmt={(n) => fmtInt.format(Math.round(n))}
-                />
-              </>
-            }
-          />
-          <MetaDoDiaCard
-            isQtd={true}
-            metaDia={fmtInt.format(Math.round(t.metaDiaQtd))}
-            realHoje={fmtInt.format(Math.round(t.qtdHoje))}
-            falta={fmtInt.format(Math.max(0, Math.round(t.metaDiaQtd - t.qtdHoje)))}
-            diff={fmtInt.format(Math.abs(Math.round(t.qtdHoje - t.metaDiaQtd)))}
-            placarLabel={
-              t.metaQtd === 0
-                ? "Sem meta de matriculas"
-                : t.qtd >= t.metaQtd
-                ? "Meta de matriculas batida"
-                : t.metaDiaQtd === 0
-                ? "No pace de matriculas"
-                : t.qtdHoje >= t.metaDiaQtd
-                ? "Vencendo em matriculas"
-                : "Atras em matriculas"
-            }
-            placarColor={
-              t.metaQtd === 0
-                ? COLOR.mute
-                : t.qtd >= t.metaQtd
-                ? COLOR.ok
-                : t.qtdHoje >= t.metaDiaQtd
-                ? COLOR.ok
-                : COLOR.danger
-            }
-            vencendo={t.qtdHoje >= t.metaDiaQtd && t.metaDiaQtd > 0}
-            empate={Math.abs(t.qtdHoje - t.metaDiaQtd) < 0.5}
-            semMeta={t.metaQtd === 0 || t.metaDiaQtd <= 0}
-            labelOverride="Meta do Dia (Matriculas)"
-          />
-          <MetaDaSemanaCard
-            isQtd={true}
-            fmtMeta={(n: number) => fmtInt.format(Math.round(n))}
-            weekActive={t.weekActive}
-            weekStartDay={t.weekStartDay}
-            weekEndDay={t.weekEndDay}
-            weekTarget={t.weekTargetQtd}
-            weekReal={t.weekRealQtd}
-            weekRemaining={t.weekRemainingQtd}
-            labelOverride="Meta da Semana (Matriculas)"
-          />
-        </section>
-      )}
-
-      {/* Linha extra so pra Colegio: Meta do Dia (R$) + Meta da Semana (R$).
-          Faturamento tambem tem peso no Colegio. */}
-      {isQtd && (
-        <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <MetaDoDiaCard
-            isQtd={false}
-            metaDia={BRL.format(t.metaDiaValor)}
-            realHoje={BRL.format(t.valorHoje)}
-            falta={BRL.format(Math.max(0, t.metaDiaValor - t.valorHoje))}
-            diff={BRL.format(Math.abs(t.valorHoje - t.metaDiaValor))}
-            placarLabel={
-              t.metaValor === 0
-                ? "Sem meta de R$ definida"
-                : t.valor >= t.metaValor
-                ? "Meta de R$ batida"
-                : t.metaDiaValor === 0
-                ? "No pace de R$"
-                : t.valorHoje >= t.metaDiaValor
-                ? "Vencendo o dia em R$"
-                : "Atras em R$ no dia"
-            }
-            placarColor={
-              t.metaValor === 0
-                ? COLOR.mute
-                : t.valor >= t.metaValor
-                ? COLOR.ok
-                : t.valorHoje >= t.metaDiaValor
-                ? COLOR.ok
-                : COLOR.danger
-            }
-            vencendo={t.valorHoje >= t.metaDiaValor && t.metaDiaValor > 0}
-            empate={Math.abs(t.valorHoje - t.metaDiaValor) < 0.01}
-            semMeta={t.metaValor === 0 || t.metaDiaValor <= 0}
-            labelOverride="Meta do Dia (Faturamento)"
-          />
-          <MetaDaSemanaCard
-            isQtd={false}
-            fmtMeta={(n: number) => BRL.format(n)}
-            weekActive={t.weekActive}
-            weekStartDay={t.weekStartDay}
-            weekEndDay={t.weekEndDay}
-            weekTarget={t.weekTargetValor}
-            weekReal={t.weekRealValor}
-            weekRemaining={t.weekRemainingValor}
-            labelOverride="Meta da Semana (Faturamento)"
-          />
-        </section>
-      )}
 
       {/* ===== Grafico unificado (Vendas + Leads + % Meta) — maior,
           3x o tamanho dos antigos, ocupando toda a linha ===== */}
@@ -571,22 +565,22 @@ function CompareStatCard({
   return (
     <div className="card-lg">
       <div className="flex items-center justify-between">
-        <div className="kpi-label">{label}</div>
+        <div className="kpi-label leading-tight">{label}</div>
         <div
-          className="w-7 h-7 rounded-lg grid place-items-center"
+          className="w-6 h-6 rounded-md grid place-items-center"
           style={{ background: tone + "22", color: tone }}
         >
           {icon}
         </div>
       </div>
-      <div className="mt-2 flex items-baseline gap-2 flex-wrap">
-        <span className="big-num" style={{ color: tone }}>
+      <div className="mt-1 flex items-baseline gap-1.5 flex-wrap">
+        <span className="big-num leading-none" style={{ color: tone }}>
           {real}
         </span>
-        <span className="text-white/30 text-xl xl:text-2xl font-bold">/</span>
-        <span className="text-xl xl:text-2xl font-bold text-white/40">{meta}</span>
+        <span className="text-white/30 text-base xl:text-lg font-bold">/</span>
+        <span className="text-base xl:text-lg font-bold text-white/40">{meta}</span>
       </div>
-      <div className="text-[11px] text-white/40 mt-1 uppercase tracking-wider">
+      <div className="text-[10px] text-white/40 mt-1 uppercase tracking-wider leading-tight">
         real / meta{subtitle ? ` · ${subtitle}` : ""}
       </div>
       {footer}
@@ -623,24 +617,24 @@ function MetaDoDiaCard({
   return (
     <div className="card-lg card-hover relative overflow-hidden">
       <div
-        className="absolute -top-10 -right-10 w-32 h-32 rounded-full opacity-25 blur-3xl pointer-events-none"
+        className="absolute -top-10 -right-10 w-24 h-24 rounded-full opacity-25 blur-3xl pointer-events-none"
         style={{ background: placarColor }}
       />
-      <div className="relative flex flex-col gap-2">
+      <div className="relative flex flex-col gap-1">
         <div className="flex items-center justify-between">
-          <div className="kpi-label">{labelOverride || "Meta do Dia"}</div>
+          <div className="kpi-label leading-tight">{labelOverride || "Meta do Dia"}</div>
           <div
-            className="w-7 h-7 rounded-lg grid place-items-center"
+            className="w-6 h-6 rounded-md grid place-items-center"
             style={{ background: placarColor + "22", color: placarColor }}
           >
-            <Flame className="w-4 h-4" />
+            <Flame className="w-3.5 h-3.5" />
           </div>
         </div>
-        <div className="big-num" style={{ color: COLOR.warning }}>
+        <div className="big-num leading-none" style={{ color: COLOR.warning }}>
           {metaDia}
         </div>
         {/* 3 quadrinhos internos: Meta, Hoje, Falta */}
-        <div className="grid grid-cols-3 gap-1.5 mt-1">
+        <div className="grid grid-cols-3 gap-1">
           <Mini label="Meta" value={metaDia} tone={COLOR.warning} />
           <Mini label="Hoje" value={realHoje} tone={vencendo ? COLOR.ok : COLOR.neutral} />
           <Mini
@@ -649,8 +643,8 @@ function MetaDoDiaCard({
             tone={vencendo || empate || semMeta ? COLOR.ok : COLOR.danger}
           />
         </div>
-        <div className="flex items-center justify-between mt-1">
-          <span className="text-[11px] font-semibold" style={{ color: placarColor }}>
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-semibold leading-tight" style={{ color: placarColor }}>
             {placarLabel}
           </span>
           {!semMeta && !empate && (
@@ -714,9 +708,9 @@ function PaceProjInfo({
 
 function Mini({ label, value, tone }: { label: string; value: string; tone: string }) {
   return (
-    <div className="rounded-lg bg-panel2 p-2 text-center">
-      <div className="text-[9px] uppercase tracking-wider text-white/40">{label}</div>
-      <div className="text-sm font-bold leading-tight mt-0.5" style={{ color: tone }}>
+    <div className="rounded-md bg-panel2 px-1.5 py-1 text-center">
+      <div className="text-[9px] uppercase tracking-wider text-white/40 leading-tight">{label}</div>
+      <div className="text-xs font-bold leading-tight mt-0.5" style={{ color: tone }}>
         {value}
       </div>
     </div>
@@ -748,16 +742,16 @@ function MetaDaSemanaCard({
     return (
       <div className="card-lg">
         <div className="flex items-center justify-between">
-          <div className="kpi-label">{labelOverride || "Meta da Semana"}</div>
+          <div className="kpi-label leading-tight">{labelOverride || "Meta da Semana"}</div>
           <div
-            className="w-7 h-7 rounded-lg grid place-items-center"
+            className="w-6 h-6 rounded-md grid place-items-center"
             style={{ background: COLOR.mute + "22", color: COLOR.mute }}
           >
-            <Flame className="w-4 h-4" />
+            <Flame className="w-3.5 h-3.5" />
           </div>
         </div>
-        <div className="big-num text-white/40">—</div>
-        <div className="text-[11px] text-white/40 mt-1 uppercase tracking-wider">
+        <div className="big-num text-white/40 leading-none">—</div>
+        <div className="text-[10px] text-white/40 mt-1 uppercase tracking-wider">
           {!weekActive ? "Disponivel no mes atual" : "Sem meta definida"}
         </div>
       </div>
@@ -774,27 +768,27 @@ function MetaDaSemanaCard({
   return (
     <div className="card-lg relative overflow-hidden">
       <div
-        className="absolute -top-10 -right-10 w-32 h-32 rounded-full opacity-25 blur-3xl pointer-events-none"
+        className="absolute -top-10 -right-10 w-24 h-24 rounded-full opacity-25 blur-3xl pointer-events-none"
         style={{ background: tone }}
       />
-      <div className="relative flex flex-col gap-2">
+      <div className="relative flex flex-col gap-1">
         <div className="flex items-center justify-between">
-          <div className="kpi-label">{labelOverride || "Meta da Semana"}</div>
+          <div className="kpi-label leading-tight">{labelOverride || "Meta da Semana"}</div>
           <div
-            className="w-7 h-7 rounded-lg grid place-items-center"
+            className="w-6 h-6 rounded-md grid place-items-center"
             style={{ background: tone + "22", color: tone }}
           >
-            <Flame className="w-4 h-4" />
+            <Flame className="w-3.5 h-3.5" />
           </div>
         </div>
-        <div className="big-num" style={{ color: tone }}>
+        <div className="big-num leading-none" style={{ color: tone }}>
           {fmtMeta(weekRemaining)}
         </div>
-        <div className="text-[10px] text-white/40 -mt-1 uppercase tracking-wider">
+        <div className="text-[9px] text-white/40 uppercase tracking-wider leading-tight">
           Falta na semana ({String(weekStartDay).padStart(2, "0")} a{" "}
           {String(weekEndDay).padStart(2, "0")})
         </div>
-        <div className="grid grid-cols-3 gap-1.5 mt-1">
+        <div className="grid grid-cols-3 gap-1">
           <Mini label="Semana" value={fmtMeta(weekTarget)} tone={COLOR.warning} />
           <Mini label="Feito" value={fmtMeta(weekReal)} tone={batida ? COLOR.ok : COLOR.neutral} />
           <Mini
@@ -803,7 +797,7 @@ function MetaDaSemanaCard({
             tone={batida ? COLOR.ok : COLOR.danger}
           />
         </div>
-        <div className="text-[11px] font-semibold mt-1" style={{ color: tone }}>
+        <div className="text-[10px] font-semibold leading-tight" style={{ color: tone }}>
           {label}
         </div>
       </div>

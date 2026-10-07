@@ -61,18 +61,15 @@ export default function SellersGameView({
   const busWithPodium = ALL_BUS.filter((bu) => ranks[bu].length >= 2);
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-12 h-12 rounded-xl grid place-items-center" style={{ background: COLOR.ok + "22", color: COLOR.ok }}>
-          <Trophy className="w-6 h-6" />
-        </div>
-        <div>
-          <div className="text-[11px] uppercase tracking-wider text-white/50">
-            {monthName} - dia {day}/{totalDays} - faltam {daysLeft} dia{daysLeft > 1 ? "s" : ""}
-          </div>
-          <h2 className="text-2xl xl:text-3xl font-bold mt-0.5">Quadro dos Vendedores</h2>
-        </div>
+    <div className="space-y-4">
+      {/* Header — compacto, so titulo centralizado */}
+      <div
+        className="rounded-xl py-2 px-3 border border-white/5 text-center"
+        style={{ background: COLOR.ok + "15" }}
+      >
+        <h2 className="text-lg xl:text-xl font-bold tracking-tight">
+          Quadro dos Vendedores
+        </h2>
       </div>
 
       {/* Podios apenas pra BUs com >= 2 vendedores */}
@@ -476,7 +473,7 @@ function BUPodium({
                 >
                   {s.sellerName}
                 </div>
-                <div className="text-xl xl:text-2xl font-bold mt-1 text-white">
+                <div className="text-sm xl:text-base font-bold mt-1 text-white truncate">
                   {valueStr}
                 </div>
                 <div className="text-[11px] text-white/50">{label}</div>

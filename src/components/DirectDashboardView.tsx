@@ -3,7 +3,6 @@ import { BRL, fmtInt, fmtPct } from "@/lib/calc";
 import { COLOR } from "@/lib/brand";
 import { LIGACAO_STATUSES, INDICACAO_STATUSES } from "@/lib/products";
 import BigStatCard from "@/components/BigStatCard";
-import UnifiedDailyChart from "@/components/charts/UnifiedDailyChart";
 import ProductRevenueBreakdown from "@/components/ProductRevenueBreakdown";
 import OriginDonut from "@/components/OriginDonut";
 import { Wallet, Target, MousePointerClick, Globe, Bot } from "lucide-react";
@@ -31,52 +30,23 @@ export default function DirectDashboardView({
 
   return (
     <div
-      className="space-y-4 rounded-2xl p-4 -m-1 relative overflow-hidden"
+      className="space-y-3 rounded-2xl p-3 -m-1 relative overflow-hidden"
       style={{
         backgroundImage:
           "radial-gradient(900px 320px at 15% 0%, rgba(6,182,212,0.16), transparent 60%), radial-gradient(700px 280px at 90% 8%, rgba(167,139,250,0.14), transparent 60%)",
       }}
     >
-      {/* Header */}
+      {/* Header — compacto, so titulo centralizado */}
       <div
-        className="rounded-2xl p-4 flex items-center justify-between gap-4 border border-white/5"
+        className="rounded-xl py-2 px-3 border border-white/5 text-center"
         style={{
           backgroundImage:
             "linear-gradient(120deg, rgba(6,182,212,0.20), rgba(167,139,250,0.16), rgba(10,25,32,0.55))",
         }}
       >
-        <div className="flex items-center gap-3">
-          <div className="flex -space-x-2">
-            <div
-              className="w-12 h-12 rounded-2xl grid place-items-center border-2 border-black"
-              style={{ background: "rgba(6,182,212,0.20)", color: "#7dd3fc" }}
-            >
-              <Globe className="w-6 h-6" />
-            </div>
-            <div
-              className="w-12 h-12 rounded-2xl grid place-items-center border-2 border-black"
-              style={{ background: "rgba(167,139,250,0.20)", color: "#c4b5fd" }}
-            >
-              <Bot className="w-6 h-6" />
-            </div>
-          </div>
-          <div>
-            <div className="text-[11px] uppercase tracking-wider text-white/60">
-              {monthName} - dia {day}/{totalDays} - faltam {daysLeft} dia{daysLeft > 1 ? "s" : ""}
-            </div>
-            <h2 className="text-2xl xl:text-3xl font-bold mt-0.5">
-              Dashboard Direto / IA
-            </h2>
-          </div>
-        </div>
-        <div className="hidden md:flex items-center gap-2">
-          <span className="chip" style={{ background: "#7dd3fc22", color: "#7dd3fc" }}>
-            <Globe className="w-3 h-3" /> Site
-          </span>
-          <span className="chip" style={{ background: "#a78bfa22", color: "#a78bfa" }}>
-            <Bot className="w-3 h-3" /> IA de atendimento
-          </span>
-        </div>
+        <h2 className="text-lg xl:text-xl font-bold tracking-tight">
+          Dashboard Direto / IA
+        </h2>
       </div>
 
       {/* KPIs grandes — combinado Direto + IA */}
@@ -149,45 +119,6 @@ export default function DirectDashboardView({
             />
           </div>
         </div>
-      </section>
-
-      {/* ===== Grafico unificado (Vendas + Visitas) — maior, ocupa a linha ===== */}
-      <section className="card-lg">
-        <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-          <div>
-            <div className="text-sm font-semibold">Evolucao Diaria — Direto / IA</div>
-            <div className="text-xs text-white/50">
-              Faturamento total (direto + IA) e visitas do site por dia
-            </div>
-          </div>
-        </div>
-        <UnifiedDailyChart
-          data={snap.daily.map((d) => ({
-            day: d.day,
-            valor: d.valor,
-            visits: d.visits,
-          }))}
-          leftUnit="currency"
-          rightUnit="int"
-          series={[
-            {
-              key: "valor",
-              label: "Vendas (dia)",
-              color: "#22c55e",
-              axis: "left",
-              unit: "currency",
-              strokeWidth: 2.5,
-            },
-            {
-              key: "visits",
-              label: "Visitas (dia)",
-              color: "#7dd3fc",
-              axis: "right",
-              unit: "int",
-              strokeWidth: 2,
-            },
-          ]}
-        />
       </section>
 
       {/* Breakdown CPPEM (direto + IA CPPEM) — abaixo do grafico */}

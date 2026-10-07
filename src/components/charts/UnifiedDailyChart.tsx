@@ -54,7 +54,7 @@ export default function UnifiedDailyChart({
   rightDomain,
   rightPercentScale = false,
   showIdealReference = false,
-  height = 380,
+  height = 460,
 }: {
   data: UnifiedChartRow[];
   series: UnifiedChartSeries[];
