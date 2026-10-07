@@ -38,7 +38,7 @@ export default function LoginPage() {
           </div>
           <div>
             <div className="text-lg font-semibold">Hub Comercial</div>
-            <div className="text-xs text-white/50">CPPEM x Unicive</div>
+            <div className="text-xs text-white/50">Gestão</div>
           </div>
         </div>
 
