@@ -1,8 +1,8 @@
 "use client";
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Power, Trash2 } from "lucide-react";
-import { BU_LABEL, BU_COLOR } from "@/lib/brand";
+import { Plus, Power, Trash2, Search } from "lucide-react";
+import { BU_LABEL } from "@/lib/brand";
 import { ALL_BUS, type BU } from "@/lib/products";
 
 type Seller = {
@@ -21,12 +21,20 @@ function busOf(s: Seller): BU[] {
   return arr.length > 0 ? Array.from(new Set(arr)) : [s.bu];
 }
 
+type StatusFilter = "all" | "active" | "inactive";
+type BuFilter = "all" | BU;
+
 export default function SellersClient({ initial }: { initial: Seller[] }) {
   const router = useRouter();
   const [list, setList] = useState(initial);
   const [name, setName] = useState("");
   const [bus, setBus] = useState<BU[]>(["cppem"]);
   const [busy, setBusy] = useState(false);
+
+  // Filtros da tabela
+  const [search, setSearch] = useState("");
+  const [buFilter, setBuFilter] = useState<BuFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   function toggleBu(b: BU) {
     setBus((prev) => (prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b]));
@@ -87,25 +95,22 @@ export default function SellersClient({ initial }: { initial: Seller[] }) {
     router.refresh();
   }
 
-  // Agrupa por BU primaria (s.bu)
-  const grouped = useMemo(() => {
-    const out: Record<BU, Seller[]> = {
-      cppem: [],
-      unicive: [],
-      colegio_cppem: [],
-    };
-    for (const s of list) {
-      const arr = out[s.bu] || (out[s.bu] = []);
-      arr.push(s);
-    }
-    for (const k of Object.keys(out) as BU[]) {
-      out[k].sort((a, b) => a.name.localeCompare(b.name));
-    }
-    return out;
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return list
+      .filter((s) => (statusFilter === "all" ? true : statusFilter === "active" ? s.active : !s.active))
+      .filter((s) => (buFilter === "all" ? true : busOf(s).includes(buFilter)))
+      .filter((s) => (term ? s.name.toLowerCase().includes(term) : true))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [list, search, buFilter, statusFilter]);
+
+  const counters = useMemo(() => {
+    const active = list.filter((s) => s.active).length;
+    return { total: list.length, active, inactive: list.length - active };
   }, [list]);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Form de adicionar */}
       <div className="card">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto] gap-3 items-end">
@@ -150,129 +155,155 @@ export default function SellersClient({ initial }: { initial: Seller[] }) {
         </div>
       </div>
 
-      {/* Tabelas agrupadas por BU */}
-      {ALL_BUS.map((bu) => {
-        const rows = grouped[bu];
-        const color = BU_COLOR[bu];
-        return (
-          <section key={bu} className="space-y-2">
-            <div className="flex items-center gap-3">
-              <div
-                className="px-3 py-1 rounded-full text-xs font-bold"
-                style={{ background: color + "22", color }}
-              >
-                {BU_LABEL[bu]}
-              </div>
-              <div className="flex-1 h-px" style={{ background: color + "33" }} />
-              <div className="text-[11px] text-white/40">
-                {rows.length} vendedor{rows.length === 1 ? "" : "es"}
-              </div>
+      {/* Filtros + contagens */}
+      <div className="card">
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-3 items-end">
+          <div>
+            <label className="label">Buscar por nome</label>
+            <div className="relative">
+              <Search className="w-4 h-4 text-white/40 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <input
+                className="input pl-9"
+                placeholder="Digite o nome do vendedor..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
             </div>
+          </div>
+          <div>
+            <label className="label">BU</label>
+            <select
+              className="input h-10"
+              value={buFilter}
+              onChange={(e) => setBuFilter(e.target.value as BuFilter)}
+            >
+              <option value="all">Todas</option>
+              {ALL_BUS.map((b) => (
+                <option key={b} value={b}>{BU_LABEL[b]}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Status</label>
+            <select
+              className="input h-10"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+            >
+              <option value="all">Todos</option>
+              <option value="active">Ativos</option>
+              <option value="inactive">Inativos</option>
+            </select>
+          </div>
+          <div className="text-[11px] text-white/60 leading-tight pb-2">
+            Total: <b className="text-white">{counters.total}</b>
+            <span className="text-white/40"> · </span>
+            <span className="text-success">{counters.active} ativos</span>
+            <span className="text-white/40"> · </span>
+            <span className="text-white/50">{counters.inactive} inativos</span>
+          </div>
+        </div>
+      </div>
 
-            <div className="card p-0 overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="text-[10px] uppercase tracking-wider text-white/40 bg-panel2/60">
-                  <tr className="text-left">
-                    <th className="p-3">Nome</th>
-                    <th className="p-3">Atua em</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3 w-28"></th>
+      {/* Tabela unica */}
+      <div className="card p-0 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-[10px] uppercase tracking-wider text-white/40 bg-panel2/60">
+              <tr className="text-left">
+                <th className="p-3">Nome</th>
+                <th className="p-3">Atua em</th>
+                <th className="p-3">Status</th>
+                <th className="p-3 text-right w-32">Acoes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="p-6 text-center text-white/40 text-xs">
+                    Nenhum vendedor encontrado com esses filtros.
+                  </td>
+                </tr>
+              )}
+              {filtered.map((s) => {
+                const sBus = busOf(s);
+                return (
+                  <tr key={s.id} className="border-t border-border hover:bg-panel2/30">
+                    <td className="p-3">
+                      <input
+                        defaultValue={s.name}
+                        onBlur={(e) =>
+                          e.target.value.trim() &&
+                          e.target.value !== s.name &&
+                          rename(s, e.target.value.trim())
+                        }
+                        className="bg-transparent border-b border-transparent hover:border-border focus:border-accent focus:outline-none font-medium w-full max-w-[260px]"
+                      />
+                    </td>
+                    <td className="p-3">
+                      <div className="flex gap-1.5 flex-wrap">
+                        {ALL_BUS.map((b) => {
+                          const active = sBus.includes(b);
+                          return (
+                            <button
+                              key={b}
+                              onClick={() => {
+                                const next = active
+                                  ? sBus.filter((x) => x !== b)
+                                  : [...sBus, b];
+                                if (next.length === 0) return;
+                                changeBUs(s, next);
+                              }}
+                              className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition ${
+                                active
+                                  ? b === "cppem"
+                                    ? "bg-cppem/20 text-cppem border-cppem/40"
+                                    : b === "unicive"
+                                    ? "bg-unicive/20 text-unicive border-unicive/40"
+                                    : "bg-colegio/20 text-colegio border-colegio/40"
+                                  : "bg-panel2 text-white/40 border-border"
+                              }`}
+                            >
+                              {BU_LABEL[b]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <span
+                        className={`chip ${
+                          s.active
+                            ? "bg-success/15 text-success"
+                            : "bg-white/10 text-white/50"
+                        }`}
+                      >
+                        {s.active ? "Ativo" : "Inativo"}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right">
+                      <button
+                        className="btn-ghost h-8 px-2 mr-1.5"
+                        onClick={() => toggle(s)}
+                        title={s.active ? "Inativar" : "Ativar"}
+                      >
+                        <Power className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        className="btn-danger h-8 px-2"
+                        onClick={() => remove(s)}
+                        title="Remover"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {rows.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="p-4 text-center text-white/40 text-xs">
-                        Nenhum vendedor nesta BU.
-                      </td>
-                    </tr>
-                  )}
-                  {rows.map((s) => {
-                    const sBus = busOf(s);
-                    return (
-                      <tr key={s.id} className="border-t border-border">
-                        <td className="p-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-accent/20 text-accent grid place-items-center text-xs font-semibold">
-                              {s.name.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase()}
-                            </div>
-                            <input
-                              defaultValue={s.name}
-                              onBlur={(e) =>
-                                e.target.value.trim() &&
-                                e.target.value !== s.name &&
-                                rename(s, e.target.value.trim())
-                              }
-                              className="bg-transparent border-b border-transparent hover:border-border focus:border-accent focus:outline-none"
-                            />
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <div className="flex gap-1.5 flex-wrap">
-                            {ALL_BUS.map((b) => {
-                              const active = sBus.includes(b);
-                              return (
-                                <button
-                                  key={b}
-                                  onClick={() => {
-                                    const next = active
-                                      ? sBus.filter((x) => x !== b)
-                                      : [...sBus, b];
-                                    if (next.length === 0) return;
-                                    changeBUs(s, next);
-                                  }}
-                                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition ${
-                                    active
-                                      ? b === "cppem"
-                                        ? "bg-cppem/20 text-cppem border-cppem/40"
-                                        : b === "unicive"
-                                        ? "bg-unicive/20 text-unicive border-unicive/40"
-                                        : "bg-colegio/20 text-colegio border-colegio/40"
-                                      : "bg-panel2 text-white/40 border-border"
-                                  }`}
-                                >
-                                  {BU_LABEL[b]}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </td>
-                        <td className="p-3">
-                          <span
-                            className={`chip ${
-                              s.active
-                                ? "bg-success/15 text-success"
-                                : "bg-white/10 text-white/50"
-                            }`}
-                          >
-                            {s.active ? "Ativo" : "Inativo"}
-                          </span>
-                        </td>
-                        <td className="p-3 text-right">
-                          <button
-                            className="btn-ghost h-8 px-2 mr-2"
-                            onClick={() => toggle(s)}
-                            title={s.active ? "Inativar" : "Ativar"}
-                          >
-                            <Power className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            className="btn-danger h-8 px-2"
-                            onClick={() => remove(s)}
-                            title="Remover"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        );
-      })}
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

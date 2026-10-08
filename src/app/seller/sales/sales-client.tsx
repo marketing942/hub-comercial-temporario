@@ -15,8 +15,9 @@ import {
   PRODUCT_LINES_COLEGIO,
 } from "@/lib/products";
 import { BRL, fmtInt, todayISORecife } from "@/lib/calc";
-import { Plus, Pencil, Trash2, Check, X, Phone, UserPlus, User } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, X, Phone, UserPlus } from "lucide-react";
 import NumberField from "@/components/NumberField";
+import NewSaleModal from "./NewSaleModal";
 
 type Sale = {
   id: string;
@@ -47,8 +48,8 @@ function todayISO() {
 export default function SalesClient({ seller, initial }: { seller: Seller; initial: Sale[] }) {
   const router = useRouter();
   const [list, setList] = useState<Sale[]>(initial);
+  const [modalOpen, setModalOpen] = useState(false);
 
-  const [date, setDate] = useState(todayISO());
   const sellerBus = busOf(seller);
   const hasCppem = sellerBus.includes("cppem");
   const hasUnicive = sellerBus.includes("unicive");
@@ -68,185 +69,35 @@ export default function SalesClient({ seller, initial }: { seller: Seller; initi
     );
   }
 
-  const [line, setLine] = useState<string>(selectLines[0]?.id || "");
-  const [valor, setValor] = useState<number>(0);
-  const [qtd, setQtd] = useState<number>(1);
-  const [cliente, setCliente] = useState<string>("");
-  const [ligacao, setLigacao] = useState<string>("");
-  const [indicacao, setIndicacao] = useState<string>("");
-  const [saving, setSaving] = useState(false);
-
   const totalValor = useMemo(() => list.reduce((a, b) => a + Number(b.valor || 0), 0), [list]);
   const totalQtd = useMemo(() => list.reduce((a, b) => a + Number(b.quantidade || 0), 0), [list]);
 
-  async function add() {
-    if (!ligacao) {
-      alert("Escolha a origem da ligacao antes de lancar.");
-      return;
-    }
-    if (!indicacao) {
-      alert("Informe se a venda foi por indicacao antes de lancar.");
-      return;
-    }
-    setSaving(true);
-    const product_line = line;
-    const r = await fetch("/api/sales", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        sale_date: date,
-        product_line,
-        valor,
-        quantidade: qtd,
-        cliente_nome: cliente,
-        ligacao_status: ligacao,
-        indicacao_status: indicacao,
-      }),
-    });
-    setSaving(false);
-    if (r.ok) {
-      const { data } = await r.json();
-      setList((l) => [data, ...l]);
-      setValor(0);
-      setQtd(1);
-      setCliente("");
-      setLigacao("");
-      setIndicacao("");
-      router.refresh();
-    } else {
-      alert("Erro ao salvar venda.");
-    }
-  }
-
   return (
     <div className="space-y-4">
-      <div className="card">
-        <div className="text-sm font-semibold mb-3">Lancar nova venda</div>
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
-          <div>
-            <label className="label">Data</label>
-            <input type="date" className="input" value={date} max={todayISO()} onChange={(e) => setDate(e.target.value)} />
+      {/* Botao principal: abre o modal/wizard */}
+      <div className="card flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <div className="text-sm font-semibold">Lancar nova venda</div>
+          <div className="text-xs text-white/50">
+            Preencha o passo-a-passo pra registrar sua venda sem erros ou duplicatas.
           </div>
-          <div className="md:col-span-2">
-            <label className="label">Linha de produto</label>
-            <select className="input" value={line} onChange={(e) => setLine(e.target.value)}>
-              {sellerBus.length > 1
-                ? sellerBus.map((b) => {
-                    const groupLabel =
-                      b === "cppem" ? "CPPEM" : b === "unicive" ? "UNICIVE" : "Colegio CPPEM";
-                    return (
-                      <optgroup key={b} label={groupLabel}>
-                        {selectLines
-                          .filter((l) => l.group === groupLabel)
-                          .map((l) => (
-                            <option key={l.id} value={l.id}>
-                              {l.label}
-                            </option>
-                          ))}
-                      </optgroup>
-                    );
-                  })
-                : selectLines.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.label}
-                    </option>
-                  ))}
-            </select>
-          </div>
-          <div>
-            <label className="label">Valor (R$)</label>
-            <NumberField step="0.01" className="input" value={valor} onChange={setValor} />
-          </div>
-          <div>
-            <label className="label">Quantidade</label>
-            <NumberField min={1} className="input" value={qtd} onChange={setQtd} />
-          </div>
-          <button className="btn-primary" disabled={saving || !valor || !ligacao || !indicacao} onClick={add}>
-            <Plus className="w-4 h-4" /> Lancar
-          </button>
         </div>
-
-        {/* Cliente (opcional, mas ajuda muito no controle) */}
-        <div className="mt-4">
-          <label className="label flex items-center gap-1">
-            <User className="w-3 h-3" /> Nome do cliente
-          </label>
-          <input
-            type="text"
-            className="input"
-            placeholder="Ex: Joao da Silva"
-            value={cliente}
-            onChange={(e) => setCliente(e.target.value)}
-            maxLength={200}
-          />
-        </div>
-
-        {/* Seletor obrigatorio de Ligacao */}
-        <div className="mt-4">
-          <label className="label flex items-center gap-1">
-            <Phone className="w-3 h-3" /> Origem por ligacao (obrigatorio)
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {LIGACAO_STATUSES.map((opt) => {
-              const active = ligacao === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setLigacao(opt.id)}
-                  className={`text-left rounded-xl border p-3 transition ${
-                    active ? "border-accent bg-accent/10" : "border-border bg-panel2 hover:border-accent/40"
-                  }`}
-                  style={active ? { boxShadow: `0 0 0 1px ${opt.color}55` } : undefined}
-                >
-                  <div className="text-sm font-semibold" style={{ color: opt.color }}>
-                    {opt.short}
-                  </div>
-                  <div className="text-[11px] text-white/60 mt-0.5 leading-snug">{opt.label}</div>
-                </button>
-              );
-            })}
-          </div>
-          {!ligacao && (
-            <div className="text-[11px] text-warning mt-2">
-              Escolha como essa venda foi originada antes de lancar.
-            </div>
-          )}
-        </div>
-
-        {/* Seletor obrigatorio de Indicacao */}
-        <div className="mt-4">
-          <label className="label flex items-center gap-1">
-            <UserPlus className="w-3 h-3" /> Foi por indicacao? (obrigatorio)
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {INDICACAO_STATUSES.map((opt) => {
-              const active = indicacao === opt.id;
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setIndicacao(opt.id)}
-                  className={`text-left rounded-xl border p-3 transition ${
-                    active ? "border-accent bg-accent/10" : "border-border bg-panel2 hover:border-accent/40"
-                  }`}
-                  style={active ? { boxShadow: `0 0 0 1px ${opt.color}55` } : undefined}
-                >
-                  <div className="text-sm font-semibold" style={{ color: opt.color }}>
-                    {opt.short}
-                  </div>
-                  <div className="text-[11px] text-white/60 mt-0.5 leading-snug">{opt.label}</div>
-                </button>
-              );
-            })}
-          </div>
-          {!indicacao && (
-            <div className="text-[11px] text-warning mt-2">
-              Informe se a venda foi por indicacao antes de lancar.
-            </div>
-          )}
-        </div>
+        <button className="btn-primary" onClick={() => setModalOpen(true)}>
+          <Plus className="w-4 h-4" /> Nova venda
+        </button>
       </div>
+
+      <NewSaleModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onCreated={(data) => {
+          setList((l) => [data as Sale, ...l]);
+          router.refresh();
+        }}
+        todayISO={todayISORecife()}
+        sellerBus={sellerBus}
+        selectLines={selectLines}
+      />
 
       <div className="card p-0 overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-border">

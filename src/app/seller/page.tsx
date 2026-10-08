@@ -9,6 +9,7 @@ import StatCard from "@/components/StatCard";
 import ProgressBar from "@/components/ProgressBar";
 import DailySalesChart from "@/components/charts/DailySalesChart";
 import AvatarUploader from "@/components/AvatarUploader";
+import NewSaleButton from "./sales/NewSaleButton";
 import {
   Flame,
   Target,
@@ -83,9 +84,7 @@ export default async function MyPanel({
               ))}
             </div>
           )}
-          <Link href="/seller/sales" className="btn-primary text-sm">
-            <TrendingUp className="w-4 h-4" /> Lancar nova venda
-          </Link>
+          <NewSaleButton sellerBus={bus} />
         </div>
       </div>
 

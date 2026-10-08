@@ -16,6 +16,7 @@ import {
   Receipt,
   Gamepad2,
   Coins,
+  Settings,
   PanelLeftClose,
   PanelLeft,
 } from "lucide-react";
@@ -24,6 +25,10 @@ export type SidebarItem = {
   href: string;
   label: string;
   icon: keyof typeof ICONS;
+  // Outros prefixos de rota que tambem marcam esse item como ativo
+  // (ex.: "Configuracoes" aponta pra /admin/sellers mas inclui goals/
+  // vendas/comissoes/leads como sub-paginas).
+  activePrefixes?: string[];
 };
 
 const ICONS = {
@@ -37,6 +42,7 @@ const ICONS = {
   receipt: Receipt,
   game: Gamepad2,
   coins: Coins,
+  settings: Settings,
 };
 
 const STORAGE_KEY = "hub_sidebar_collapsed";
@@ -160,7 +166,10 @@ export default function Sidebar({
             const Icon = ICONS[it.icon];
             const active =
               pathname === it.href ||
-              (it.href !== "/" && pathname.startsWith(it.href + "/"));
+              (it.href !== "/" && pathname.startsWith(it.href + "/")) ||
+              (it.activePrefixes || []).some(
+                (p) => pathname === p || pathname.startsWith(p + "/")
+              );
             return (
               <Link
                 key={it.href}

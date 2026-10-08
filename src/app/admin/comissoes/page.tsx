@@ -2,6 +2,7 @@ import { statsForAll } from "@/lib/data";
 import { periodNow } from "@/lib/calc";
 import { loadCommissionRules, calcCommission, rankBUBonus } from "@/lib/commission";
 import { ALL_BUS, type BU } from "@/lib/products";
+import ConfiguracoesSubnav from "@/components/ConfiguracoesSubnav";
 import ComissoesClient from "./comissoes-client";
 
 export const dynamic = "force-dynamic";
@@ -84,6 +85,7 @@ export default async function ComissoesPage() {
 
   return (
     <div className="space-y-4">
+      <ConfiguracoesSubnav />
       <div>
         <h1 className="text-2xl font-bold">Comissoes ao vivo</h1>
         <p className="text-sm text-white/50">

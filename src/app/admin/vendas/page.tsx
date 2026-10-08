@@ -2,6 +2,7 @@ import { listSellers } from "@/lib/data";
 import { supabaseAdmin } from "@/lib/supabase";
 import { periodNow } from "@/lib/calc";
 import { productIdsFor, type BU } from "@/lib/products";
+import ConfiguracoesSubnav from "@/components/ConfiguracoesSubnav";
 import VendasClient from "./vendas-client";
 import BackupButton from "./BackupButton";
 
@@ -59,6 +60,7 @@ export default async function VendasPage({
 
   return (
     <div className="space-y-4">
+      <ConfiguracoesSubnav />
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Todas as vendas</h1>

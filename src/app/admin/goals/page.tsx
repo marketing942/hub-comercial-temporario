@@ -1,6 +1,7 @@
 import { listSellers } from "@/lib/data";
 import { periodNow } from "@/lib/calc";
 import { listLongTermGoals } from "@/lib/longTerm";
+import ConfiguracoesSubnav from "@/components/ConfiguracoesSubnav";
 import GoalsClient from "./goals-client";
 import LongTermGoalsEditor from "./LongTermGoalsEditor";
 
@@ -14,6 +15,7 @@ export default async function GoalsPage() {
   const { year, month } = periodNow();
   return (
     <div className="space-y-6">
+      <ConfiguracoesSubnav />
       <div>
         <h1 className="text-2xl font-bold">Metas do mes</h1>
         <p className="text-sm text-white/50">

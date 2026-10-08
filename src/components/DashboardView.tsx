@@ -125,9 +125,9 @@ export default function DashboardView({
         <LongTermGoalCard progress={snap.longTerm} accent={theme.accent2 || color} />
       )}
 
-      {/* 4 KPIs grandes (sem legenda em baixo). Total Vendido / Matriculas
-          / Faturamento (Unicive) tem BARRA de progresso embutida. */}
-      <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+      {/* Linha 1 — KPIs principais. Colegio (isQtd) tem 5 cards; CPPEM e
+          Unicive tem 4. */}
+      <section className={`grid grid-cols-2 gap-3 ${isQtd ? "xl:grid-cols-5" : "xl:grid-cols-4"}`}>
         {isQtd ? (
           <>
             <BigStatCard
@@ -199,6 +199,38 @@ export default function DashboardView({
               empate={empate}
               semMeta={semMeta}
             />
+            {/* 5o card do Colegio: Meta Dia em R$ (faturamento) */}
+            <MetaDoDiaCard
+              isQtd={false}
+              metaDia={BRL.format(t.metaDiaValor)}
+              realHoje={BRL.format(t.valorHoje)}
+              falta={BRL.format(Math.max(0, t.metaDiaValor - t.valorHoje))}
+              diff={BRL.format(Math.abs(t.valorHoje - t.metaDiaValor))}
+              placarLabel={
+                t.metaValor === 0
+                  ? "Sem meta de R$ definida"
+                  : t.valor >= t.metaValor
+                  ? "Meta de R$ batida"
+                  : t.metaDiaValor === 0
+                  ? "No pace de R$"
+                  : t.valorHoje >= t.metaDiaValor
+                  ? "Vencendo o dia em R$"
+                  : "Atras em R$ no dia"
+              }
+              placarColor={
+                t.metaValor === 0
+                  ? COLOR.mute
+                  : t.valor >= t.metaValor
+                  ? COLOR.ok
+                  : t.valorHoje >= t.metaDiaValor
+                  ? COLOR.ok
+                  : COLOR.danger
+              }
+              vencendo={t.valorHoje >= t.metaDiaValor && t.metaDiaValor > 0}
+              empate={Math.abs(t.valorHoje - t.metaDiaValor) < 0.01}
+              semMeta={t.metaValor === 0 || t.metaDiaValor <= 0}
+              labelOverride="Meta do Dia (Faturamento)"
+            />
           </>
         ) : (
           <>
@@ -257,17 +289,12 @@ export default function DashboardView({
         )}
       </section>
 
-      {/* Linha 2: Ticket, Conversao, Leads, Meta da Semana + extras por BU
-          (Unicive: Matriculas qtd + Meta Dia/Semana qtd;
-           Colegio: Meta Dia/Semana faturamento R$) — tudo na mesma linha
-          pra economizar espaco vertical. */}
+      {/* Linha 2 — Ticket, Conversao, Leads, Meta da Semana (qtd/R$).
+          Colegio ganha +1 card: Meta da Semana (R$) pra equilibrar com
+          a Linha 1 de 5 cards. */}
       <section
         className={`grid gap-3 grid-cols-2 ${
-          bu === "unicive"
-            ? "xl:grid-cols-7"
-            : isQtd
-            ? "xl:grid-cols-6"
-            : "xl:grid-cols-4"
+          isQtd ? "xl:grid-cols-5" : "xl:grid-cols-4"
         }`}
       >
         <CompareStatCard
@@ -314,140 +341,108 @@ export default function DashboardView({
           weekRemaining={t.weekRemaining}
         />
 
-        {/* UNICIVE: 3 extras — Matriculas qtd + Meta Dia (qtd) + Meta Semana (qtd) */}
-        {bu === "unicive" && (
-          <>
-            <BigStatCard
-              label="Matriculas (Real / Meta)"
-              value={`${fmtInt.format(t.qtd)} / ${fmtInt.format(t.metaQtd)}`}
-              icon={<TrendingUp />}
-              accent={COLOR.info}
-              valueColor={COLOR.neutral}
-              progressPct={t.metaQtd > 0 ? (t.qtd / t.metaQtd) * 100 : 0}
-              progressColor={
-                t.metaQtd > 0 && t.qtd >= t.metaQtd ? COLOR.ok : COLOR.info
-              }
-              progressFooter={
-                <>
-                  <span>
-                    <span
-                      style={{
-                        color: t.metaQtd > 0 && t.qtd >= t.metaQtd ? COLOR.ok : COLOR.neutral,
-                      }}
-                    >
-                      {t.metaQtd > 0 ? fmtPct((t.qtd / t.metaQtd) * 100) : "—"}
-                    </span>
-                    <span className="text-white/40">
-                      {" "}·{" "}
-                      {t.metaQtd > 0 && t.qtd >= t.metaQtd
-                        ? "Meta de matriculas batida"
-                        : `Faltam ${fmtInt.format(Math.max(0, t.metaQtd - t.qtd))}`}
-                    </span>
-                  </span>
-                  <PaceProjInfo
-                    paceDelta={paceQtd.paceDelta}
-                    paceIsAhead={paceQtd.paceIsAhead}
-                    hasMeta={paceQtd.hasMeta}
-                    projecao={paceQtd.projecao}
-                    pctProjecao={paceQtd.pctProjecao}
-                    fmt={(n) => fmtInt.format(Math.round(n))}
-                  />
-                </>
-              }
-            />
-            <MetaDoDiaCard
-              isQtd={true}
-              metaDia={fmtInt.format(Math.round(t.metaDiaQtd))}
-              realHoje={fmtInt.format(Math.round(t.qtdHoje))}
-              falta={fmtInt.format(Math.max(0, Math.round(t.metaDiaQtd - t.qtdHoje)))}
-              diff={fmtInt.format(Math.abs(Math.round(t.qtdHoje - t.metaDiaQtd)))}
-              placarLabel={
-                t.metaQtd === 0
-                  ? "Sem meta de matriculas"
-                  : t.qtd >= t.metaQtd
-                  ? "Meta de matriculas batida"
-                  : t.metaDiaQtd === 0
-                  ? "No pace de matriculas"
-                  : t.qtdHoje >= t.metaDiaQtd
-                  ? "Vencendo em matriculas"
-                  : "Atras em matriculas"
-              }
-              placarColor={
-                t.metaQtd === 0
-                  ? COLOR.mute
-                  : t.qtd >= t.metaQtd
-                  ? COLOR.ok
-                  : t.qtdHoje >= t.metaDiaQtd
-                  ? COLOR.ok
-                  : COLOR.danger
-              }
-              vencendo={t.qtdHoje >= t.metaDiaQtd && t.metaDiaQtd > 0}
-              empate={Math.abs(t.qtdHoje - t.metaDiaQtd) < 0.5}
-              semMeta={t.metaQtd === 0 || t.metaDiaQtd <= 0}
-              labelOverride="Meta do Dia (Matriculas)"
-            />
-            <MetaDaSemanaCard
-              isQtd={true}
-              fmtMeta={(n: number) => fmtInt.format(Math.round(n))}
-              weekActive={t.weekActive}
-              weekStartDay={t.weekStartDay}
-              weekEndDay={t.weekEndDay}
-              weekTarget={t.weekTargetQtd}
-              weekReal={t.weekRealQtd}
-              weekRemaining={t.weekRemainingQtd}
-              labelOverride="Meta da Semana (Matriculas)"
-            />
-          </>
-        )}
-
-        {/* COLEGIO: 2 extras — Meta Dia (R$) + Meta Semana (R$) */}
+        {/* COLEGIO: 5o card — Meta da Semana (R$) */}
         {isQtd && (
-          <>
-            <MetaDoDiaCard
-              isQtd={false}
-              metaDia={BRL.format(t.metaDiaValor)}
-              realHoje={BRL.format(t.valorHoje)}
-              falta={BRL.format(Math.max(0, t.metaDiaValor - t.valorHoje))}
-              diff={BRL.format(Math.abs(t.valorHoje - t.metaDiaValor))}
-              placarLabel={
-                t.metaValor === 0
-                  ? "Sem meta de R$ definida"
-                  : t.valor >= t.metaValor
-                  ? "Meta de R$ batida"
-                  : t.metaDiaValor === 0
-                  ? "No pace de R$"
-                  : t.valorHoje >= t.metaDiaValor
-                  ? "Vencendo o dia em R$"
-                  : "Atras em R$ no dia"
-              }
-              placarColor={
-                t.metaValor === 0
-                  ? COLOR.mute
-                  : t.valor >= t.metaValor
-                  ? COLOR.ok
-                  : t.valorHoje >= t.metaDiaValor
-                  ? COLOR.ok
-                  : COLOR.danger
-              }
-              vencendo={t.valorHoje >= t.metaDiaValor && t.metaDiaValor > 0}
-              empate={Math.abs(t.valorHoje - t.metaDiaValor) < 0.01}
-              semMeta={t.metaValor === 0 || t.metaDiaValor <= 0}
-              labelOverride="Meta do Dia (Faturamento)"
-            />
-            <MetaDaSemanaCard
-              isQtd={false}
-              fmtMeta={(n: number) => BRL.format(n)}
-              weekActive={t.weekActive}
-              weekStartDay={t.weekStartDay}
-              weekEndDay={t.weekEndDay}
-              weekTarget={t.weekTargetValor}
-              weekReal={t.weekRealValor}
-              weekRemaining={t.weekRemainingValor}
-              labelOverride="Meta da Semana (Faturamento)"
-            />
-          </>
+          <MetaDaSemanaCard
+            isQtd={false}
+            fmtMeta={(n: number) => BRL.format(n)}
+            weekActive={t.weekActive}
+            weekStartDay={t.weekStartDay}
+            weekEndDay={t.weekEndDay}
+            weekTarget={t.weekTargetValor}
+            weekReal={t.weekRealValor}
+            weekRemaining={t.weekRemainingValor}
+            labelOverride="Meta da Semana (Faturamento)"
+          />
         )}
       </section>
+
+      {/* Linha 3 — So UNICIVE: 3 cards de matriculas (secundaria), bem
+          distribuidos pra nao ficar aperto. */}
+      {bu === "unicive" && (
+        <section className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <BigStatCard
+            label="Matriculas (Real / Meta)"
+            value={`${fmtInt.format(t.qtd)} / ${fmtInt.format(t.metaQtd)}`}
+            icon={<TrendingUp />}
+            accent={COLOR.info}
+            valueColor={COLOR.neutral}
+            progressPct={t.metaQtd > 0 ? (t.qtd / t.metaQtd) * 100 : 0}
+            progressColor={
+              t.metaQtd > 0 && t.qtd >= t.metaQtd ? COLOR.ok : COLOR.info
+            }
+            progressFooter={
+              <>
+                <span>
+                  <span
+                    style={{
+                      color: t.metaQtd > 0 && t.qtd >= t.metaQtd ? COLOR.ok : COLOR.neutral,
+                    }}
+                  >
+                    {t.metaQtd > 0 ? fmtPct((t.qtd / t.metaQtd) * 100) : "—"}
+                  </span>
+                  <span className="text-white/40">
+                    {" "}·{" "}
+                    {t.metaQtd > 0 && t.qtd >= t.metaQtd
+                      ? "Meta de matriculas batida"
+                      : `Faltam ${fmtInt.format(Math.max(0, t.metaQtd - t.qtd))}`}
+                  </span>
+                </span>
+                <PaceProjInfo
+                  paceDelta={paceQtd.paceDelta}
+                  paceIsAhead={paceQtd.paceIsAhead}
+                  hasMeta={paceQtd.hasMeta}
+                  projecao={paceQtd.projecao}
+                  pctProjecao={paceQtd.pctProjecao}
+                  fmt={(n) => fmtInt.format(Math.round(n))}
+                />
+              </>
+            }
+          />
+          <MetaDoDiaCard
+            isQtd={true}
+            metaDia={fmtInt.format(Math.round(t.metaDiaQtd))}
+            realHoje={fmtInt.format(Math.round(t.qtdHoje))}
+            falta={fmtInt.format(Math.max(0, Math.round(t.metaDiaQtd - t.qtdHoje)))}
+            diff={fmtInt.format(Math.abs(Math.round(t.qtdHoje - t.metaDiaQtd)))}
+            placarLabel={
+              t.metaQtd === 0
+                ? "Sem meta de matriculas"
+                : t.qtd >= t.metaQtd
+                ? "Meta de matriculas batida"
+                : t.metaDiaQtd === 0
+                ? "No pace de matriculas"
+                : t.qtdHoje >= t.metaDiaQtd
+                ? "Vencendo em matriculas"
+                : "Atras em matriculas"
+            }
+            placarColor={
+              t.metaQtd === 0
+                ? COLOR.mute
+                : t.qtd >= t.metaQtd
+                ? COLOR.ok
+                : t.qtdHoje >= t.metaDiaQtd
+                ? COLOR.ok
+                : COLOR.danger
+            }
+            vencendo={t.qtdHoje >= t.metaDiaQtd && t.metaDiaQtd > 0}
+            empate={Math.abs(t.qtdHoje - t.metaDiaQtd) < 0.5}
+            semMeta={t.metaQtd === 0 || t.metaDiaQtd <= 0}
+            labelOverride="Meta do Dia (Matriculas)"
+          />
+          <MetaDaSemanaCard
+            isQtd={true}
+            fmtMeta={(n: number) => fmtInt.format(Math.round(n))}
+            weekActive={t.weekActive}
+            weekStartDay={t.weekStartDay}
+            weekEndDay={t.weekEndDay}
+            weekTarget={t.weekTargetQtd}
+            weekReal={t.weekRealQtd}
+            weekRemaining={t.weekRemainingQtd}
+            labelOverride="Meta da Semana (Matriculas)"
+          />
+        </section>
+      )}
 
       {/* ===== Grafico unificado (Vendas + Leads + % Meta) — maior,
           3x o tamanho dos antigos, ocupando toda a linha ===== */}
