@@ -14,13 +14,9 @@ import {
   Wallet,
 } from "lucide-react";
 import NumberField from "@/components/NumberField";
-import { BRL } from "@/lib/calc";
 import {
-  productLabel,
   LIGACAO_STATUSES,
-  ligacaoShort,
   INDICACAO_STATUSES,
-  indicacaoShort,
   type BU,
 } from "@/lib/products";
 
@@ -38,7 +34,7 @@ export type NewSaleData = {
   indicacao_status?: string | null;
 };
 
-const STEP_LABELS = ["Produto", "Valor", "Origem", "Confirmar"];
+const STEP_LABELS = ["Produto", "Valor", "Origem"];
 
 export default function NewSaleModal({
   open,
@@ -133,14 +129,11 @@ export default function NewSaleModal({
   function next() {
     if (step === 0 && !canStep0) return;
     if (step === 1 && !canStep1) return;
-    if (step === 2 && !canStep2) return;
-    setStep((s) => Math.min(3, s + 1));
+    setStep((s) => Math.min(2, s + 1));
   }
   function back() {
     setStep((s) => Math.max(0, s - 1));
   }
-
-  const lineLabel = selectLines.find((l) => l.id === line)?.label || line;
 
   return (
     <div
@@ -156,7 +149,7 @@ export default function NewSaleModal({
           <div>
             <div className="text-sm font-semibold">Nova venda</div>
             <div className="text-[11px] text-white/50">
-              Passo {step + 1} de 4 · {STEP_LABELS[step]}
+              Passo {step + 1} de 3 · {STEP_LABELS[step]}
             </div>
           </div>
           <button
@@ -365,27 +358,6 @@ export default function NewSaleModal({
             </>
           )}
 
-          {step === 3 && (
-            <div className="space-y-2">
-              <div className="text-xs text-white/50 uppercase tracking-wider">
-                Confira os dados antes de lancar
-              </div>
-              <div className="rounded-xl border border-border bg-panel2/40 p-3 space-y-1.5 text-sm">
-                <Row label="Data" value={new Date(date + "T00:00").toLocaleDateString("pt-BR")} />
-                <Row label="Produto" value={productLabel(line) || lineLabel} />
-                <Row label="Cliente" value={cliente || "—"} />
-                <Row label="Valor" value={BRL.format(valor)} valueBold />
-                <Row label="Quantidade" value={String(qtd)} />
-                <Row label="Origem" value={ligacaoShort(ligacao)} />
-                <Row label="Indicacao" value={indicacaoShort(indicacao)} />
-                {obs && <Row label="Observacao" value={obs} />}
-              </div>
-              <div className="text-[11px] text-white/50">
-                Ao confirmar, a venda sera registrada no seu nome.
-              </div>
-            </div>
-          )}
-
           {err && <div className="text-xs text-danger">{err}</div>}
         </div>
 
@@ -398,15 +370,11 @@ export default function NewSaleModal({
           >
             <ArrowLeft className="w-4 h-4" /> Voltar
           </button>
-          {step < 3 ? (
+          {step < 2 ? (
             <button
               className="btn-primary h-9 text-sm"
               onClick={next}
-              disabled={
-                (step === 0 && !canStep0) ||
-                (step === 1 && !canStep1) ||
-                (step === 2 && !canStep2)
-              }
+              disabled={(step === 0 && !canStep0) || (step === 1 && !canStep1)}
             >
               Avancar <ArrowRight className="w-4 h-4" />
             </button>
@@ -417,21 +385,10 @@ export default function NewSaleModal({
               disabled={!canSubmit || saving}
             >
               {saving ? <RotateCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-              {saving ? "Salvando..." : "Confirmar e lancar"}
+              {saving ? "Salvando..." : "Lancar venda"}
             </button>
           )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-function Row({ label, value, valueBold }: { label: string; value: string; valueBold?: boolean }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <div className="text-xs text-white/50">{label}</div>
-      <div className={`text-right ${valueBold ? "text-base font-bold text-white" : "text-sm text-white/90"}`}>
-        {value}
       </div>
     </div>
   );

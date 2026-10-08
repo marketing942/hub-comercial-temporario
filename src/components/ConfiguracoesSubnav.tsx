@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, Target, Receipt, Coins, Zap } from "lucide-react";
+import { Users, Target, Receipt, Coins, Zap, ShoppingCart } from "lucide-react";
 
 type Tab = {
   href: string;
@@ -15,6 +15,7 @@ const TABS: Tab[] = [
   { href: "/admin/vendas", label: "Todas as Vendas", icon: <Receipt className="w-3.5 h-3.5" /> },
   { href: "/admin/comissoes", label: "Comissoes", icon: <Coins className="w-3.5 h-3.5" /> },
   { href: "/admin/leads", label: "Leads", icon: <Zap className="w-3.5 h-3.5" /> },
+  { href: "/admin/direto", label: "Direto / IA", icon: <ShoppingCart className="w-3.5 h-3.5" /> },
 ];
 
 export default function ConfiguracoesSubnav() {

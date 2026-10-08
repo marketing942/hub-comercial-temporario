@@ -13,9 +13,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       href: "/admin/sellers",
       label: "Configuracoes",
       icon: "settings",
-      activePrefixes: ["/admin/goals", "/admin/vendas", "/admin/comissoes", "/admin/leads"],
+      activePrefixes: ["/admin/goals", "/admin/vendas", "/admin/comissoes", "/admin/leads", "/admin/direto"],
     },
-    { href: "/admin/direto", label: "Direto / IA", icon: "cart" },
     { href: "/dashboard", label: "Dashboard TV", icon: "trophy" },
   ];
 
