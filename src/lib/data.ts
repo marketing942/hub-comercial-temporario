@@ -50,21 +50,49 @@ export function buListOf(s: Pick<Seller, "bu" | "bus">): ("cppem" | "unicive" | 
   return sanitizeBus(s.bus, s.bu);
 }
 
-// Nao devolve password_hash pro cliente — apenas um boolean has_password
-// derivado em normalizeSeller.
-const SELLER_COLS =
+// Colunas que a UI usa. password_hash NAO vai pro cliente — e
+// convertido em has_password:bool via normalizeSeller. Mantemos um
+// fallback sem password_hash pra o caso do banco ainda nao ter a
+// coluna (schema nao rodado), evitando que o sistema inteiro apareca
+// vazio de vendedores.
+const SELLER_COLS_WITH_PWD =
   "id, name, bu, bus, active, avatar_color, avatar_url, password_hash";
+const SELLER_COLS_FALLBACK =
+  "id, name, bu, bus, active, avatar_color, avatar_url";
 
 export async function listSellers(opts?: { onlyActive?: boolean }): Promise<Seller[]> {
-  let q = supabaseAdmin.from("sellers").select(SELLER_COLS).order("name");
-  if (opts?.onlyActive) q = q.eq("active", true);
-  const { data } = await q;
+  const run = async (cols: string) => {
+    let q = supabaseAdmin.from("sellers").select(cols).order("name");
+    if (opts?.onlyActive) q = q.eq("active", true);
+    return q;
+  };
+  let { data, error } = await run(SELLER_COLS_WITH_PWD);
+  if (error) {
+    // Provavel: coluna password_hash ainda nao criada no banco. Loga
+    // uma vez e tenta de novo sem ela.
+    console.warn("listSellers com password_hash falhou — fallback:", error.message);
+    ({ data, error } = await run(SELLER_COLS_FALLBACK));
+  }
+  if (error) {
+    console.error("listSellers falhou:", error.message);
+    return [];
+  }
   return ((data as any[]) || []).map(normalizeSeller);
 }
 
 export async function getSeller(id: string): Promise<Seller | null> {
-  const { data } = await supabaseAdmin.from("sellers").select(SELLER_COLS).eq("id", id).maybeSingle();
-  return data ? normalizeSeller(data) : null;
+  const run = (cols: string) =>
+    supabaseAdmin.from("sellers").select(cols).eq("id", id).maybeSingle();
+  let { data, error } = await run(SELLER_COLS_WITH_PWD);
+  if (error) {
+    console.warn("getSeller com password_hash falhou — fallback:", error.message);
+    ({ data, error } = await run(SELLER_COLS_FALLBACK));
+  }
+  if (error) {
+    console.error("getSeller falhou:", error.message);
+    return null;
+  }
+  return data ? normalizeSeller(data as any) : null;
 }
 
 export async function listSellersOfBu(bu: "cppem" | "unicive" | "colegio_cppem", opts?: { onlyActive?: boolean }): Promise<Seller[]> {
