@@ -1,11 +1,10 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trophy, ShieldCheck, Users } from "lucide-react";
+import { Trophy, Key } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [role, setRole] = useState<"seller" | "admin">("seller");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -17,16 +16,16 @@ export default function LoginPage() {
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ role, password }),
+      body: JSON.stringify({ password }),
     });
     setLoading(false);
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
-      setErr(j.error || "Senha invalida.");
+      setErr(j.error || "Chave invalida.");
       return;
     }
-    if (role === "admin") router.push("/admin");
-    else router.push("/escolher-vendedor");
+    const j = await res.json().catch(() => ({}));
+    router.push(j.role === "admin" ? "/admin/sellers" : "/seller");
   }
 
   return (
@@ -43,27 +42,10 @@ export default function LoginPage() {
         </div>
 
         <div className="card">
-          <div className="grid grid-cols-2 gap-2 mb-4">
-            <button
-              type="button"
-              onClick={() => setRole("seller")}
-              className={`btn ${role === "seller" ? "btn-primary" : "btn-ghost"}`}
-            >
-              <Users className="w-4 h-4" /> Vendedor
-            </button>
-            <button
-              type="button"
-              onClick={() => setRole("admin")}
-              className={`btn ${role === "admin" ? "btn-primary" : "btn-ghost"}`}
-            >
-              <ShieldCheck className="w-4 h-4" /> Administrador
-            </button>
-          </div>
-
           <form onSubmit={submit} className="space-y-3">
             <div>
-              <label className="label">
-                {role === "admin" ? "Senha do administrador" : "Senha do vendedor"}
+              <label className="label flex items-center gap-1">
+                <Key className="w-3 h-3" /> Chave de acesso
               </label>
               <input
                 className="input"
@@ -71,7 +53,7 @@ export default function LoginPage() {
                 autoFocus
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Digite a chave de acesso"
+                placeholder="Digite sua chave de acesso"
               />
             </div>
             {err && <div className="text-sm text-danger">{err}</div>}
@@ -81,7 +63,7 @@ export default function LoginPage() {
           </form>
 
           <p className="text-xs text-white/40 mt-4">
-            Esqueceu a senha? Fale com o administrador do hub.
+            O sistema identifica o seu acesso pela chave. Esqueceu? Fale com o administrador.
           </p>
         </div>
       </div>

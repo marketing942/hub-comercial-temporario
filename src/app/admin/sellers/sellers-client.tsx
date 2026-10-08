@@ -1,7 +1,7 @@
 "use client";
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Power, Trash2, Search } from "lucide-react";
+import { Plus, Power, Trash2, Search, Key, X, Check, RotateCw } from "lucide-react";
 import { BU_LABEL } from "@/lib/brand";
 import { ALL_BUS, type BU } from "@/lib/products";
 
@@ -12,6 +12,7 @@ type Seller = {
   bus?: BU[];
   active: boolean;
   avatar_color: string;
+  has_password?: boolean;
 };
 
 function busOf(s: Seller): BU[] {
@@ -35,6 +36,9 @@ export default function SellersClient({ initial }: { initial: Seller[] }) {
   const [search, setSearch] = useState("");
   const [buFilter, setBuFilter] = useState<BuFilter>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+
+  // Modal de senha
+  const [pwTarget, setPwTarget] = useState<Seller | null>(null);
 
   function toggleBu(b: BU) {
     setBus((prev) => (prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b]));
@@ -214,13 +218,14 @@ export default function SellersClient({ initial }: { initial: Seller[] }) {
                 <th className="p-3">Nome</th>
                 <th className="p-3">Atua em</th>
                 <th className="p-3">Status</th>
-                <th className="p-3 text-right w-32">Acoes</th>
+                <th className="p-3">Senha</th>
+                <th className="p-3 text-right w-36">Acoes</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="p-6 text-center text-white/40 text-xs">
+                  <td colSpan={5} className="p-6 text-center text-white/40 text-xs">
                     Nenhum vendedor encontrado com esses filtros.
                   </td>
                 </tr>
@@ -281,9 +286,23 @@ export default function SellersClient({ initial }: { initial: Seller[] }) {
                         {s.active ? "Ativo" : "Inativo"}
                       </span>
                     </td>
+                    <td className="p-3">
+                      {s.has_password ? (
+                        <span className="chip bg-success/15 text-success">Definida</span>
+                      ) : (
+                        <span className="chip bg-warning/15 text-warning">Nao definida</span>
+                      )}
+                    </td>
                     <td className="p-3 text-right">
                       <button
-                        className="btn-ghost h-8 px-2 mr-1.5"
+                        className="btn-ghost h-8 px-2 mr-1"
+                        onClick={() => setPwTarget(s)}
+                        title="Definir / redefinir senha"
+                      >
+                        <Key className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        className="btn-ghost h-8 px-2 mr-1"
                         onClick={() => toggle(s)}
                         title={s.active ? "Inativar" : "Ativar"}
                       >
@@ -302,6 +321,131 @@ export default function SellersClient({ initial }: { initial: Seller[] }) {
               })}
             </tbody>
           </table>
+        </div>
+      </div>
+      {/* Modal de senha */}
+      <PasswordModal
+        target={pwTarget}
+        onClose={() => setPwTarget(null)}
+        onDone={(id) => {
+          setList((l) => l.map((x) => (x.id === id ? { ...x, has_password: true } : x)));
+          router.refresh();
+        }}
+      />
+    </div>
+  );
+}
+
+function PasswordModal({
+  target,
+  onClose,
+  onDone,
+}: {
+  target: Seller | null;
+  onClose: () => void;
+  onDone: (id: string) => void;
+}) {
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  if (!target) return null;
+
+  async function save() {
+    setErr(null);
+    if (!target) return;
+    if (pw.length < 4) {
+      setErr("Senha precisa ter no minimo 4 caracteres.");
+      return;
+    }
+    if (pw !== pw2) {
+      setErr("As senhas nao coincidem.");
+      return;
+    }
+    setSaving(true);
+    const r = await fetch(`/api/sellers/${target.id}/password`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ password: pw }),
+    });
+    setSaving(false);
+    if (r.ok) {
+      onDone(target.id);
+      setPw("");
+      setPw2("");
+      onClose();
+    } else {
+      const j = await r.json().catch(() => ({}));
+      setErr(j.error || "Erro ao salvar.");
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm grid place-items-center p-3 sm:p-6"
+      onClick={() => !saving && onClose()}
+    >
+      <div
+        className="bg-panel border border-border rounded-2xl shadow-glow w-full max-w-sm overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <div>
+            <div className="text-sm font-semibold">
+              {target.has_password ? "Redefinir senha" : "Definir senha"}
+            </div>
+            <div className="text-[11px] text-white/50">
+              Vendedor: <b className="text-white/80">{target.name}</b>
+            </div>
+          </div>
+          <button
+            className="w-8 h-8 grid place-items-center rounded-lg hover:bg-panel2 text-white/60 hover:text-white"
+            onClick={onClose}
+            disabled={saving}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="p-4 space-y-3">
+          <div>
+            <label className="label">Nova senha</label>
+            <input
+              type="password"
+              className="input"
+              value={pw}
+              onChange={(e) => setPw(e.target.value)}
+              autoFocus
+              placeholder="Mínimo 4 caracteres"
+            />
+          </div>
+          <div>
+            <label className="label">Confirmar senha</label>
+            <input
+              type="password"
+              className="input"
+              value={pw2}
+              onChange={(e) => setPw2(e.target.value)}
+              placeholder="Digite novamente"
+            />
+          </div>
+          <div className="text-[11px] text-white/50 leading-snug">
+            O vendedor usara essa chave para entrar no sistema. Ele pode trocar a propria senha depois no painel dele.
+          </div>
+          {err && <div className="text-xs text-danger">{err}</div>}
+        </div>
+        <div className="px-4 py-3 border-t border-border flex items-center justify-end gap-2">
+          <button className="btn-ghost h-9 text-sm" onClick={onClose} disabled={saving}>
+            Cancelar
+          </button>
+          <button
+            className="btn-primary h-9 text-sm"
+            onClick={save}
+            disabled={saving || !pw || !pw2}
+          >
+            {saving ? <RotateCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+            {saving ? "Salvando..." : "Salvar"}
+          </button>
         </div>
       </div>
     </div>

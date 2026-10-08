@@ -179,10 +179,14 @@ create table public."sellers" (
   "active" boolean default true not null,
   "avatar_color" text default '#22c55e'::text not null,
   "avatar_url" text,
+  "password_hash" text,
   "created_at" timestamp with time zone default now() not null,
   constraint "sellers_pkey" PRIMARY KEY (id),
   constraint "sellers_bu_check" CHECK ((bu = ANY (ARRAY['cppem'::text, 'unicive'::text, 'colegio_cppem'::text])))
 );
+-- Migracao idempotente: coluna de senha individual por vendedor
+-- (login unificado — cada vendedor tem uma chave propria).
+alter table public.sellers add column if not exists password_hash text;
 
 create table public."daily_leads" (
   "id" uuid default gen_random_uuid() not null,

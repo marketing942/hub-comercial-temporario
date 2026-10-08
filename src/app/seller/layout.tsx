@@ -7,10 +7,10 @@ import type { SidebarItem } from "@/components/Sidebar";
 export default async function SellerLayout({ children }: { children: React.ReactNode }) {
   const s = await getSession();
   if (!s) redirect("/login");
-  if (s.role !== "seller") redirect("/admin");
-  if (!s.sellerId) redirect("/escolher-vendedor");
+  if (s.role !== "seller") redirect("/admin/sellers");
+  if (!s.sellerId) redirect("/login");
   const seller = await getSeller(s.sellerId);
-  if (!seller) redirect("/escolher-vendedor");
+  if (!seller) redirect("/login");
 
   const items: SidebarItem[] = [
     { href: "/dashboard", label: "Dashboard TV", icon: "trophy" },

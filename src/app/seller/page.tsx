@@ -10,6 +10,7 @@ import ProgressBar from "@/components/ProgressBar";
 import DailySalesChart from "@/components/charts/DailySalesChart";
 import AvatarUploader from "@/components/AvatarUploader";
 import NewSaleButton from "./sales/NewSaleButton";
+import ChangePasswordButton from "@/components/ChangePasswordButton";
 import {
   Flame,
   Target,
@@ -85,6 +86,10 @@ export default async function MyPanel({
             </div>
           )}
           <NewSaleButton sellerBus={bus} />
+          <ChangePasswordButton
+            sellerName={seller.name}
+            hasPassword={Boolean(seller.has_password)}
+          />
         </div>
       </div>
 

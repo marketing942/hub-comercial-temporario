@@ -35,19 +35,21 @@ export async function middleware(req: NextRequest) {
   const isAdminArea = pathname.startsWith("/admin");
   const isSellerArea = pathname.startsWith("/seller");
   const isDashboard = pathname.startsWith("/dashboard");
-  const isPickSeller = pathname.startsWith("/escolher-vendedor");
 
-  if (!session && (isAdminArea || isSellerArea || isDashboard || isPickSeller)) {
+  if (!session && (isAdminArea || isSellerArea || isDashboard)) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
   if (session?.role === "seller" && isAdminArea) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
   if (session?.role === "admin" && isSellerArea) {
-    return NextResponse.redirect(new URL("/admin", req.url));
+    return NextResponse.redirect(new URL("/admin/sellers", req.url));
   }
+  // Login unificado: toda sessao de seller agora ja carrega sellerId. Se
+  // vier uma sessao antiga sem sellerId (cookie legado), manda pro login
+  // pra re-autenticar com a chave propria do vendedor.
   if (session?.role === "seller" && !session.sellerId && (isSellerArea || isDashboard)) {
-    return NextResponse.redirect(new URL("/escolher-vendedor", req.url));
+    return NextResponse.redirect(new URL("/login", req.url));
   }
   return NextResponse.next();
 }
@@ -57,7 +59,6 @@ export const config = {
     "/admin/:path*",
     "/seller/:path*",
     "/dashboard/:path*",
-    "/escolher-vendedor",
     "/api/:path*",
   ],
 };

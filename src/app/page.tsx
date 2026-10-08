@@ -4,7 +4,7 @@ import { getSession } from "@/lib/auth";
 export default async function Home() {
   const s = await getSession();
   if (!s) redirect("/login");
-  if (s.role === "admin") redirect("/admin");
-  if (!s.sellerId) redirect("/escolher-vendedor");
-  redirect("/dashboard");
+  if (s.role === "admin") redirect("/admin/sellers");
+  if (!s.sellerId) redirect("/login");
+  redirect("/seller");
 }

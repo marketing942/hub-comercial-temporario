@@ -22,6 +22,7 @@ export type Seller = {
   active: boolean;
   avatar_color: string;
   avatar_url?: string | null;
+  has_password?: boolean;
 };
 
 function sanitizeBus(raw: any, fallbackBu: "cppem" | "unicive" | "colegio_cppem"): ("cppem" | "unicive" | "colegio_cppem")[] {
@@ -41,6 +42,7 @@ function normalizeSeller(row: any): Seller {
     active: row.active,
     avatar_color: row.avatar_color,
     avatar_url: row.avatar_url,
+    has_password: Boolean(row.password_hash),
   };
 }
 
@@ -48,15 +50,20 @@ export function buListOf(s: Pick<Seller, "bu" | "bus">): ("cppem" | "unicive" | 
   return sanitizeBus(s.bus, s.bu);
 }
 
+// Nao devolve password_hash pro cliente — apenas um boolean has_password
+// derivado em normalizeSeller.
+const SELLER_COLS =
+  "id, name, bu, bus, active, avatar_color, avatar_url, password_hash";
+
 export async function listSellers(opts?: { onlyActive?: boolean }): Promise<Seller[]> {
-  let q = supabaseAdmin.from("sellers").select("*").order("name");
+  let q = supabaseAdmin.from("sellers").select(SELLER_COLS).order("name");
   if (opts?.onlyActive) q = q.eq("active", true);
   const { data } = await q;
   return ((data as any[]) || []).map(normalizeSeller);
 }
 
 export async function getSeller(id: string): Promise<Seller | null> {
-  const { data } = await supabaseAdmin.from("sellers").select("*").eq("id", id).maybeSingle();
+  const { data } = await supabaseAdmin.from("sellers").select(SELLER_COLS).eq("id", id).maybeSingle();
   return data ? normalizeSeller(data) : null;
 }
 
