@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth";
 import { getSeller } from "@/lib/data";
 import AppShell from "@/components/AppShell";
+import NewSaleNotifier from "@/components/NewSaleNotifier";
 import type { SidebarItem } from "@/components/Sidebar";
 import { redirect } from "next/navigation";
 
@@ -30,6 +31,9 @@ export default async function DashLayout({ children }: { children: React.ReactNo
   return (
     <AppShell role={s.role} sellerName={seller?.name} items={items}>
       {children}
+      {/* Notificacao comemorativa quando uma venda nova entra. Fica no
+          layout do /dashboard pra aparecer em todos os slides. */}
+      <NewSaleNotifier />
     </AppShell>
   );
 }
